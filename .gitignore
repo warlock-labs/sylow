@@ -12,3 +12,6 @@ Cargo.lock
 
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
+
+# Development jupyter notebook business
+notebooks/.ipynb_checkpoints
