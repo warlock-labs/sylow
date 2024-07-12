@@ -64,3 +64,22 @@ What might this look like? I'd recommend looking at the implementation [here](ht
 However, [it was shown](https://www.researchgate.net/publication/2558744_Revisiting_the_Distributed_Key_Generation_for_Discrete-Log_Based_Cryptosystems) that using Feldman vss for both stages is actually secure enough when subsequently used in a thresholding signature scheme! This is why cloudflare uses it, and saves them the pain of implementing two different VSS schemes.
 
 
+## publically verifiable secret sharing and DKG
+
+The schemes above rely on internal validation of the council for maintaining honesty and rigor, but if the entire idea is to create a scheme that removes trust, this is a natural point to consider for further improvements. We move to define a publically verifiable secret sharing protocol:
+
+1. Setup
+  - The initial parameters contain information about base field, $(t,n)$ and the relation defining valid key pairs (pairing relation)
+  - Generate public private key pair with SNARK proof asserting the validity of the pair
+  - Execution of proof - verify validity
+
+2. Distribution
+  - This takes a secret, and outputs encrypted partial shares and a SNARK proof asserting sharing correctness
+3. Distribution verification
+  - Execution of previous proof - verify distribution of shares
+4. Reconstruction
+  - outputs a decrypted share and a proof of decryption
+  - reconstruct the secert or return an error
+5. Verify the reconstruction (namely if decryted share is valid decryption of the partial share)
+
+You'll notice that there are many SNARKs involved in this process, which adds must complications and headaches. For this reason, it's difficult to implement this protocol, so if you don't need this level of scrutiny, then it's probably better to not do this. I'd read [this](https://eprint.iacr.org/2023/1651.pdf) for a nice overview.
