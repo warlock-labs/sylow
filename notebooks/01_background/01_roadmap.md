@@ -1,13 +1,3 @@
----
-jupyter:
-  jupytext:
-    text_representation:
-      extension: .md
-      format_name: markdown
-      format_version: '1.3'
-      jupytext_version: 1.16.3
----
-
 # Math Primer for BLS and BN254
 
 We'll begin with fundamental concepts in set theory, group theory, and ring theory. These will provide the basis for understanding more advanced structures like fields and vector spaces. Number theory and Euclidean domains will be introduced to provide essential tools for cryptographic applications.

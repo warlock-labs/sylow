@@ -1,13 +1,3 @@
----
-jupyter:
-  jupytext:
-    text_representation:
-      extension: .md
-      format_name: markdown
-      format_version: '1.3'
-      jupytext_version: 1.16.3
----
-
 ## Vector Spaces
 
 Vector spaces are fundamental algebraic structures that generalize the notion of vectors in two or three-dimensional space to any number of dimensions.

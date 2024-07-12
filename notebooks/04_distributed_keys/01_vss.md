@@ -1,13 +1,3 @@
----
-jupyter:
-  jupytext:
-    text_representation:
-      extension: .md
-      format_name: markdown
-      format_version: '1.3'
-      jupytext_version: 1.16.3
----
-
 ## Distributed Keys
 
 When dealing with cryptography in general, the source of truth you use for encrypting your secrets is usually a single point of failure, in any naïve implementations. This could be the private key used to generate / verify signatures for example. Also, when decentralizing cryptography protocols, traditional ideas of verification must be extended to encompass many parties, with the intention of removing single point failures, not adding more. This goes over the basics of related distribution protocols for secret sharing and validation.

@@ -1,13 +1,3 @@
----
-jupyter:
-  jupytext:
-    text_representation:
-      extension: .md
-      format_name: markdown
-      format_version: '1.3'
-      jupytext_version: 1.16.3
----
-
 ## Set Theory
 
 Set theory forms the bedrock of modern mathematics. It provides us with a language to discuss collections of objects and the 

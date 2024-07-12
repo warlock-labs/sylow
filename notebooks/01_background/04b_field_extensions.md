@@ -1,13 +1,3 @@
----
-jupyter:
-  jupytext:
-    text_representation:
-      extension: .md
-      format_name: markdown
-      format_version: '1.3'
-      jupytext_version: 1.16.3
----
-
 ## Field Extensions and Towers over Finite Fields
 
 Let $p$ be a prime number. We'll consider field extensions over $\mathbb{Z}_p = \mathbb{F}_p$, the finite field with $p$ elements.
