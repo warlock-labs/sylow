@@ -54,8 +54,9 @@ By the tower law: $[\mathbb{F}_{625} : \mathbb{F}_5] = 2 * 2 = 4$
 
 ### Algebraicity
 
-This is a topic that is advanced even for the scope of this revision, but it becomes important to consider later, and is a key concept of Galois theory. Given an extension $E \subset F$ and an element $\vartheta\in E$, the following conditions are equivalent:
-- $\vartheta$ is a root of $f(t)\neq\mathbb{0}\in F[t]$
+This is a topic that is advanced even for the scope of this revision, but it becomes important to consider later, and is a key concept of Galois theory. Given an extension $E \supset F$ and an element $\vartheta\in E$, the following conditions are equivalent:
+
+- $\vartheta$ is a root of $f(t)\neq\mathbf{0}\in F[t]$
 - $\{1,\vartheta, \vartheta^2,\cdots\}$ are linearly independent on $F$;
 - $F[\vartheta]$ is a field
 
