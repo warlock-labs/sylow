@@ -1,6 +1,6 @@
 ---
 title: Chaos Background
-author: Tristan Britt  (\texttt{tristan@warlock.xyz})
+author: Tristan Britt  (\texttt{tristan@warlock.xyz}), 0xAlcibiades (\texttt{alcibiades@warlock.xyz})
 date: July 2024
 ---
 
