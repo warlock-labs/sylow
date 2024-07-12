@@ -58,12 +58,17 @@ In decimals, we know $z=4965661367192848881$, and therefore $6z+2=29793968203157
 
 There will be miller's loop to determine the first term in the optimal ate pairing. Then for the final two terms, we notice that:
 
-- $\ell_{[6z+2]\Psi(Y),\phi_p(\Psi(Y))}(X)$
-    - Notice that $$\begin{align}\phi_p(\Psi(Y)) &= \left((w^2 x^\prime)^p, (w^3y^\prime)^p\right) \\&= \left(w^2\xi^{(p-1)/3}x^{\prime p}, w^3\xi^{(p-1)/2}y^{\prime p}\right) \\&= \Psi\left(\xi^{(p-1)/3}\bar{x}^\prime, \xi^{(p-1)/2}\bar{y}^\prime\right)\end{align}$$
-    - Since $[n]\Psi(Q)=\Psi([n]Q)$ by the homomorphism, we just evaluate the line now at the point $Q^\prime = (\xi^{(p-1)/3}\bar{x}^\prime, \xi^{(p-1)/2}\bar{y}^\prime)=(x_1, y_1)$
+##### $\ell_{[6z+2]\Psi(Y),\phi_p(\Psi(Y))}(X)$
+
+Notice that: 
+$$
+    \phi_p(\Psi(Y)) = \left((w^2 x^\prime)^p, (w^3y^\prime)^p\right)= \left(w^2\xi^{(p-1)/3}x^{\prime p}, w^3\xi^{(p-1)/2}y^{\prime p}\right) = \Psi\left(\xi^{(p-1)/3}\bar{x}^\prime, \xi^{(p-1)/2}\bar{y}^\prime\right)
+$$
+Since $[n]\Psi(Q)=\Psi([n]Q)$ by the homomorphism, we just evaluate the line now at the point $Q^\prime = (\xi^{(p-1)/3}\bar{x}^\prime, \xi^{(p-1)/2}\bar{y}^\prime)=(x_1, y_1)$.
     
-- $\ell_{[6z+2]\Psi(Y)+\phi_p(\Psi(Y)), -\phi_p(\Psi(Y))}(X)$
-    - You can likewise show that this is easily evaluated at the point $-Q$
+##### $\ell_{[6z+2]\Psi(Y)+\phi_p(\Psi(Y)), -\phi_p(\Psi(Y))}(X)$
+
+You can likewise show that this is easily evaluated at the point $-Q$.
 
 
 ```python 
@@ -144,22 +149,15 @@ Easy part = 1 conjugation + 1 inversion + 1 multiplication + 5 multiplications +
 ### Hard part
 
 For BN254, the hard part decomposes into $\frac{p^4-p^2+1}{r}$. It seems that the typical way to go here is to take a base-$p$ expansion, namely defining $\lambda\triangleq m\varphi_k(p)/r$ with $r\nmid m$, and finding a vector $\tau$ of $w+1$ integers $\tau=(\lambda_0,\ldots,\lambda_w)$ such that $\lambda=\sum\lambda_i p^i$ minimizing the L1-norm of $\tau$. Recall that for us:
-$$
-\begin{align}
-    p(z) &= 36z^4 + 36z^3 + 24z^2 + 6z + 1\\
-    r(z) &= 36z^4 + 36z^3 + 18z^2 + 6z + 1\\
-    t(z) &= 6z^2+1
-\end{align}
-$$
+$$ p(z) = 36z^4 + 36z^3 + 24z^2 + 6z + 1 $$
+$$ r(z) = 36z^4 + 36z^3 + 18z^2 + 6z + 1 $$
+$$ t(z) = 6z^2+1 $$
 so substituting these into the hard part of the polynomial as a function of the curve family generator $z$ yields $\lambda_3 p^3+\lambda_2 p^2 +\lambda_1 p + \lambda_0$ with:
-$$
-\begin{align}
-\lambda_3(z) &= 1\\
-\lambda_2(z) &= 6z^2+1\\
-\lambda_1(z) &= -36z^3 -18z^2-12z+1\\
-\lambda_0(z) &= -36z^3 - 30z^2-18z -2
-\end{align}
-$$
+$$ \lambda_3(z) = 1 $$
+$$ \lambda_2(z) = 6z^2+1 $$
+$$ \lambda_1(z) = -36z^3 -18z^2-12z+1 $$
+$$ \lambda_0(z) = -36z^3 - 30z^2-18z -2 $$
+
 
 We now then compute the hard part as a series of multiplications in terms of powers of the easy part. 
 
@@ -172,23 +170,20 @@ $$ \underbrace{[f_\mathrm{easy}^p \cdot f_\mathrm{easy}^{p^2} \cdot f_\mathrm{ea
 \underbrace{[1/(f_\mathrm{easy}^{z^3} \cdot (f_\mathrm{easy}^{z^3})^p)]^{36}}_{\equiv y_6^{36}}$$
 
 These evaluations have efficient algorithms that have been around [for a long time](https://www.sciencedirect.com/science/article/pii/0196677481900031). We take the vector addition chain approach, which is more or less the equivalent of "flattening" that we also see crop up in the reduction of polynomial constraints in instance-witness definitions of R1CS systems. You can show that the following definitions yield efficient computation of these multiexponentials which we take from [the original manuscript](https://eprint.iacr.org/2008/490.pdf):
-$$
-\begin{align*}
-T_0 &\leftarrow (y_6)^2 \\
-T_0 &\leftarrow T_0 \cdot y_4 \\
-T_0 &\leftarrow T_0 \cdot y_5 \\
-T_1 &\leftarrow y_3 \cdot y_5 \\
-T_1 &\leftarrow T_1 \cdot T_0 \\
-T_0 &\leftarrow T_0 \cdot y_2 \\
-T_1 &\leftarrow (T_1)^2 \\
-T_1 &\leftarrow T_1 \cdot T_0 \\
-T_1 &\leftarrow (T_1)^2 \\
-T_0 &\leftarrow T_1 \cdot y_1 \\
-T_1 &\leftarrow T_1 \cdot y_0 \\
-T_0 &\leftarrow (T_0)^2 \\
-f_\mathrm{hard} &\leftarrow T_0 \cdot T_1
-\end{align*}
-$$
+$$T_0 \leftarrow (y_6)^2 $$
+$$T_0 \leftarrow T_0 \cdot y_4 $$
+$$T_0 \leftarrow T_0 \cdot y_5 $$
+$$T_1 \leftarrow y_3 \cdot y_5 $$
+$$T_1 \leftarrow T_1 \cdot T_0 $$
+$$T_0 \leftarrow T_0 \cdot y_2 $$
+$$T_1 \leftarrow (T_1)^2 $$
+$$T_1 \leftarrow T_1 \cdot T_0 $$
+$$T_1 \leftarrow (T_1)^2 $$
+$$T_0 \leftarrow T_1 \cdot y_1 $$
+$$T_1 \leftarrow T_1 \cdot y_0 $$
+$$T_0 \leftarrow (T_0)^2 $$
+$$f_\mathrm{hard} \leftarrow T_0 \cdot T_1$$
+
 which is only a few multiplications and squarings! Efficient. There's extensions and [improvements](https://doi.org/10.1007/s12190-018-1167-y), but that's the basic stuff.
 
 
@@ -199,14 +194,11 @@ which is only a few multiplications and squarings! Efficient. There's extensions
 
 This is pretty sick. Remember that eventually we want to check the relation $e(\sigma_i, g_2)=e(H(m), P(i) )$ for verification. You could just naively evaluate lhs and rhs and check for equality. Right? Or notice that:
 
-$$ 
-\begin{align}
-e(\sigma_i, g_2) &= e(H(m), P(i)) \\
-\implies e(\sigma_i, g_2)e(H(m), P(i))^{-1} &= 1\\
-\implies e(\sigma_i, g_2)e(H(m), -P(i)) &= 1 \\
-\implies \left(f_{[6z+2], \sigma_i}(g_2)f_{[6z+2], H(m)}(-P(i))\right)^\frac{p^{12}-1}{r} &= 1
-\end{align}
-$$
+$$ e(\sigma_i, g_2) = e(H(m), P(i)) $$
+$$ \implies e(\sigma_i, g_2)e(H(m), P(i))^{-1} = 1$$
+$$ \implies e(\sigma_i, g_2)e(H(m), -P(i)) = 1 $$
+$$ \implies \left(f_{[6z+2], \sigma_i}(g_2)f_{[6z+2], H(m)}(-P(i))\right)^\frac{p^{12}-1}{r} = 1$$
+
 
 which results in only having to evaluate a single Miller loop, followed by a single exponentiation at the end! Also during the recursion we don't need to track $f_{i,s}(G)$ nor $f_{i,H(m)}(-xG)$, just their product, which saves a multiplication in $\mathbb{F}_{12}$ in each iteration of this *glued* Miller loop. The savings compound since we're aggregating many partial signatures, and the idea works exactly the same for the aggregated signatures. Namely, verification is equivalent to:
 

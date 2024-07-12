@@ -270,8 +270,11 @@ We place the public key as an element of G2. Why?
 
 Also, note that in order to get an element of G2 we multiply by the cofactor, see [membership checks](#Membership-checks). The problem is really that this cofactor is huge:
 
-```rust vscode={"languageId": "plaintext"}
-#E'(F_{p^2}) = 479095176016622842441988045216678740799252316531100822436447802254070093686356349204969212544220033486413271283566945264650845755880805213916963058350733
+```rust
+//|E'(F_{p^2})| = 
+//479095176016622842441988045216678740799252316531100822
+//436447802254070093686356349204969212544220033486413271
+//283566945264650845755880805213916963058350733
 c_2 = 21888242871839275222246405745257275088844257914179612981679871602714643921549
 ```
 
@@ -306,7 +309,7 @@ First, we need a way to take a message and hash it to an element of the field, s
 #### Listing 3: "try and increment" algorithm for hashing onto $\mathbb{Z}_n$
 
 <blockquote>
-Require: n ∈ Z with |n|_2 = k and s ∈ {0,1}*
+Require: n $\in$ Z with |n|_2 = k and s $\in$ {0,1}*
     
 $\quad$ procedure Try-and-Increment(n, k, s)
 
@@ -326,7 +329,7 @@ $\qquad\quad$        z ← H(s')_0 · 2^0 + H(s')_1 · 2^1 + ... + H(s')_k · 2^
  
 $\quad$ end procedure
 
-Ensure: z ∈ Z_n
+Ensure: z $\in$ Z_n
 </blockquote>
      
 possible impl [here](https://github.com/ARPA-Network/BLS-TSS-Network/blob/75da9ae432516002b12e37b16b4a4b3568c79529/crates/threshold-bls/src/hash/try_and_increment.rs)

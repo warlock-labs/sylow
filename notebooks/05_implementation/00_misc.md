@@ -55,11 +55,9 @@ with $0 \leq x, y < m$, $R = b^n$ with $\gcd(m, b) = 1$, and $m' = -m^{-1} \bmod
 This is slow in the affine representation because of the inversion, done with either extended euclidean algorithm or modular exponentiation. 
 
 $$
-\begin{align*}
-\text{Addition:} \quad (x_3, y_3) &= \left(\left(\frac{y_2 - y_1}{x_2 - x_1}\right)^2 - x_1 - x_2, \left(\frac{y_2 - y_1}{x_2 - x_1}\right)(x_1 - x_3) - y_1\right) \\[10pt]
-\text{Doubling:} \quad (x_3, y_3) &= \left(\left(\frac{3x_1^2 + a}{2y_1}\right)^2 - 2x_1, \left(\frac{3x_1^2 + a}{2y_1}\right)(x_1 - x_3) - y_1\right)
-\end{align*}
-$$
+\text{Addition:} \quad (x_3, y_3) = \left(\left(\frac{y_2 - y_1}{x_2 - x_1}\right)^2 - x_1 - x_2, \left(\frac{y_2 - y_1}{x_2 - x_1}\right)(x_1 - x_3) - y_1\right) $$
+$$ \text{Doubling:} \quad (x_3, y_3) = \left(\left(\frac{3x_1^2 + a}{2y_1}\right)^2 - 2x_1, \left(\frac{3x_1^2 + a}{2y_1}\right)(x_1 - x_3) - y_1\right) $$
+
 
 This can be improved and even [parallelized](https://doi.org/10.3390/s24031030) if we move to extended twisted edwards coordinates because it removes the branching due to the unity of the addition and doubling formulae, which is why this is called the snark-friendly representation:
 $$

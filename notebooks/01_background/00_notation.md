@@ -1,3 +1,9 @@
+---
+title: Chaos Background
+author: Tristan Britt  (\texttt{tristan@warlock.xyz})
+date: July 2024
+---
+
 ## Glossary of Notation
 
 | Notation | Meaning |
