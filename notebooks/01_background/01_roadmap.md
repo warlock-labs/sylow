@@ -8,4 +8,4 @@ Finally, we'll apply these concepts to the specific case of the BN254 curve and 
 
 By the end of this primer, readers will have a solid grasp of the mathematical concepts necessary to understand and implement BLS threshold signatures using the BN254 pairing. This knowledge is crucial for developing secure and efficient cryptographic protocols in various applications, including blockchain technology and distributed systems.
 
-The roadmap of our journey will be Sets → Groups → Rings → Domains → Fields → Vector Spaces → Algebraic Varieties → Elliptic Curves → Bilinear Pairings -> BN254 -> BLS -> BLS Thresholds -> R1CS -> Distributed MPC, rougly.
+The roadmap of our journey will be Sets → Groups → Rings → Domains → Fields → Vector Spaces → Algebraic Varieties → Elliptic Curves → Bilinear Pairings → BN254 → BLS → BLS Thresholds → R1CS → Distributed MPC, roughly.

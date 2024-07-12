@@ -476,42 +476,42 @@ Constants:
 
 #### Listing 6: the SvW algorithm $A:\mathbb{F}_r\to \mathbb{F}_r\times\mathbb{F}_r$
 
-```rust vscode={"languageId": "plaintext"}
-tv1 = u^2
- tv1 = tv1 * c1
- tv2 = 1 + tv1
- tv1 = 1 - tv1
- tv3 = tv1 * tv2
- tv3 = inv0(tv3)
- tv4 = u * tv1
- tv4 = tv4 * tv3
- tv4 = tv4 * c3
- x1 = c2 - tv4
-gx1 = x1^2
-gx1 = gx1 + A
-gx1 = gx1 * x1
-gx1 = gx1 + B
- e1 = is_square(gx1)
- x2 = c2 + tv4
-gx2 = x2^2
-gx2 = gx2 + A
-gx2 = gx2 * x2
-gx2 = gx2 + B
- e2 = is_square(gx2) AND NOT e1   # Avoid short-circuit logic ops
- x3 = tv2^2
- x3 = x3 * tv3
- x3 = x3^2
- x3 = x3 * c4
- x3 = x3 + Z
-  x = CMOV(x3, x1, e1)   # x = x1 if gx1 is square, else x = x3
-  x = CMOV(x, x2, e2)    # x = x2 if gx2 is square and gx1 is not
- gx = x^2
- gx = gx + A
- gx = gx * x
- gx = gx + B
-  y = sqrt(gx)
- e3 = sgn0(u) == sgn0(y)
-  y = CMOV(-y, y, e3)       # Select correct sign of y
+```rust
+tv1 = u^2;
+tv1 = tv1 * c1;
+tv2 = 1 + tv1;
+tv1 = 1 - tv1;
+tv3 = tv1 * tv2;
+tv3 = inv0(tv3);
+tv4 = u * tv1;
+tv4 = tv4 * tv3;
+tv4 = tv4 * c3;
+x1 = c2 - tv4;
+gx1 = x1^2;
+gx1 = gx1 + A;
+gx1 = gx1 * x1;
+gx1 = gx1 + B;
+ e1 = is_square(gx1);
+ x2 = c2 + tv4;
+gx2 = x2^2;
+gx2 = gx2 + A;
+gx2 = gx2 * x2;
+gx2 = gx2 + B;
+ e2 = is_square(gx2) AND NOT e1   // Avoid short-circuit logic ops;
+ x3 = tv2^2;
+ x3 = x3 * tv3;
+ x3 = x3^2;
+ x3 = x3 * c4;
+ x3 = x3 + Z;
+  x = CMOV(x3, x1, e1)   // x = x1 if gx1 is square, else x = x3;
+  x = CMOV(x, x2, e2)    // x = x2 if gx2 is square and gx1 is not;
+ gx = x^2;
+ gx = gx + A;
+ gx = gx * x;
+ gx = gx + B;
+  y = sqrt(gx);
+ e3 = sgn0(u) == sgn0(y);
+  y = CMOV(-y, y, e3);       // Select correct sign of y
 return (x, y)
 ```
 

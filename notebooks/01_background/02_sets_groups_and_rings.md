@@ -104,7 +104,7 @@ For a subgroup $H$ of $G$ and an element $a \in G$, we define:
 - Left coset: $aH = \{ah : h \in H\}$
 - Right coset: $Ha = \{ha : h \in H\}$
 
-A subgroup $N$ of $G$ is called normal if $gN = Ng \forall g \in G$. We denote this as $$N \triangleleft G$$.
+A subgroup $N$ of $G$ is called normal if $gN = Ng \forall g \in G$. We denote this as $N \triangleleft G$.
 
 ### Cyclic Groups
 
