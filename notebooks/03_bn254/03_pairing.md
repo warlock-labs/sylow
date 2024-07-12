@@ -76,7 +76,7 @@ There will be miller's loop to determine the first term in the optimal ate pairi
     - You can likewise show that this is easily evaluated at the point $-Q$
 
 
-```python vscode={"languageId": "rust"}
+```python 
 fn e(p: &G1Affine, q: &G2Affine) -> Fq12 {
     //membership checks, see sections above
     assert!(p.is_in_g1());

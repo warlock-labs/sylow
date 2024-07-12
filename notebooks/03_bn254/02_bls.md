@@ -101,7 +101,7 @@ For the BN254 curve, there are two groups we will deal with often.
 
 #### Listing 1: Generate $s\in\mathbb{F}_r$
 
-```rust vscode={"languageId": "rust"}
+```rust 
 use rand::Rng;
 
 #[derive(Debug, Clone, Copy)]
@@ -218,7 +218,7 @@ Many implementations exist. Best ones so far I've found that could add rto the b
 
 #### Listing 2: evaluate private polynomial at each index
 
-```rust vscode={"languageId": "rust"}
+```rust 
 #[derive(Debug, Clone, Serialze, Deserialize)]
 pub struct Eval<A> {
     pub idx: u32;
@@ -249,7 +249,7 @@ First, we need to commit the scalar polynomial generated above to the group to g
 
 all of arkworks-rs, zkcrypto/bls12_381, an threshold_bls implement a struct specifically mapping a Scalar of the field to point on $\mathbb{G}_2$
 
-```rust vscode={"languageId": "rust"}
+```rust 
 let public_polynomial_g2_coeffs = coeffs.iter().map(|c|{
     let mut commit = <cofactor of G2>;
     commit.mul(c);
@@ -259,7 +259,7 @@ let public_polynomial_g2_coeffs = coeffs.iter().map(|c|{
 
 then BAM, we get the public key for "free" since its just the constant term of the polynomial
 
-```rust vscode={"languageId": "rust"}
+```rust 
 let pub_key:<stuct of points on the field> = public_polynomial_g2_coeffs[0];
 ```
 
@@ -279,7 +279,7 @@ so there are [faster ways to generate an element in G2](https://datatracker.ietf
 ### Step 4: partial signaturing
 ok, great. c'est parti à la lune . we now need to partial sign messages. this is distributed obvs in our case, but for here it'd be nice to have something like
 
-```rust vscode={"languageId": "rust"}
+```rust 
 let partials_sigs_g1 = private_shares.iter().map(|s| bn254::partial_sign(s, &msg));
 ```
 
@@ -339,7 +339,7 @@ This seems easy enough, but would fail security audits. We should implement a mo
 
 <!-- #endregion -->
 
-```rust vscode={"languageId": "rust"}
+```rust 
 use sha2::{Sha256, Digest};
 use num_bigint::BigUint;
 use num_traits::Num;
@@ -428,7 +428,7 @@ Needed constants:
 #### Listing 5: A sage script to find such a $Z$
 <!-- #endregion -->
 
-```rust vscode={"languageId": "rust"}
+```rust 
 # Arguments:
 # - F, a field object, e.g., F = GF(2^521 - 1)
 # - A and B, the coefficients of the curve y^2 = x^3 + A * x + B
@@ -528,7 +528,7 @@ Each participant has now signed the hashed message to the curve.
 
 This is pretty straightforward up to deciding how to implement the pairing function.... which is ... easy ... right? Wrong. See 'Field extentions' for the clusterfuck that is pairing maths.
 
-```rust vscode={"languageId": "rust"}
+```rust 
 let public_polynomial_per_share = (0..n).map(|i| {
     public_polynomial_g2_coeffs.iter().rev().fold(Scalar::zero(), |mut sum, coeff| {
         sum.mul(i+1);
@@ -550,7 +550,7 @@ let all_verified = (0..n).map(|i|{
 ### Step 6: Aggregation
 First, get lagrange coeffs $\lambda_i$ to recombine the partial signatures
 
-```rust vscode={"languageId": "rust"}
+```rust 
 fn lagrange_coefficient(i: usize, indices: &[usize]) -> Scalar {
     let x_i = Scalar::from(i as u64);
     indices.iter().filter(|&&j| j != i).fold(Scalar::one(), |acc, &j| {
@@ -563,7 +563,7 @@ fn lagrange_coefficient(i: usize, indices: &[usize]) -> Scalar {
 Then, we can aggregate the signatures to create $\sigma=\sum_i\lambda_i\sigma_i$
 
 
-```rust vscode={"languageId": "rust"}
+```rust 
 fn aggregate_signatures(partial_sigs: &[(usize, <point in G1>)]) -> <point in G1> {
     let indices: Vec<usize> = partial_sigs.iter().map(|&(i, _)| i).collect();
     
