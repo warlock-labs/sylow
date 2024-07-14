@@ -1,15 +1,33 @@
 use num_traits::{Inv, One, Zero};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-// A finite field over the
-struct FiniteField<const L: usize> {
-    modulus: [usize; L],
-    value: [usize; L],
-    correction: [usize; L], // Precomputed correction for efficient subtraction
+/// Represents an element of a finite field.
+#[derive(Clone, Copy, Debug)]
+pub struct FiniteField<const L: usize> {
+    /// The modulus of the field
+    modulus: [u64; L],
+    /// The value of this field element
+    value: [u64; L],
+    /// Precomputed correction for efficient subtraction
+    correction: [u64; L],
+    // n_prime: u64,
 }
 
 impl<const L: usize> FiniteField<L> {
-    fn new(modulus: [usize; L], value: [usize; L]) -> Self {
+    // A double width for the limbs is required for Montgomery multiplication
+    const DOUBLE_LIMBS: usize = 2 * L;
+
+    /// Creates a new FiniteField element.
+    ///
+    /// # Arguments
+    ///
+    /// * `modulus` - The modulus of the field
+    /// * `value` - The value of the field element
+    ///
+    /// # Returns
+    ///
+    /// A new FiniteField instance
+    pub fn new(modulus: [u64; L], value: [u64; L]) -> Self {
         let correction = Self::compute_correction(&modulus);
         Self {
             modulus,
@@ -18,23 +36,31 @@ impl<const L: usize> FiniteField<L> {
         }
     }
 
-    // Compute 2^(BITS_PER_LIMB * L) - modulus, used for efficient modular subtraction
-    fn compute_correction(modulus: &[usize; L]) -> [usize; L] {
+    /// Computes the correction factor for efficient subtraction.
+    ///
+    /// # Arguments
+    ///
+    /// * `modulus` - The modulus of the field
+    ///
+    /// # Returns
+    ///
+    /// The computed correction factor
+    fn compute_correction(modulus: &[u64; L]) -> [u64; L] {
         let mut correction = [0; L];
-        let mut carry = 1; // Start with 1 to compute 2^(BITS_PER_LIMB * L) - modulus
+        let mut carry = 1u64;
         for i in 0..L {
             let (corrected_limb, new_carry) = (!modulus[i]).overflowing_add(carry);
             correction[i] = corrected_limb;
-            carry = new_carry as usize;
+            carry = u64::from(new_carry);
         }
         correction
     }
 }
 
-/// Addition in a finite field Z_p is modular addition.
 impl<const L: usize> Add for FiniteField<L> {
     type Output = Self;
 
+    /// Performs modular addition.
     fn add(self, other: Self) -> Self {
         // Initialize sum to zero
         let mut sum = Self::new(self.modulus, [0; L]);
@@ -61,43 +87,19 @@ impl<const L: usize> Add for FiniteField<L> {
 
         // Select between sum and trial based on borrow flag
         let mut result = Self::new(self.modulus, [0; L]);
-        let select_mask = usize::from(borrow).wrapping_neg();
+        let select_mask = u64::from(borrow).wrapping_neg();
         for i in 0..L {
             // If borrow is true (select_mask is all 1s), choose sum, otherwise choose trial
-            result.value[i] = (!select_mask & trial.value[i]) | (select_mask & sum.value[i]);
+            result.value[i] = (select_mask & sum.value[i]) | (!select_mask & trial.value[i]);
         }
         result
     }
 }
 
-// The additive identity
-impl<const L: usize> Zero for FiniteField<L> {
-    fn zero() -> Self {
-        todo!("Implement zero for FiniteField")
-    }
-
-    fn is_zero(&self) -> bool {
-        let mut is_zero = 1usize;
-        for &limb in &self.value {
-            is_zero &= (limb | (!limb).wrapping_add(1)) >> (usize::BITS - 1);
-        }
-        is_zero != 0
-    }
-}
-
-// Negation in a finite field is the additive inverse
-impl<const L: usize> Neg for FiniteField<L> {
-    type Output = Self;
-
-    fn neg(self) -> Self {
-        todo!("Implement negation for FiniteField")
-    }
-}
-
-/// Subtraction in a finite field is addition by the additive inverse
 impl<const L: usize> Sub for FiniteField<L> {
     type Output = Self;
 
+    /// Performs modular subtraction.
     fn sub(self, other: Self) -> Self {
         // Initialize difference to zero
         let mut difference = Self::new(self.modulus, [0; L]);
@@ -115,7 +117,7 @@ impl<const L: usize> Sub for FiniteField<L> {
         }
 
         // Always subtract the correction, which effectively adds the modulus if borrow occurred
-        let correction_mask = usize::from(borrow).wrapping_neg();
+        let correction_mask = u64::from(borrow).wrapping_neg();
         let mut correction_borrow = false;
         for i in 0..L {
             let correction_term =
@@ -129,36 +131,190 @@ impl<const L: usize> Sub for FiniteField<L> {
     }
 }
 
-/// Multiplication in a finite field Z_p is modular multiplication.
 impl<const L: usize> Mul for FiniteField<L> {
     type Output = Self;
 
+    /// Performs modular multiplication using Montgomery multiplication.
     fn mul(self, other: Self) -> Self {
-        todo!("Implement multiplication for FiniteField")
+        todo!("Implement multiplication")
     }
 }
 
-/// The multiplicative identity
-impl<const L: usize> One for FiniteField<L> {
-    fn one() -> Self {
-        todo!("Implement one for FiniteField")
+impl<const L: usize> Neg for FiniteField<L> {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        todo!("Implement negation")
     }
 }
 
-/// The multiplicative inverse
 impl<const L: usize> Inv for FiniteField<L> {
     type Output = Self;
 
     fn inv(self) -> Self {
-        todo!("Implement inversion for FiniteField")
+        todo!("Implement inversion");
     }
 }
 
-/// Division in a finite field is multiplication by the multiplicative inverse
+/// Implements division for FiniteField elements.
 impl<const L: usize> Div for FiniteField<L> {
     type Output = Self;
 
+    /// Performs modular division by multiplying with the inverse.
     fn div(self, other: Self) -> Self {
-        todo!("Implement division for FiniteField")
+        todo!("Implement division");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MODULUS: [u64; 4] = [
+        0x3C208C16D87CFD47,
+        0x97816A916871CA8D,
+        0xB85045B68181585D,
+        0x30644E72E131A029,
+    ];
+
+    fn create_field(value: [u64; 4]) -> FiniteField<4> {
+        FiniteField::new(MODULUS, value)
+    }
+
+    #[test]
+    fn test_addition() {
+        // Test case 1: Simple addition
+        let a = create_field([1, 0, 0, 0]);
+        let b = create_field([2, 0, 0, 0]);
+        let result = a + b;
+        assert_eq!(result.value, [3, 0, 0, 0], "Simple addition failed");
+
+        // Test case 2: Addition with carry
+        let c = create_field([0xFFFFFFFFFFFFFFFF, 0, 0, 0]);
+        let d = create_field([1, 0, 0, 0]);
+        let result = c + d;
+        assert_eq!(result.value, [0, 1, 0, 0], "Addition with carry failed");
+
+        // Test case 3: Addition that wraps around the modulus
+        let e = create_field(MODULUS);
+        let f = create_field([1, 0, 0, 0]);
+        let result = e + f;
+        assert_eq!(result.value, [1, 0, 0, 0], "Modular wrap-around failed");
+
+        // Test case 4: Addition that just reaches the modulus
+        let g = create_field([
+            0x3C208C16D87CFD46,
+            0x97816A916871CA8D,
+            0xB85045B68181585D,
+            0x30644E72E131A029,
+        ]);
+        let h = create_field([1, 0, 0, 0]);
+        let result = g + h;
+        assert_eq!(result.value, [0, 0, 0, 0], "Addition to modulus failed");
+    }
+
+    #[test]
+    fn test_subtraction() {
+        // Test case 1: Simple subtraction
+        let a = create_field([3, 0, 0, 0]);
+        let b = create_field([1, 0, 0, 0]);
+        let result = a - b;
+        assert_eq!(result.value, [2, 0, 0, 0], "Simple subtraction failed");
+
+        // Test case 2: Subtraction with borrow
+        let c = create_field([0, 1, 0, 0]);
+        let d = create_field([1, 0, 0, 0]);
+        let result = c - d;
+        assert_eq!(
+            result.value,
+            [0xFFFFFFFFFFFFFFFF, 0, 0, 0],
+            "Subtraction with borrow failed"
+        );
+
+        // Test case 3: Subtraction that borrows from the modulus
+        let e = create_field([0, 0, 0, 0]);
+        let f = create_field([1, 0, 0, 0]);
+        let result = e - f;
+        assert_eq!(
+            result.value,
+            [
+                0x3C208C16D87CFD46,
+                0x97816A916871CA8D,
+                0xB85045B68181585D,
+                0x30644E72E131A029,
+            ],
+            "Modular borrow failed"
+        );
+
+        // Test case 4: Subtraction resulting in zero
+        let g = create_field(MODULUS);
+        let result = g - g;
+        assert_eq!(result.value, [0, 0, 0, 0], "Subtraction to zero failed");
+    }
+
+    #[test]
+    fn test_edge_cases() {
+        // Test case 1: Adding zero
+        let a = create_field([1, 2, 3, 4]);
+        let zero = create_field([0, 0, 0, 0]);
+        let result = a + zero;
+        assert_eq!(result.value, [1, 2, 3, 4], "Adding zero failed");
+
+        // Test case 2: Subtracting zero
+        let result = a - zero;
+        assert_eq!(result.value, [1, 2, 3, 4], "Subtracting zero failed");
+
+        // Test case 3: Adding to get exact modulus
+        let almost_modulus = create_field([
+            0x3C208C16D87CFD46,
+            0x97816A916871CA8D,
+            0xB85045B68181585D,
+            0x30644E72E131A029,
+        ]);
+        let one = create_field([1, 0, 0, 0]);
+        let result = almost_modulus + one;
+        assert_eq!(
+            result.value,
+            [0, 0, 0, 0],
+            "Adding to get exact modulus failed"
+        );
+
+        // Test case 4: Subtracting from zero
+        let result = zero - one;
+        assert_eq!(
+            result.value,
+            [
+                0x3C208C16D87CFD46,
+                0x97816A916871CA8D,
+                0xB85045B68181585D,
+                0x30644E72E131A029,
+            ],
+            "Subtracting from zero failed"
+        );
+    }
+
+    #[test]
+    fn test_associativity() {
+        let a = create_field([1, 2, 3, 4]);
+        let b = create_field([5, 6, 7, 8]);
+        let c = create_field([9, 10, 11, 12]);
+
+        // Test associativity of addition
+        let result1 = (a + b) + c;
+        let result2 = a + (b + c);
+        assert_eq!(result1.value, result2.value, "Addition is not associative");
+
+        // Note: Subtraction is not associative in general, so we remove that test
+    }
+
+    #[test]
+    fn test_commutativity() {
+        let a = create_field([1, 2, 3, 4]);
+        let b = create_field([5, 6, 7, 8]);
+
+        // Test commutativity of addition
+        let result1 = a + b;
+        let result2 = b + a;
+        assert_eq!(result1.value, result2.value, "Addition is not commutative");
     }
 }
