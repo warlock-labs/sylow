@@ -5,11 +5,29 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 struct FiniteField<const L: usize> {
     modulus: [usize; L],
     value: [usize; L],
+    correction: [usize; L], // Precomputed correction for efficient subtraction
 }
 
 impl<const L: usize> FiniteField<L> {
     fn new(modulus: [usize; L], value: [usize; L]) -> Self {
-        Self { modulus, value }
+        let correction = Self::compute_correction(&modulus);
+        Self {
+            modulus,
+            value,
+            correction,
+        }
+    }
+
+    // Compute 2^(BITS_PER_LIMB * L) - modulus, used for efficient modular subtraction
+    fn compute_correction(modulus: &[usize; L]) -> [usize; L] {
+        let mut correction = [0; L];
+        let mut carry = 1; // Start with 1 to compute 2^(BITS_PER_LIMB * L) - modulus
+        for i in 0..L {
+            let (corrected_limb, new_carry) = (!modulus[i]).overflowing_add(carry);
+            correction[i] = corrected_limb;
+            carry = new_carry as usize;
+        }
+        correction
     }
 }
 
@@ -59,7 +77,11 @@ impl<const L: usize> Zero for FiniteField<L> {
     }
 
     fn is_zero(&self) -> bool {
-        todo!("Implement is_zero for FiniteField")
+        let mut is_zero = 1usize;
+        for &limb in &self.value {
+            is_zero &= (limb | (!limb).wrapping_add(1)) >> (usize::BITS - 1);
+        }
+        is_zero != 0
     }
 }
 
@@ -77,7 +99,33 @@ impl<const L: usize> Sub for FiniteField<L> {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self {
-        todo!("Implement subtraction for FiniteField")
+        // Initialize difference to zero
+        let mut difference = Self::new(self.modulus, [0; L]);
+        let mut borrow = false;
+
+        // Perform subtraction with borrow propagation
+        for i in 0..L {
+            let diff_without_borrow = self.value[i].overflowing_sub(other.value[i]);
+            let diff_with_borrow =
+                diff_without_borrow
+                    .0
+                    .overflowing_sub(if borrow { 1 } else { 0 });
+            difference.value[i] = diff_with_borrow.0;
+            borrow = diff_without_borrow.1 | diff_with_borrow.1;
+        }
+
+        // Always subtract the correction, which effectively adds the modulus if borrow occurred
+        let correction_mask = usize::from(borrow).wrapping_neg();
+        let mut correction_borrow = false;
+        for i in 0..L {
+            let correction_term =
+                (correction_mask & self.correction[i]) + if correction_borrow { 1 } else { 0 };
+            let (corrected_limb, new_borrow) = difference.value[i].overflowing_sub(correction_term);
+            difference.value[i] = corrected_limb;
+            correction_borrow = new_borrow;
+        }
+
+        difference
     }
 }
 
