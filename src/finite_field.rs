@@ -1,7 +1,11 @@
+// External crate dependencies
 use num_traits::{Inv, One, Zero};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// Represents an element of a finite field.
+///
+/// This struct implements arithmetic operations for elements in a finite field
+/// using a multi-limb representation for large numbers.
 #[derive(Clone, Copy, Debug)]
 pub struct FiniteField<const L: usize> {
     /// The modulus of the field
@@ -10,6 +14,10 @@ pub struct FiniteField<const L: usize> {
     value: [u64; L],
     /// Precomputed correction for efficient subtraction
     correction: [u64; L],
+    // TODO: Implement Montgomery multiplication
+    // /// Montgomery constant
+    // r_squared: [u64; L],
+    // /// Montgomery constant
     // n_prime: u64,
 }
 
@@ -28,7 +36,7 @@ impl<const L: usize> FiniteField<L> {
     ///
     /// A new FiniteField instance
     pub fn new(modulus: [u64; L], value: [u64; L]) -> Self {
-        let correction = Self::compute_correction(&modulus);
+        let correction = Self::subtraction_correction(&modulus);
         Self {
             modulus,
             value,
@@ -38,6 +46,9 @@ impl<const L: usize> FiniteField<L> {
 
     /// Computes the correction factor for efficient subtraction.
     ///
+    /// This method calculates 2^(64*L) - modulus, which is used to optimize
+    /// the subtraction operation in the finite field.
+    ///
     /// # Arguments
     ///
     /// * `modulus` - The modulus of the field
@@ -45,7 +56,7 @@ impl<const L: usize> FiniteField<L> {
     /// # Returns
     ///
     /// The computed correction factor
-    fn compute_correction(modulus: &[u64; L]) -> [u64; L] {
+    fn subtraction_correction(modulus: &[u64; L]) -> [u64; L] {
         let mut correction = [0; L];
         let mut carry = 1u64;
         for i in 0..L {
@@ -61,6 +72,8 @@ impl<const L: usize> Add for FiniteField<L> {
     type Output = Self;
 
     /// Performs modular addition.
+    ///
+    /// This method adds two field elements and reduces the result modulo the field's modulus.
     fn add(self, other: Self) -> Self {
         // Initialize sum to zero
         let mut sum = Self::new(self.modulus, [0; L]);
@@ -100,6 +113,9 @@ impl<const L: usize> Sub for FiniteField<L> {
     type Output = Self;
 
     /// Performs modular subtraction.
+    ///
+    /// This method subtracts one field element from another and ensures the result
+    /// is in the correct range by adding the modulus if necessary.
     fn sub(self, other: Self) -> Self {
         // Initialize difference to zero
         let mut difference = Self::new(self.modulus, [0; L]);
@@ -135,6 +151,8 @@ impl<const L: usize> Mul for FiniteField<L> {
     type Output = Self;
 
     /// Performs modular multiplication using Montgomery multiplication.
+    ///
+    /// TODO: Implement Montgomery multiplication
     fn mul(self, other: Self) -> Self {
         todo!("Implement multiplication")
     }
@@ -143,6 +161,9 @@ impl<const L: usize> Mul for FiniteField<L> {
 impl<const L: usize> Neg for FiniteField<L> {
     type Output = Self;
 
+    /// Computes the additive inverse (negation) of the field element.
+    ///
+    /// TODO: Implement negation
     fn neg(self) -> Self {
         todo!("Implement negation")
     }
@@ -151,6 +172,9 @@ impl<const L: usize> Neg for FiniteField<L> {
 impl<const L: usize> Inv for FiniteField<L> {
     type Output = Self;
 
+    /// Computes the multiplicative inverse of the field element.
+    ///
+    /// TODO: Implement inversion, possibly using the extended Euclidean algorithm
     fn inv(self) -> Self {
         todo!("Implement inversion");
     }
@@ -161,6 +185,8 @@ impl<const L: usize> Div for FiniteField<L> {
     type Output = Self;
 
     /// Performs modular division by multiplying with the inverse.
+    ///
+    /// TODO: Implement division using multiplication and inversion
     fn div(self, other: Self) -> Self {
         todo!("Implement division");
     }
@@ -170,6 +196,7 @@ impl<const L: usize> Div for FiniteField<L> {
 mod tests {
     use super::*;
 
+    // Define a constant modulus for testing
     const MODULUS: [u64; 4] = [
         0x3C208C16D87CFD47,
         0x97816A916871CA8D,
@@ -177,6 +204,7 @@ mod tests {
         0x30644E72E131A029,
     ];
 
+    /// Helper function to create a FiniteField instance with the test modulus
     fn create_field(value: [u64; 4]) -> FiniteField<4> {
         FiniteField::new(MODULUS, value)
     }
