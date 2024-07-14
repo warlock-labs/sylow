@@ -1,8 +1,13 @@
 use num_traits::Inv;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-// We have to keep the double size as a constant due to generic limitations
-// in rust
+/// A finite field scalar optimized for use in cryptographic operations.
+///
+/// All operations feature modular arithmetic. Primarily focusing on fields of prime
+/// order, non-prime order fields may have undefined behavior at this time.
+///
+/// Note: We have to keep the double size `D` as a constant due to generic limitations
+/// in rust.
 #[derive(Clone, Copy, Debug)]
 pub struct FiniteField<const L: usize, const D: usize> {
     modulus: [u64; L],
@@ -182,6 +187,7 @@ impl<const L: usize, const D: usize> Sub for FiniteField<L, D> {
 }
 
 // TODO(Make this constant time)
+// We can make constant time choices with the subtle crate
 impl<const L: usize, const D: usize> PartialEq for FiniteField<L, D> {
     fn eq(&self, other: &Self) -> bool {
         // First, check if the moduli are the same
