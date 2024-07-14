@@ -14,6 +14,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+hex-literal = "0.4.1"
+num-traits = "0.2.19"
+subtle = "2.6.1"
 
 [lib]
 
