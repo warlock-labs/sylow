@@ -1,15 +1,16 @@
-use num_traits::Inv;
+use num_traits::{Inv, Zero};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// A finite field scalar optimized for use in cryptographic operations.
 ///
-/// All operations feature modular arithmetic. Primarily focusing on fields of prime
-/// order, non-prime order fields may have undefined behavior at this time.
+/// All operations feature modular arithmetic, implemented in constant time.
+/// Primarily focusing on fields of prime order, non-prime order fields may
+/// have undefined behavior at this time.
 ///
 /// Note: We have to keep the double size `D` as a constant due to generic limitations
 /// in rust.
 #[derive(Clone, Copy, Debug)]
-pub struct FiniteField<const L: usize, const D: usize> {
+pub struct FinitePrimeField<const L: usize, const D: usize> {
     modulus: [u64; L],
     value: [u64; L],
     correction: [u64; L],
@@ -17,12 +18,14 @@ pub struct FiniteField<const L: usize, const D: usize> {
     n_prime: u64,
 }
 
-impl<const L: usize, const D: usize> FiniteField<L, D> {
+impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
     const ZERO: [u64; L] = Self::zero_array();
     const ONE: [u64; L] = Self::one_array();
 
     pub fn new(modulus: [u64; L], value: [u64; L]) -> Self {
         assert_eq!(D, 2 * L, "D must be equal to 2 * L");
+        // TODO(Cache these for a given modulus for the lifetime of the program)
+        // If it can be done in a way which doesn't introduce side-channel attacks
         let correction = Self::subtraction_correction(&modulus);
         let r_squared = Self::compute_r_squared(&modulus);
         let n_prime = Self::compute_n_prime(&modulus);
@@ -79,27 +82,32 @@ impl<const L: usize, const D: usize> FiniteField<L, D> {
     }
 
     fn compute_r_squared(modulus: &[u64; L]) -> [u64; L] {
-        todo!("Implement Montgomery multiplication")
+        // TODO (Implement Montgomery r squared)
+        Self::zero_array()
     }
 
     fn compute_n_prime(modulus: &[u64; L]) -> u64 {
-        todo!("Implement Montgomery multiplication")
+        // TODO (Implement Montgomery n prime)
+        u64::zero()
     }
 
     pub fn montgomery_reduce(&self, t: &mut [u64; D]) -> [u64; L] {
-        todo!("Implement Montgomery multiplication")
+        // TODO (Implement Montgomery reduce)
+        Self::zero_array()
     }
 
     pub fn to_montgomery(&self, a: &[u64; L]) -> [u64; L] {
-        todo!("Implement Montgomery multiplication")
+        // TODO (Implement to monty form)
+        Self::zero_array()
     }
 
     pub fn montgomery_multiply(&self, a: &[u64; L], b: &[u64; L]) -> [u64; L] {
-        todo!("Implement Montgomery multiplication")
+        // TODO: Implement Montgomery multiplication
+        Self::zero_array()
     }
 }
 
-impl<const L: usize, const D: usize> Add for FiniteField<L, D> {
+impl<const L: usize, const D: usize> Add for FinitePrimeField<L, D> {
     type Output = Self;
 
     /// Performs modular addition.
@@ -140,15 +148,25 @@ impl<const L: usize, const D: usize> Add for FiniteField<L, D> {
     }
 }
 
-impl<const L: usize, const D: usize> Neg for FiniteField<L, D> {
+impl<const L: usize, const D: usize> Neg for FinitePrimeField<L, D> {
     type Output = Self;
 
     fn neg(self) -> Self {
-        todo!("Implement negation")
+        let zero = Self::new(self.modulus, Self::zero_array());
+        let z = self == zero;
+        let mut negated = Self::new(self.modulus, Self::zero_array());
+        for i in 0..L {
+            negated.value[i] = self.modulus[i].wrapping_sub(self.value[i]);
+        }
+        if z {
+            zero
+        } else {
+            negated
+        }
     }
 }
 
-impl<const L: usize, const D: usize> Sub for FiniteField<L, D> {
+impl<const L: usize, const D: usize> Sub for FinitePrimeField<L, D> {
     type Output = Self;
 
     /// Performs modular subtraction.
@@ -188,7 +206,7 @@ impl<const L: usize, const D: usize> Sub for FiniteField<L, D> {
 
 // TODO(Make this constant time)
 // We can make constant time choices with the subtle crate
-impl<const L: usize, const D: usize> PartialEq for FiniteField<L, D> {
+impl<const L: usize, const D: usize> PartialEq for FinitePrimeField<L, D> {
     fn eq(&self, other: &Self) -> bool {
         // First, check if the moduli are the same
         if self.modulus != other.modulus {
@@ -200,7 +218,7 @@ impl<const L: usize, const D: usize> PartialEq for FiniteField<L, D> {
     }
 }
 
-impl<const L: usize, const D: usize> Mul for FiniteField<L, D> {
+impl<const L: usize, const D: usize> Mul for FinitePrimeField<L, D> {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self {
@@ -209,7 +227,7 @@ impl<const L: usize, const D: usize> Mul for FiniteField<L, D> {
     }
 }
 
-impl<const L: usize, const D: usize> Inv for FiniteField<L, D> {
+impl<const L: usize, const D: usize> Inv for FinitePrimeField<L, D> {
     type Output = Self;
 
     fn inv(self) -> Self {
@@ -218,7 +236,7 @@ impl<const L: usize, const D: usize> Inv for FiniteField<L, D> {
     }
 }
 
-impl<const L: usize, const D: usize> Div for FiniteField<L, D> {
+impl<const L: usize, const D: usize> Div for FinitePrimeField<L, D> {
     type Output = Self;
 
     fn div(self, other: Self) -> Self {
@@ -240,8 +258,8 @@ mod tests {
         0x30644E72E131A029,
     ];
 
-    fn create_field(value: [u64; 4]) -> FiniteField<4, 8> {
-        FiniteField::new(MODULUS, value)
+    fn create_field(value: [u64; 4]) -> FinitePrimeField<4, 8> {
+        FinitePrimeField::new(MODULUS, value)
     }
 
     mod addition_tests {
