@@ -115,48 +115,94 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         Self::zero_array()
     }
 
+    /// Performs Montgomery multiplication of two large integers represented as arrays of u64.
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - First operand as an array of u64
+    /// * `b` - Second operand as an array of u64
+    ///
+    /// # Returns
+    ///
+    /// The result of Montgomery multiplication as an array of u64
+    ///
     /// Effectively result_mont = (a_mont * b_mont * R^{-1}) mod N
-    /// Assumes properly reduced input/output in montgomery form
-    pub fn montgomery_multiply(&self, a: &[u64; L], b: &[u64; L]) -> [u64; L] {
+    //  Assumes properly reduced input/output in montgomery form
+    /// Performs Montgomery multiplication of two large integers represented as arrays of u64.
+    ///
+    /// This implementation uses constant-time techniques to mitigate timing side-channel attacks.
+    /// It follows the principles of literate programming by providing detailed explanations
+    /// alongside the code.
+    pub const fn montgomery_multiply(&self, a: &[u64; L], b: &[u64; L]) -> [u64; L] {
+        // Initialize result and temporary arrays
         let mut result = [0_u64; L];
         let mut temp = [0_u64; D];
 
-        for i in 0..L {
+        // The outer loop: iterate through each limb of b
+        let mut i = 0;
+        while i < L {
+            // The inner loop: multiply each limb of a with b[i] and accumulate
             let mut carry = 0_u64;
-            for j in 0..L {
-                let hilo = u128::from(a[j]) * u128::from(b[i])
-                    + u128::from(temp[i + j])
-                    + u128::from(carry); // Note (2^64-1)*(2^64-1)+2*(2^64-1) = 2^128-1
+            let mut j = 0;
+            while j < L {
+                // Perform multiplication and addition with 128-bit precision
+                // We use explicit casts to u128 for constant-time compatibility
+                let hilo =
+                    (a[j] as u128) * (b[i] as u128) + (temp[i + j] as u128) + (carry as u128);
+
+                // Store the lower 64 bits in temp
                 temp[i + j] = hilo as u64;
+
+                // Store the upper 64 bits as carry for the next iteration
                 carry = (hilo >> 64) as u64;
+
+                j += 1;
             }
+
+            // Add the final carry to the next limb
             temp[i + L] = temp[i + L].wrapping_add(carry);
 
+            // Calculate m for Montgomery reduction
             let m: u64 = temp[i].wrapping_mul(self.n_prime);
 
+            // Perform Montgomery reduction
             let mut carry = 0_u64;
-            for j in 0..L {
-                let hilo = u128::from(m) * u128::from(self.n_prime)
-                    + u128::from(temp[i + j])
-                    + u128::from(carry);
+            let mut j = 0;
+            while j < L {
+                let hilo =
+                    (m as u128) * (self.n_prime as u128) + (temp[i + j] as u128) + (carry as u128);
                 temp[i + j] = hilo as u64;
                 carry = (hilo >> 64) as u64;
+                j += 1;
             }
+
+            // Add the final carry to the next limb
             temp[i + L] = temp[i + L].wrapping_add(carry);
+
+            i += 1;
         }
 
+        // Final subtraction to ensure the result is less than modulus
         let mut dec = [0_u64; L];
         let mut borrow = false;
-        for j in 0..L {
-            let (diff, borrow_tmp) = temp[j + L].overflowing_sub(self.n_prime + u64::from(borrow));
-            dec[j] = diff as u64;
+        let mut j = 0;
+        while j < L {
+            // Perform subtraction with borrow
+            let (diff, borrow_tmp) = temp[j + L].overflowing_sub(self.n_prime + (borrow as u64));
+            dec[j] = diff;
             borrow = borrow_tmp;
+            j += 1;
         }
 
-        let select_temp = u64::from(borrow).wrapping_neg();
-        for j in 0..L {
+        // Select between temp and dec based on borrow
+        // This is a constant-time selection to avoid timing attacks
+        let select_temp = (borrow as u64).wrapping_neg();
+        let mut j = 0;
+        while j < L {
             result[j] = (select_temp & temp[j + L]) | (!select_temp & dec[j]);
+            j += 1;
         }
+
         result
     }
 
