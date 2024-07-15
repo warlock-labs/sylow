@@ -1,6 +1,5 @@
 use num_traits::{Inv, Zero};
 use std::ops::{Add, Div, Mul, Neg, Sub};
-
 /// A finite field scalar optimized for use in cryptographic operations.
 ///
 /// All operations feature modular arithmetic, implemented in constant time.
@@ -28,16 +27,18 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         }
         // TODO(Cache these for a given modulus for the lifetime of the program)
         // If it can be done in a way which doesn't introduce side-channel attacks
-        let correction = Self::subtraction_correction(&modulus);
-        let r_squared = Self::compute_r_squared(&modulus);
-        let n_prime = Self::compute_n_prime(&modulus);
-        Self {
+        let r = Self::compute_r(&modulus);
+        let mut retval = Self {
             modulus,
             value,
-            correction,
-            r_squared,
-            n_prime,
-        }
+            correction: [0u64; L],
+            r_squared: [0u64; L],
+            n_prime: 0u64,
+        };
+        retval.correction = Self::subtraction_correction(&modulus);
+        retval.n_prime = Self::compute_n_prime(&modulus);
+        retval.r_squared = retval.montgomery_multiply(&r, &r);
+        retval
     }
 
     /// Computes the correction factor for efficient subtraction.
@@ -86,33 +87,40 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
     }
 
     const fn compute_r(modulus: &[u64; L]) -> [u64; L] {
-        // TODO (Implement Montgomery r squared)
-        Self::zero_array()
-    }
+        let diff = Self::subtraction_correction(modulus);
+        let mut r = [0u64; L];
 
-    const fn compute_r_squared(modulus: &[u64; L]) -> [u64; L] {
-        // TODO (Implement Montgomery r squared)
-        Self::zero_array()
-    }
-
-    const fn compute_r_cubed(modulus: &[u64; L]) -> [u64; L] {
-        // TODO (Implement Montgomery r squared)
-        Self::zero_array()
+        //R = (2^(64*L) - modulus) + modulus
+        let mut i = 0;
+        let mut carry = 0u64;
+        while i < L {
+            let (sum, c1) = diff[i].overflowing_add(modulus[i]);
+            let (sum, c2 ) = sum.overflowing_add(carry);
+            r[i] = sum;
+            carry = (c1 as u64) + (c2 as u64);
+            i+= 1;
+        }
+        r //by definition in range, so no need to montgomery reduce
     }
 
     const fn compute_n_prime(modulus: &[u64; L]) -> u64 {
-        // TODO (Implement Montgomery n prime)
-        0u64
+        let n = modulus[0]; //need only least significant bits
+        let mut n_prime = 1u64;
+        let mut i = 0;
+        while i < 64 {
+            n_prime = n_prime.wrapping_mul(n);
+            n_prime = n_prime.wrapping_mul(2u64.wrapping_sub(n.wrapping_mul(n_prime)));
+            i += 1;
+        }
+        n_prime.wrapping_neg()
     }
 
     pub const fn to_montgomery(&self, a: &[u64; L]) -> [u64; L] {
-        // TODO (Implement to monty form)
-        Self::zero_array()
+        self.montgomery_multiply(a, &self.r_squared)
     }
 
     pub const fn from_montgomery(&self, a: &[u64; L]) -> [u64; L] {
-        // TODO (Implement from monty form)
-        Self::zero_array()
+        self.montgomery_multiply(a, &Self::one_array())
     }
 
     /// Performs Montgomery multiplication of two large integers represented as arrays of u64.
@@ -198,11 +206,144 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
             j += 1;
         }
 
+        self.to_montgomery(&result)
+    }
+
+    
+    pub const fn greater_than(&self, a: &[u64; L], b:&[u64;L])-> bool {
+        let mut i = L;
+        while i>0 {
+            i -= 1;
+            if a[i] > b[i] {
+                return true;
+            }
+            if a[i] < b[i] {
+                return false;
+            }
+        }
+        false
+    }
+    pub const fn is_zero(&self, a: &[u64; L]) -> bool {
+        let mut retval = true;
+        let mut i = 0;
+        while i < L {
+            retval &= a[i] == 0;
+            i += 1;
+        }
+        retval
+    }
+
+    pub const fn add_mod_internal(&self, a: &[u64; L], b: &[u64; L]) -> [u64;L] {
+        // Initialize sum to zero
+        let mut sum = Self::zero_array();
+        let mut carry = false;
+        let mut i = 0;
+
+        // Perform addition with carry propagation
+        while i < L {
+            let sum_with_other = a[i].overflowing_add(b[i]);
+            let sum_with_carry = sum_with_other.0.overflowing_add(if carry { 1 } else { 0 });
+            sum[i] = sum_with_carry.0;
+            carry = sum_with_other.1 | sum_with_carry.1;
+            i += 1;
+        }
+
+        // Perform trial subtraction of modulus
+        i = 0;
+        let mut trial = Self::zero_array();
+        let mut borrow = false;
+        while i < L {
+            // Note: a single overflowing_sub is enough because modulus[i]+borrow can never overflow
+            let diff_with_borrow =
+                sum[i].overflowing_sub(self.modulus[i] + if borrow { 1 } else { 0 });
+            trial[i] = diff_with_borrow.0;
+            borrow = diff_with_borrow.1;
+            i += 1;
+        }
+
+        // Select between sum and trial based on borrow flag
+        i = 0;
+        let mut result = Self::zero_array();
+        let select_mask = u64::from(borrow).wrapping_neg();
+        while i < L {
+            // If borrow is true (select_mask is all 1s), choose sum, otherwise choose trial
+            result[i] = (select_mask & sum[i]) | (!select_mask & trial[i]);
+            i += 1;
+        }
         result
     }
 
+    pub const fn sub_internal(&self, a: &[u64; L], b: &[u64; L]) -> [u64; L] {
+        // Initialize difference to zero
+        let mut difference = Self::zero_array();
+        let mut borrow = false;
+        let mut i = 0;
+
+        // Perform subtraction with borrow propagation
+        while i < L {
+            let diff_without_borrow = a[i].overflowing_sub(b[i]);
+            let diff_with_borrow =
+                diff_without_borrow
+                    .0
+                    .overflowing_sub(if borrow { 1 } else { 0 });
+            difference[i] = diff_with_borrow.0;
+            borrow = diff_without_borrow.1 | diff_with_borrow.1;
+            i += 1;
+        }
+
+        // Always subtract the correction, which effectively adds the modulus if borrow occurred
+        let correction_mask = u64::from(borrow).wrapping_neg();
+        let mut correction_borrow = false;
+        i = 0;
+        while i < L {
+            let correction_term =
+                (correction_mask & self.correction[i]) + if correction_borrow { 1 } else { 0 };
+            let (corrected_limb, new_borrow) = difference[i].overflowing_sub(correction_term);
+            difference[i] = corrected_limb;
+            correction_borrow = new_borrow;
+            i += 1;
+        }
+        difference
+    }
+    
+    pub const fn neg_internal(&self, a: &[u64; L]) -> [u64; L] {
+        let zero = Self::zero_array();
+        let z = self.is_zero(a);
+        let mut negated = Self::zero_array();
+        let mut i = 0;
+        while i < L {
+            negated[i] = self.modulus[i].wrapping_sub(a[i]);
+            i += 1;
+        }
+        if z {
+            zero
+        } else {
+            negated
+        }
+    }
+    /// The following performs the Bernstein-Yang inversion on a scalar.
     pub const fn bernstein_yang_invert(&self, a: &[u64; L]) -> [u64; L] {
-        // TODO: implement bernstein yang inversion
+        let mut u =  *a;
+        let mut v = self.modulus;
+        let mut r = Self::zero_array();
+        let mut s = Self::one_array();
+
+        let mut i = 0;
+        while i < 256*L {
+            if self.is_zero(&v) {
+                break;
+            }
+            if self.is_even(&u){
+                u = self.div2(&u);
+                s = self.mul2(&s);
+            } else if self.is_even(&v){
+                v = self.div2(&v);
+                r = self.mul2(&r);
+            } else if self.greater_than(&u, &v) {
+                
+            }
+            i+= 1;
+        }
         Self::zero_array()
     }
 }
@@ -214,37 +355,7 @@ impl<const L: usize, const D: usize> Add for FinitePrimeField<L, D> {
     ///
     /// This method adds two field elements and reduces the result modulo the field's modulus.
     fn add(self, other: Self) -> Self {
-        // Initialize sum to zero
-        let mut sum = Self::new(self.modulus, Self::zero_array());
-        let mut carry = false;
-
-        // Perform addition with carry propagation
-        for i in 0..L {
-            let sum_with_other = self.value[i].overflowing_add(other.value[i]);
-            let sum_with_carry = sum_with_other.0.overflowing_add(if carry { 1 } else { 0 });
-            sum.value[i] = sum_with_carry.0;
-            carry = sum_with_other.1 | sum_with_carry.1;
-        }
-
-        // Perform trial subtraction of modulus
-        let mut trial = Self::new(self.modulus, Self::zero_array());
-        let mut borrow = false;
-        for i in 0..L {
-            // Note: a single overflowing_sub is enough because modulus[i]+borrow can never overflow
-            let diff_with_borrow =
-                sum.value[i].overflowing_sub(self.modulus[i] + if borrow { 1 } else { 0 });
-            trial.value[i] = diff_with_borrow.0;
-            borrow = diff_with_borrow.1;
-        }
-
-        // Select between sum and trial based on borrow flag
-        let mut result = Self::new(self.modulus, Self::zero_array());
-        let select_mask = u64::from(borrow).wrapping_neg();
-        for i in 0..L {
-            // If borrow is true (select_mask is all 1s), choose sum, otherwise choose trial
-            result.value[i] = (select_mask & sum.value[i]) | (!select_mask & trial.value[i]);
-        }
-        result
+        Self::new(self.modulus, self.add_mod_internal(&self.value, &other.value))
     }
 }
 
@@ -252,17 +363,7 @@ impl<const L: usize, const D: usize> Neg for FinitePrimeField<L, D> {
     type Output = Self;
 
     fn neg(self) -> Self {
-        let zero = Self::new(self.modulus, Self::zero_array());
-        let z = self == zero;
-        let mut negated = Self::new(self.modulus, Self::zero_array());
-        for i in 0..L {
-            negated.value[i] = self.modulus[i].wrapping_sub(self.value[i]);
-        }
-        if z {
-            zero
-        } else {
-            negated
-        }
+        Self::new(self.modulus, self.neg_internal(&self.value))
     }
 }
 
@@ -274,33 +375,7 @@ impl<const L: usize, const D: usize> Sub for FinitePrimeField<L, D> {
     /// This method subtracts one field element from another and ensures the result
     /// is in the correct range by adding the modulus if necessary.
     fn sub(self, other: Self) -> Self {
-        // Initialize difference to zero
-        let mut difference = Self::new(self.modulus, Self::zero_array());
-        let mut borrow = false;
-
-        // Perform subtraction with borrow propagation
-        for i in 0..L {
-            let diff_without_borrow = self.value[i].overflowing_sub(other.value[i]);
-            let diff_with_borrow =
-                diff_without_borrow
-                    .0
-                    .overflowing_sub(if borrow { 1 } else { 0 });
-            difference.value[i] = diff_with_borrow.0;
-            borrow = diff_without_borrow.1 | diff_with_borrow.1;
-        }
-
-        // Always subtract the correction, which effectively adds the modulus if borrow occurred
-        let correction_mask = u64::from(borrow).wrapping_neg();
-        let mut correction_borrow = false;
-        for i in 0..L {
-            let correction_term =
-                (correction_mask & self.correction[i]) + if correction_borrow { 1 } else { 0 };
-            let (corrected_limb, new_borrow) = difference.value[i].overflowing_sub(correction_term);
-            difference.value[i] = corrected_limb;
-            correction_borrow = new_borrow;
-        }
-
-        difference
+        Self::new(self.modulus, self.sub_internal(&self.value,&other.value))
     }
 }
 
