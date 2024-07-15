@@ -128,11 +128,6 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
     ///
     /// Effectively result_mont = (a_mont * b_mont * R^{-1}) mod N
     //  Assumes properly reduced input/output in montgomery form
-    /// Performs Montgomery multiplication of two large integers represented as arrays of u64.
-    ///
-    /// This implementation uses constant-time techniques to mitigate timing side-channel attacks.
-    /// It follows the principles of literate programming by providing detailed explanations
-    /// alongside the code.
     pub const fn montgomery_multiply(&self, a: &[u64; L], b: &[u64; L]) -> [u64; L] {
         // Initialize result and temporary arrays
         let mut result = [0_u64; L];
