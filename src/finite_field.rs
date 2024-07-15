@@ -22,8 +22,10 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
     const ZERO: [u64; L] = Self::zero_array();
     const ONE: [u64; L] = Self::one_array();
 
-    pub fn new(modulus: [u64; L], value: [u64; L]) -> Self {
-        assert_eq!(D, 2 * L, "D must be equal to 2 * L");
+    pub const fn new(modulus: [u64; L], value: [u64; L]) -> Self {
+        if D != 2 * L {
+            panic!("Double size D must be twice the size of the field L");
+        }
         // TODO(Cache these for a given modulus for the lifetime of the program)
         // If it can be done in a way which doesn't introduce side-channel attacks
         let correction = Self::subtraction_correction(&modulus);
@@ -50,13 +52,15 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
     /// # Returns
     ///
     /// The computed correction factor
-    fn subtraction_correction(modulus: &[u64; L]) -> [u64; L] {
+    const fn subtraction_correction(modulus: &[u64; L]) -> [u64; L] {
         let mut correction = [0; L];
         let mut carry = 1u64;
-        for i in 0..L {
+        let mut i = 0;
+        while i < L {
             let (corrected_limb, new_carry) = (!modulus[i]).overflowing_add(carry);
             correction[i] = corrected_limb;
-            carry = u64::from(new_carry);
+            carry = if new_carry { 1 } else { 0 };
+            i += 1;
         }
         correction
     }
@@ -81,27 +85,32 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         arr
     }
 
-    fn compute_r_squared(modulus: &[u64; L]) -> [u64; L] {
+    const fn compute_r(modulus: &[u64; L]) -> [u64; L] {
         // TODO (Implement Montgomery r squared)
         Self::zero_array()
     }
 
-    fn compute_n_prime(modulus: &[u64; L]) -> u64 {
-        // TODO (Implement Montgomery n prime)
-        u64::zero()
-    }
-
-    pub fn montgomery_reduce(&self, t: &mut [u64; D]) -> [u64; L] {
-        // TODO (Implement Montgomery reduce)
+    const fn compute_r_squared(modulus: &[u64; L]) -> [u64; L] {
+        // TODO (Implement Montgomery r squared)
         Self::zero_array()
     }
 
-    pub fn to_montgomery(&self, a: &[u64; L]) -> [u64; L] {
+    const fn compute_r_cubed(modulus: &[u64; L]) -> [u64; L] {
+        // TODO (Implement Montgomery r squared)
+        Self::zero_array()
+    }
+
+    const fn compute_n_prime(modulus: &[u64; L]) -> u64 {
+        // TODO (Implement Montgomery n prime)
+        0u64
+    }
+
+    pub const fn to_montgomery(&self, a: &[u64; L]) -> [u64; L] {
         // TODO (Implement to monty form)
         Self::zero_array()
     }
 
-    pub fn from_montgomery(&self, a: &[u64; L]) -> [u64; L] {
+    pub const fn from_montgomery(&self, a: &[u64; L]) -> [u64; L] {
         // TODO (Implement from monty form)
         Self::zero_array()
     }
@@ -151,7 +160,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         result
     }
 
-    pub fn bernstein_yang_invert(&self, a: &[u64; L]) -> [u64; L] {
+    pub const fn bernstein_yang_invert(&self, a: &[u64; L]) -> [u64; L] {
         // TODO: implement bernstein yang inversion
         Self::zero_array()
     }
