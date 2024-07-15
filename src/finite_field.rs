@@ -101,8 +101,58 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         Self::zero_array()
     }
 
+    pub fn from_montgomery(&self, a: &[u64; L]) -> [u64; L] {
+        // TODO (Implement from monty form)
+        Self::zero_array()
+    }
+
+    /// Effectively result_mont = (a_mont * b_mont * R^{-1}) mod N
+    /// Assumes properly reduced input/output in montgomery form
     pub fn montgomery_multiply(&self, a: &[u64; L], b: &[u64; L]) -> [u64; L] {
-        // TODO: Implement Montgomery multiplication
+        let mut result = [0_u64; L];
+        let mut temp = [0_u64; D];
+
+        for i in 0..L {
+            let mut carry = 0_u64;
+            for j in 0..L {
+                let hilo = u128::from(a[j]) * u128::from(b[i])
+                    + u128::from(temp[i + j])
+                    + u128::from(carry); // Note (2^64-1)*(2^64-1)+2*(2^64-1) = 2^128-1
+                temp[i + j] = hilo as u64;
+                carry = (hilo >> 64) as u64;
+            }
+            temp[i + L] = temp[i + L].wrapping_add(carry);
+
+            let m: u64 = temp[i].wrapping_mul(self.n_prime);
+
+            let mut carry = 0_u64;
+            for j in 0..L {
+                let hilo = u128::from(m) * u128::from(self.n_prime)
+                    + u128::from(temp[i + j])
+                    + u128::from(carry);
+                temp[i + j] = hilo as u64;
+                carry = (hilo >> 64) as u64;
+            }
+            temp[i + L] = temp[i + L].wrapping_add(carry);
+        }
+
+        let mut dec = [0_u64; L];
+        let mut borrow = false;
+        for j in 0..L {
+            let (diff, borrow_tmp) = temp[j + L].overflowing_sub(self.n_prime + u64::from(borrow));
+            dec[j] = diff as u64;
+            borrow = borrow_tmp;
+        }
+
+        let select_temp = u64::from(borrow).wrapping_neg();
+        for j in 0..L {
+            result[j] = (select_temp & temp[j + L]) | (!select_temp & dec[j]);
+        }
+        result
+    }
+
+    pub fn bernstein_yang_invert(&self, a: &[u64; L]) -> [u64; L] {
+        // TODO: implement bernstein yang inversion
         Self::zero_array()
     }
 }
@@ -231,8 +281,8 @@ impl<const L: usize, const D: usize> Inv for FinitePrimeField<L, D> {
     type Output = Self;
 
     fn inv(self) -> Self {
-        todo!("Implement multiplicative inverse")
-        // This can be implemented with a montgomery inversion
+        let inverted = self.bernstein_yang_invert(&self.value);
+        Self::new(self.modulus, inverted)
     }
 }
 
