@@ -109,7 +109,6 @@ impl<const L: usize, const D: usize, T: ModulusConfig + ModulusTrait> FinitePrim
         let _modulus = Modulus::<T>::new();
         let _value = MontgomeryForm::<T>::new(&value);
         
-        // let value = ConstMontyForm::<mymod, {mymod::LIMBS}>::new(&value);
         Self(_value)
     }
 }
@@ -132,6 +131,13 @@ impl<const L: usize, const D: usize, T:ModulusConfig + ModulusTrait> Add for Fin
         Self::new((self.0+other.0).retrieve())
     }
 }
+impl<const L: usize, const D: usize, T:ModulusConfig + ModulusTrait> Sub for FinitePrimeField<L, D, T> {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        Self::new((self.0-other.0).retrieve())
+    }
+}
+
 impl<const L: usize, const D: usize,  T:ModulusConfig + ModulusTrait> PartialEq for FinitePrimeField<L, D, T> {
     fn eq(&self, other: &Self) -> bool {
         // First compare the montgomery values, which encodes the modulus
@@ -231,5 +237,68 @@ mod tests {
             );
         }
     }
+    mod subtraction_tests {
+            use super::*;
 
+            #[test]
+            fn test_subtraction_closure() {
+                let a = create_field([1, 2, 3, 4]);
+                let b = create_field([5, 6, 7, 8]);
+                let _ = a - b;
+            }
+
+            #[test]
+            fn test_subtraction_cases() {
+                // Simple subtraction
+                let a = create_field([3, 0, 0, 0]);
+                let b = create_field([1, 0, 0, 0]);
+                assert_eq!(*(a - b), U256::from_words([2, 0, 0, 0]), "Simple subtraction failed");
+
+                // Subtraction with borrow
+                let c = create_field([0, 1, 0, 0]);
+                let d = create_field([1, 0, 0, 0]);
+                assert_eq!(
+                    *(c - d),
+                    U256::from_words([0xFFFFFFFFFFFFFFFF, 0, 0, 0]),
+                    "Subtraction with borrow failed"
+                );
+
+                // Subtraction that borrows from the modulus
+                let e = create_field([0, 0, 0, 0]);
+                let f = create_field([1, 0, 0, 0]);
+                assert_eq!(
+                    *(e - f),
+                    U256::from_words([
+                        0x3C208C16D87CFD46,
+                        0x97816A916871CA8D,
+                        0xB85045B68181585D,
+                        0x30644E72E131A029,
+                    ]),
+                    "Modular borrow failed"
+                );
+
+                // Subtraction resulting in zero
+                let g = create_field(MODULUS);
+                assert_eq!(*(g.clone() - g), U256::from_words([0, 0, 0, 0]), "Subtraction to zero failed");
+            }
+
+            #[test]
+            fn test_subtraction_edge_cases() {
+                let a = create_field([1, 2, 3, 4]);
+                let zero = create_field([0, 0, 0, 0]);
+                assert_eq!(a.clone() - zero.clone(), a, "Subtracting zero failed");
+
+                let one = create_field([1, 0, 0, 0]);
+                assert_eq!(
+                    *(zero - one),
+                    U256::from_words([
+                        0x3C208C16D87CFD46,
+                        0x97816A916871CA8D,
+                        0xB85045B68181585D,
+                        0x30644E72E131A029,
+                    ]),
+                    "Subtracting from zero failed"
+                );
+            }
+        }
 }
