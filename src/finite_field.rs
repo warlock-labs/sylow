@@ -103,11 +103,58 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         let mut r = [0u64; L];
         r[L - 1] = 1u64; // initialize R as 2^(64*(L-1))
 
-        if self.greater_than(&r, &self.modulus) {
-            self.sub_mod_internal(&r, &self.modulus)
-        } else {
-            r
+        // We'll double R a total of 64 times
+        let mut i = 0;
+        while i < 64 {
+            let mut carry = 0u64;
+            let mut j = 0;
+            
+            // Double R by left-shifting all limbs
+            while j < L {
+                // r[j] * 2 = r[j] << 1
+                // We use wrapping_mul for constant-time operation
+                let (res, c) = r[j].wrapping_mul(2).overflowing_add(carry);
+                r[j] = res;
+                // Carry is either 0 or 1, propagated to next limb
+                carry = c as u64;
+                j += 1;
+            }
+            
+            // At this point, r = (previous r) * 2
+            
+            // Conditional subtraction of N if R >= N
+            // We always perform the subtraction and use cmov-like logic
+            // to ensure constant-time operation
+            let mut borrow = 0u64;
+            let mut sub_r = [0u64; L];
+            let mut j = 0;
+            while j < L {
+                let (res, b) = r[j].overflowing_sub(self.modulus[j]);
+                let (res, b2) = res.overflowing_sub(borrow);
+                sub_r[j] = res;
+                // Borrow is either 0 or 1, propagated to next limb
+                borrow = (b as u64) | (b2 as u64);
+                j += 1;
+            }
+            
+            // If borrow is 0, it means r >= n, so we use the subtracted result
+            // If borrow is 1, it means r < n, so we keep the original r
+            // This selection is done in constant time
+            let mut j = 0;
+            while j < L {
+                // This is equivalent to: if borrow == 0 { r[j] = sub_r[j] }
+                // But it's done in constant time
+                r[j] ^= (r[j] ^ sub_r[j]) & (borrow.wrapping_sub(1));
+                j += 1;
+            }
+            
+            // At this point, r = (previous r * 2) mod n
+            
+            i += 1;
         }
+        
+        // Final value of r is 2^(64*L) mod n, which is our desired R value
+        r
     }
     /// R^2 mod N, this is used to convert numbers into montgomery form
     /// For a number a, the montgomery form is (a*R) mod N
