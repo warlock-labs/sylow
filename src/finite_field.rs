@@ -100,65 +100,108 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         arr[0] = 1;
         arr
     }
+    const fn extended_gcd_for_r(&self) -> ([u64; L], [u64; L], [u64; L]) {
+        let mut a = [0u64; L];
+        a[L-1] = 1;  // a = 2^(64*(L-1))
+        let mut b = self.modulus;
+        
+        let mut x = [0u64; L];
+        x[0] = 1;
+        let mut y = [0u64; L];
+        
+        let mut ua = Self::one_array();
+        let mut ub = [0u64; L];
+    
+        while !Self::is_zero(&b) {
+            let mut q = [0u64; L];
+            let mut r = [0u64; L];
+            
+            // Compute q and r such that a = q * b + r
+            let mut carry = 0u64;
+            let mut i = L;
+            while i > 0 {
+                i -= 1;
+                let dividend = (carry as u128) << 64 | (a[i] as u128);
+                if b[L-1] != 0 {
+                    q[i] = (dividend / (b[L-1] as u128)) as u64;
+                }
+                let mut k = 0u64;
+                let mut j = 0;
+                while j < L {
+                    let p = (q[i] as u128) * (b[j] as u128) + (k as u128);
+                    k = (p >> 64) as u64;
+                    let v = p as u64;
+                    if j + i < L {
+                        let (res, borrow) = a[j+i].overflowing_sub(v);
+                        let (res, borrow2) = res.overflowing_sub(carry);
+                        r[j+i] = res;
+                        carry = (borrow as u64) + (borrow2 as u64) + k;
+                    } else {
+                        carry = carry.saturating_add(v).saturating_add(k);
+                    }
+                    j += 1;
+                }
+            }
+    
+            // Update a, b
+            a = b;
+            b = r;
+    
+            // Update ua, ub
+            let mut new_ub = [0u64; L];
+            let mut carry = 0u64;
+            let mut i = 0;
+            while i < L {
+                let mut sum = ub[i];
+                let mut j = 0;
+                while j <= i {
+                    let (prod, c) = q[j].overflowing_mul(ua[i-j]);
+                    let (s, c1) = sum.overflowing_sub(prod);
+                    let (s, c2) = s.overflowing_sub(carry);
+                    sum = s;
+                    carry = (c as u64) + (c1 as u64) + (c2 as u64);
+                    j += 1;
+                }
+                new_ub[i] = sum;
+                i += 1;
+            }
+            ua = ub;
+            ub = new_ub;
+        }
+    
+        (a, ua, ub)
+    }
+    
+    const fn is_zero(arr: &[u64; L]) -> bool {
+        let mut i = 0;
+        while i < L {
+            if arr[i] != 0 {
+                return false;
+            }
+            i += 1;
+        }
+        true
+    }
     /// Compute R = 2^(64*L) mod N
     /// R is chosen to be larger than N and coprime to N
     /// Since we're in a binary field, R will be a power of two for efficiency
     pub const fn compute_r(&self) -> [u64; L] {
-        let mut r = [0u64; L];
-        r[L - 1] = 1u64; // initialize R as 2^(64*(L-1))
-
-        // We'll double R a total of 64 times
-        let mut i = 0;
-        while i < 64 {
-            let mut carry = 0u64;
-            let mut j = 0;
-            
-            // Double R by left-shifting all limbs
-            while j < L {
-                // r[j] * 2 = r[j] << 1
-                // We use wrapping_mul for constant-time operation
-                let (res, c) = r[j].wrapping_mul(2).overflowing_add(carry);
-                r[j] = res;
-                // Carry is either 0 or 1, propagated to next limb
-                carry = c as u64;
-                j += 1;
-            }
-            
-            // At this point, r = (previous r) * 2
-            
-            // Conditional subtraction of N if R >= N
-            // We always perform the subtraction and use cmov-like logic
-            // to ensure constant-time operation
-            let mut borrow = 0u64;
-            let mut sub_r = [0u64; L];
-            let mut j = 0;
-            while j < L {
-                let (res, b) = r[j].overflowing_sub(self.modulus[j]);
-                let (res, b2) = res.overflowing_sub(borrow);
-                sub_r[j] = res;
-                // Borrow is either 0 or 1, propagated to next limb
-                borrow = (b as u64) | (b2 as u64);
-                j += 1;
-            }
-            
-            // If borrow is 0, it means r >= n, so we use the subtracted result
-            // If borrow is 1, it means r < n, so we keep the original r
-            // This selection is done in constant time
-            let mut j = 0;
-            while j < L {
-                // This is equivalent to: if borrow == 0 { r[j] = sub_r[j] }
-                // But it's done in constant time
-                r[j] ^= (r[j] ^ sub_r[j]) & (borrow.wrapping_sub(1));
-                j += 1;
-            }
-            
-            // At this point, r = (previous r * 2) mod n
-            
+        let (gcd, x, _) = self.extended_gcd_for_r();
+        //check if gcd is one
+        let mut is_one = true;
+        let mut i = 1;
+        while i < L {
+            if gcd[i] != 0 {
+                is_one = false;
+                break;
+            } 
             i += 1;
         }
-        
-        // Final value of r is 2^(64*L) mod n, which is our desired R value
-        r
+        if gcd[0] != 1 {
+            is_one = false;
+        }
+        assert!(is_one, "R is not corime to N");
+        x
     }
     /// R^2 mod N, this is used to convert numbers into montgomery form
     /// For a number a, the montgomery form is (a*R) mod N
@@ -280,7 +323,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         }
 
         // Final subtraction
-        if self.greater_than(&s, &self.modulus) || carry > 0 {
+        if self.greater_than_or_equal(&s, &self.modulus) || carry > 0 {
             self.sub_mod_internal(&s, &self.modulus)
         } else {
             s
@@ -365,7 +408,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         }
     }
 
-    pub const fn greater_than(&self, a: &[u64; L], b: &[u64; L]) -> bool {
+    pub const fn greater_than_or_equal(&self, a: &[u64; L], b: &[u64; L]) -> bool {
         let mut i = L;
         while i > 0 {
             i -= 1;
@@ -378,15 +421,18 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         }
         false
     }
-
-    pub const fn is_zero(&self, a: &[u64; L]) -> bool {
-        let mut retval = true;
-        let mut i = 0;
-        while i < L {
-            retval &= a[i] == 0;
-            i += 1;
+    pub const fn less_than(&self, a: &[u64; L], b: &[u64; L]) -> bool {
+        let mut i = L;
+        while i > 0 {
+            i -= 1;
+            if a[i] < b[i] {
+                return true;
+            }
+            if a[i] > b[i] {
+                return false;
+            }
         }
-        retval
+        false
     }
 
     pub const fn add_mod_internal(&self, a: &[u64; L], b: &[u64; L]) -> [u64; L] {
@@ -458,7 +504,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
 
     pub const fn neg_internal(&self, a: &[u64; L]) -> [u64; L] {
         let zero = Self::zero_array();
-        let z = self.is_zero(a);
+        let z = Self::is_zero(a);
         let mut negated = Self::zero_array();
         let mut i = 0;
         while i < L {
@@ -481,7 +527,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         let mut i = 0;
         while i < 256 * L {
             // Use a fixed upper bound for iterations
-            if self.is_zero(&v) {
+            if Self::is_zero(&v) {
                 break;
             }
             if u[0] & 1 == 0 {
@@ -490,7 +536,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
             } else if v[0] & 1 == 0 {
                 v = self.div_by_two(&v);
                 r = self.mul_by_two(&r);
-            } else if self.greater_than(&u, &v) {
+            } else if self.greater_than_or_equal(&u, &v) {
                 u = self.div_by_two(&self.sub_mod_internal(&u, &v));
                 r = self.add_mod_internal(&r, &s);
                 s = self.mul_by_two(&s);
@@ -502,7 +548,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
             i += 1;
         }
 
-        if self.greater_than(&r, &self.modulus) {
+        if self.greater_than_or_equal(&r, &self.modulus) {
             r = self.sub_mod_internal(&r, &self.modulus);
         }
 
@@ -662,7 +708,116 @@ mod tests {
     fn create_field(value: [u64; 4]) -> FinitePrimeField<4, 8> {
         FinitePrimeField::new(MODULUS, value)
     }
+    mod arith_tests {
+        use super::*;
+        use std::fmt::Write;
+        const N_HEX: &str = "0x1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab";
+        const L: usize = 6; 
 
+        fn hex_str_to_u64_array(input: &str) -> [u64; L] {
+            let mut n_array = [0u64; L];
+            let n_hex = input.strip_prefix("0x").unwrap_or(N_HEX);
+            
+            for (i, chunk) in n_hex.as_bytes().rchunks(16).enumerate() {
+                if i >= L {
+                    break;
+                }
+                let limb_hex = std::str::from_utf8(chunk).unwrap();
+                n_array[i] = u64::from_str_radix(limb_hex, 16).unwrap();
+            }
+            
+            n_array
+        }
+        pub fn u64_array_to_hex_str<const L: usize>(arr: &[u64; L]) -> String {
+            let mut hex = String::with_capacity(2 + L * 16);
+            hex.push_str("0x");
+        
+            let mut started = false;
+            for &limb in arr.iter().rev() {
+                if started {
+                    write!(hex, "{:016x}", limb).unwrap();
+                } else if limb != 0 {
+                    write!(hex, "{:x}", limb).unwrap();
+                    started = true;
+                }
+            }
+        
+            if !started {
+                hex.push('0');
+            }
+        
+            hex
+        }
+
+        #[test]
+        fn test_compute_hex_u64_conversion() {
+            const N: [u64; 6] = [
+                0xb9fe_ffff_ffff_aaab, 0x1eab_fffe_b153_ffff, 0x6730_d2a0_f6b0_f624,
+                0x6477_4b84_f385_12bf, 0x4b1b_a7b6_434b_acd7, 0x1a01_11ea_397f_e69a,
+            ];
+            let modulus_u64_array = hex_str_to_u64_array(N_HEX);
+            assert_eq!(N, modulus_u64_array, "str_to_u64 failed");
+
+            let hex = u64_array_to_hex_str(&modulus_u64_array);
+            assert_eq!(hex, N_HEX, "u64_to_str failed");
+        }
+        #[test]
+        fn test_n_prime(){
+
+            let R = "0x1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+            let u64_R = hex_str_to_u64_array(R);
+            let modulus = hex_str_to_u64_array(N_HEX);
+            let field = FinitePrimeField::<6,12>::new(modulus, [1,2,3,4,5,6]);
+            println!("{:?}", u64_array_to_hex_str(&field.compute_r()));
+            println!("{:?}", R);
+        }
+        // #[test]
+        // fn test_compute_n_prime() {
+        //     let n = n_to_array();
+        //     let n_prime = compute_n_prime(&n);
+        //     let n_biguint = BigUint::parse_bytes(N_HEX.as_bytes(), 16).unwrap();
+        //     let r = BigUint::from(2u32).pow(384u32);
+            
+        //     // Compute Np1 using extended Euclidean algorithm
+        //     let (a, _, np) = extended_euclidean(&r, &n_biguint);
+        //     assert_eq!(a, BigUint::one());
+        //     let np1 = (&r - np) % &r;
+            
+        //     // Check that our computed n_prime matches np1 mod 2^64
+        //     let expected_n_prime = np1.to_u64_digits()[0];
+        //     assert_eq!(n_prime, expected_n_prime);
+            
+        //     // Additional checks
+        //     assert!(BigUint::from(n_prime) < r);
+        //     assert_eq!(&n_biguint * n_prime % &r, r - BigUint::one());
+        // }
+
+        // #[test]
+        // fn test_compute_r_squared() {
+        //     let n = n_to_array();
+        //     let r = compute_r(&n);
+        //     let r_squared = compute_r_squared(&r, &n);
+        //     let r_squared_biguint = array_to_biguint(&r_squared);
+        //     let n_biguint = BigUint::parse_bytes(N_HEX.as_bytes(), 16).unwrap();
+        //     let expected_r_squared = BigUint::from(2u32).pow(768u32) % &n_biguint;
+        //     assert_eq!(r_squared_biguint, expected_r_squared);
+        // }
+
+        // fn extended_euclidean(a: &BigUint, b: &BigUint) -> (BigUint, BigUint, BigUint) {
+        //     let (mut a, mut b) = (a.clone(), b.clone());
+        //     let (mut x, mut y, mut u, mut v) = (BigUint::one(), BigUint::zero(), BigUint::zero(), BigUint::one());
+        //     while !b.is_zero() {
+        //         let q = &a / &b;
+        //         a = a % &b;
+        //         x -= &q * &u;
+        //         y -= &q * &v;
+        //         std::mem::swap(&mut a, &mut b);
+        //         std::mem::swap(&mut x, &mut u);
+        //         std::mem::swap(&mut y, &mut v);
+        //     }
+        //     (a, x, y)
+        // }
+    }
     mod addition_tests {
         use super::*;
 
