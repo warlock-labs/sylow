@@ -232,6 +232,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         let (tmp, carry) = self._montgomery_multiply(&a_mont, &b_mont);
         self.montgomery_reduce(&tmp, carry)
     }
+
     pub const fn div_by_two(&self, a: &[u64; L]) -> [u64; L] {
         let mut result = [0u64; L];
 
@@ -262,6 +263,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
 
         result
     }
+
     pub const fn mul_by_two(&self, a: &[u64; L]) -> [u64; L] {
         let mut double = [0u64; L];
         let mut carry = 0u64;
@@ -301,6 +303,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
             result
         }
     }
+
     pub const fn greater_than(&self, a: &[u64; L], b: &[u64; L]) -> bool {
         let mut i = L;
         while i > 0 {
@@ -314,6 +317,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         }
         false
     }
+
     pub const fn is_zero(&self, a: &[u64; L]) -> bool {
         let mut retval = true;
         let mut i = 0;
