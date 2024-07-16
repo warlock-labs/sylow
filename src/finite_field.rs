@@ -166,6 +166,13 @@ impl<const L: usize, const D: usize, T:ModulusConfig + ModulusTrait> Div for Fin
     }
 }
 
+impl<const L: usize, const D: usize, T:ModulusConfig + ModulusTrait> Neg for FinitePrimeField<L, D, T> {
+    type Output = Self;
+    fn neg(self) -> Self {
+        Self::new((-self.0).retrieve())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::cmp::PartialEq;
@@ -453,5 +460,42 @@ mod tests {
                 let zero = create_field([0, 0, 0, 0]);
                 let _ = a / zero;
             }
+    }
+    mod identity_and_inverse_tests {
+        use super::*;
+
+        #[test]
+        fn test_additive_identity() {
+            let a = create_field([1, 2, 3, 4]);
+            let zero = create_field([0, 0, 0, 0]);
+            assert_eq!(a.clone() + zero.clone(), a, "Additive identity failed");
+            assert_eq!(zero + a.clone(), a, "Additive identity failed");
+        }
+
+        #[test]
+        fn test_multiplicative_identity() {
+            let a = create_field([1, 2, 3, 4]);
+            let one = create_field([1, 0, 0, 0]);
+            assert_eq!(a.clone() * one.clone(), a, "Multiplicative identity failed");
+            assert_eq!(one * a.clone(), a, "Multiplicative identity failed");
+        }
+
+        #[test]
+        fn test_additive_inverse() {
+            let a = create_field([1, 2, 3, 4]);
+            let zero = create_field([0, 0, 0, 0]);
+            let neg_a = (-a.clone()).clone();
+            assert_eq!(a.clone() + neg_a.clone(), zero, "Additive inverse failed");
+            assert_eq!(neg_a + a, zero, "Additive inverse failed");
+        }
+
+        #[test]
+        fn test_multiplicative_inverse() {
+            let a = create_field([1, 2, 3, 4]);
+            let one = create_field([1, 0, 0, 0]);
+            let inv_a = a.clone().inv();
+            assert_eq!(a.clone() * inv_a.clone(), one, "Multiplicative inverse failed");
+            assert_eq!(inv_a * a, one, "Multiplicative inverse failed");
+        }
     }
 }
