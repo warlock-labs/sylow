@@ -1,15 +1,17 @@
 use core::fmt;
-use num_traits::{Inv, Zero};
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use num_traits::{Euclid, Inv, One, Zero};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
+
 /// A finite field scalar optimized for use in cryptographic operations.
 ///
 /// All operations feature modular arithmetic, implemented in constant time.
 /// Primarily focusing on fields of prime order, non-prime order fields may
 /// have undefined behavior at this time.
 ///
+/// `L` is the number of limbs in the field, and `D` is the double size of the field.
+///
 /// Note: We have to keep the double size `D` as a constant due to generic limitations
 /// in rust.
-
 #[derive(Clone, Copy)]
 pub struct FinitePrimeField<const L: usize, const D: usize> {
     modulus: [u64; L],
@@ -18,6 +20,7 @@ pub struct FinitePrimeField<const L: usize, const D: usize> {
     r_squared: [u64; L],
     n_prime: u64,
 }
+
 impl<const L: usize, const D: usize> fmt::Debug for FinitePrimeField<L, D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let elements: Vec<String> = self
@@ -28,6 +31,7 @@ impl<const L: usize, const D: usize> fmt::Debug for FinitePrimeField<L, D> {
         write!(f, "({})", elements.join(", "))
     }
 }
+
 impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
     const ZERO: [u64; L] = Self::zero_array();
     const ONE: [u64; L] = Self::one_array();
@@ -289,6 +293,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         let (tmp, carry) = self._montgomery_multiply(&a_mont, &b_mont);
         self.montgomery_reduce(&tmp, carry)
     }
+
     pub const fn div_by_two(&self, a: &[u64; L]) -> [u64; L] {
         let mut result = [0u64; L];
 
@@ -319,6 +324,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
 
         result
     }
+
     pub const fn mul_by_two(&self, a: &[u64; L]) -> [u64; L] {
         let mut double = [0u64; L];
         let mut carry = 0u64;
@@ -358,6 +364,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
             result
         }
     }
+
     pub const fn greater_than(&self, a: &[u64; L], b: &[u64; L]) -> bool {
         let mut i = L;
         while i > 0 {
@@ -371,6 +378,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         }
         false
     }
+
     pub const fn is_zero(&self, a: &[u64; L]) -> bool {
         let mut retval = true;
         let mut i = 0;
@@ -505,7 +513,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
 impl<const L: usize, const D: usize> Add for FinitePrimeField<L, D> {
     type Output = Self;
 
-    /// Performs modular addition.
+    // Performs modular addition.
     ///
     /// This method adds two field elements and reduces the result modulo the field's modulus.
     fn add(self, other: Self) -> Self {
@@ -513,6 +521,22 @@ impl<const L: usize, const D: usize> Add for FinitePrimeField<L, D> {
             self.modulus,
             self.add_mod_internal(&self.value, &other.value),
         )
+    }
+}
+
+impl<const L: usize, const D: usize> AddAssign for FinitePrimeField<L, D> {
+    fn add_assign(&mut self, _rhs: Self) {
+        todo!()
+    }
+}
+
+impl<const L: usize, const D: usize> Zero for FinitePrimeField<L, D> {
+    fn zero() -> Self {
+        todo!()
+    }
+
+    fn is_zero(&self) -> bool {
+        todo!()
     }
 }
 
@@ -539,6 +563,12 @@ impl<const L: usize, const D: usize> Sub for FinitePrimeField<L, D> {
     }
 }
 
+impl<const L: usize, const D: usize> SubAssign for FinitePrimeField<L, D> {
+    fn sub_assign(&mut self, _rhs: Self) {
+        todo!()
+    }
+}
+
 // TODO(Make this constant time)
 // We can make constant time choices with the subtle crate
 impl<const L: usize, const D: usize> PartialEq for FinitePrimeField<L, D> {
@@ -562,12 +592,42 @@ impl<const L: usize, const D: usize> Mul for FinitePrimeField<L, D> {
     }
 }
 
+impl<const L: usize, const D: usize> One for FinitePrimeField<L, D> {
+    fn one() -> Self {
+        todo!()
+    }
+}
+
+impl<const L: usize, const D: usize> MulAssign for FinitePrimeField<L, D> {
+    fn mul_assign(&mut self, _rhs: Self) {
+        todo!()
+    }
+}
+
 impl<const L: usize, const D: usize> Inv for FinitePrimeField<L, D> {
     type Output = Self;
 
     fn inv(self) -> Self {
         let inverted = self.bernstein_yang_invert(&self.value);
         Self::new(self.modulus, inverted)
+    }
+}
+
+impl<const L: usize, const D: usize> Euclid for FinitePrimeField<L, D> {
+    fn div_euclid(&self, _v: &Self) -> Self {
+        todo!()
+    }
+
+    fn rem_euclid(&self, _v: &Self) -> Self {
+        todo!()
+    }
+}
+
+impl<const L: usize, const D: usize> Rem for FinitePrimeField<L, D> {
+    type Output = Self;
+
+    fn rem(self, _rhs: Self) -> Self::Output {
+        todo!()
     }
 }
 
@@ -578,6 +638,12 @@ impl<const L: usize, const D: usize> Div for FinitePrimeField<L, D> {
         // In modular arithmetic division is equivalent to multiplication
         // by the multiplicative inverse.
         self * other.inv()
+    }
+}
+
+impl<const L: usize, const D: usize> DivAssign<Self> for FinitePrimeField<L, D> {
+    fn div_assign(&mut self, _rhs: Self) {
+        todo!()
     }
 }
 
