@@ -96,10 +96,12 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         arr[0] = 1;
         arr
     }
-
+    /// Compute R = 2^(64*L) mod N
+    /// R is chosen to be larger than N and coprime to N
+    /// Since we're in a binary field, R will be a power of two for efficiency
     pub const fn compute_r(&self) -> [u64; L] {
         let mut r = [0u64; L];
-        r[L - 1] = 1u64 << 63;
+        r[L - 1] = 1u64; // initialize R as 2^(64*(L-1))
 
         if self.greater_than(&r, &self.modulus) {
             self.sub_mod_internal(&r, &self.modulus)
@@ -107,12 +109,20 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
             r
         }
     }
+    /// R^2 mod N, this is used to convert numbers into montgomery form
+    /// For a number a, the montgomery form is (a*R) mod N
+    /// R^2 mod N is a precomputed number to do this conversion. 
     const fn compute_r2(&self) -> [u64; L] {
         let r = self.compute_r();
         let (t, carry) = self._montgomery_multiply(&r, &r);
         self.montgomery_reduce(&t, carry)
     }
 
+    /// N' = - N^{-1} mod R
+    /// This is used in the montgomery reduction step
+    /// Combined with R2 above, this lets us write
+    /// montgomery(a) = mont_mult(a, R^2 mod N) = (a*R^2*R^{-1}) mod N = (a*R) mod N
+    /// In this way, we can use this in the reduciton step of (T*N')mod R without division
     const fn compute_n_prime(modulus: &[u64; L]) -> u64 {
         let mut n_prime = 1u64;
         let mut i = 0;
@@ -123,11 +133,15 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         }
         n_prime.wrapping_neg()
     }
-
+    /// convert to montgomery form
+    /// why R^2 here? 
+    /// (a*R) mod N = (a* R^2 * R^{-1}) mod N = mont_mult(a, R^2)
     pub const fn to_montgomery(&self, a: &[u64; L]) -> [u64; L] {
         self.montgomery_multiply(a, &self.r_squared)
     }
-
+    /// convert back from montgomery form
+    /// normal form is (A*R^{-1}) mod N = (A*1*R^{-1}) mod N
+    ///  = mont_mult(A, 1)
     pub const fn from_montgomery(&self, a: &[u64; L]) -> [u64; L] {
         let mut extended = [0u64; D];
         let mut i = 0;
