@@ -1,33 +1,38 @@
-use core::marker::{Send, Sync};
-use crypto_bigint::modular::{montgomery_reduction, ConstMontyForm, ConstMontyParams};
-use crypto_bigint::{impl_modulus, const_monty_form, Limb, Odd, Word, U256, Uint, NonZero};
-use num_traits::{Euclid, Inv, Zero, One};
-use std::fmt::Write;
-use std::ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign, Rem};
+#[allow(unused_imports)]
+use crypto_bigint::{impl_modulus, modular::ConstMontyParams, NonZero};
+#[allow(unused_imports)]
+use num_traits::{Euclid, Inv, One, Zero};
+#[allow(unused_imports)]
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
+#[allow(unused_macros)]
 macro_rules! DefineFinitePrimeField {
     ($wrapper_name:ident, $uint_type:ty, $modulus:expr) => {
         impl_modulus!(ModulusStruct, $uint_type, $modulus);
-        type Output = crypto_bigint::modular::ConstMontyForm::<ModulusStruct, { ModulusStruct::LIMBS }>;
+        type Output =
+            crypto_bigint::modular::ConstMontyForm<ModulusStruct, { ModulusStruct::LIMBS }>;
 
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
         pub struct $wrapper_name(ModulusStruct, Output);
         impl $wrapper_name {
             const ZERO: Self = Self::new(<$uint_type>::from_u64(0));
             const ONE: Self = Self::new(<$uint_type>::from_u64(1));
-            pub const __MODULUS: & 'static NonZero<$uint_type> = ModulusStruct::MODULUS.as_nz_ref();
+            pub const __MODULUS: &'static NonZero<$uint_type> = ModulusStruct::MODULUS.as_nz_ref();
             pub const fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
+            }
+            pub const fn value(&self) -> $uint_type {
+                self.1.retrieve()
             }
         }
         impl Add for $wrapper_name {
             type Output = Self;
-            fn add(self, other: Self)-> Self {
-                Self::new((self.1+other.1).retrieve())
+            fn add(self, other: Self) -> Self {
+                Self::new((self.1 + other.1).retrieve())
             }
         }
         impl AddAssign for $wrapper_name {
-            fn add_assign(&mut self, other: Self){
+            fn add_assign(&mut self, other: Self) {
                 *self = *self + other;
             }
         }
@@ -52,7 +57,7 @@ macro_rules! DefineFinitePrimeField {
         impl Sub for $wrapper_name {
             type Output = Self;
             fn sub(self, other: Self) -> Self {
-                Self::new((self.1-other.1).retrieve())
+                Self::new((self.1 - other.1).retrieve())
             }
         }
         impl SubAssign for $wrapper_name {
@@ -68,7 +73,7 @@ macro_rules! DefineFinitePrimeField {
         impl Mul for $wrapper_name {
             type Output = Self;
             fn mul(self, other: Self) -> Self {
-                Self::new((self.1*other.1).retrieve())
+                Self::new((self.1 * other.1).retrieve())
             }
         }
         impl MulAssign for $wrapper_name {
@@ -82,6 +87,7 @@ macro_rules! DefineFinitePrimeField {
                 Self::new((self.1.inv().unwrap()).retrieve())
             }
         }
+        #[allow(clippy::suspicious_arithmetic_impl)]
         impl Div for $wrapper_name {
             type Output = Self;
             fn div(self, other: Self) -> Self {
@@ -89,7 +95,7 @@ macro_rules! DefineFinitePrimeField {
             }
         }
         impl DivAssign for $wrapper_name {
-            fn div_assign(&mut self, other: Self){
+            fn div_assign(&mut self, other: Self) {
                 *self = *self / other;
             }
         }
@@ -99,21 +105,14 @@ macro_rules! DefineFinitePrimeField {
                 Self::new((-self.1).retrieve())
             }
         }
-        impl Deref for $wrapper_name {
-            type Target = U256;
-
-            fn deref(&self) -> &Self::Target {
-                static mut RETRIEVED: Option<U256> = None;
-                unsafe {
-                    RETRIEVED = Some(self.1.retrieve());
-                    RETRIEVED.as_ref().unwrap()
-                }
-            }
-        }
         impl Rem for $wrapper_name {
             type Output = Self;
             fn rem(self, other: Self) -> Self::Output {
-                Self::new(self.1.retrieve().rem(NonZero::<$uint_type>::new(other.1.retrieve()).unwrap()))
+                Self::new(
+                    self.1
+                        .retrieve()
+                        .rem(NonZero::<$uint_type>::new(other.1.retrieve()).unwrap()),
+                )
             }
         }
         impl Euclid for $wrapper_name {
@@ -121,7 +120,10 @@ macro_rules! DefineFinitePrimeField {
                 if other.is_zero() {
                     return Self::ZERO;
                 }
-                let (mut _q, mut _r) = self.1.retrieve().div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
+                let (mut _q, mut _r) = self
+                    .1
+                    .retrieve()
+                    .div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
 
                 if self.1.retrieve().bit(255).into() {
                     _q = _q - <$uint_type>::ONE;
@@ -133,7 +135,10 @@ macro_rules! DefineFinitePrimeField {
                 if other.is_zero() {
                     return Self::ZERO;
                 }
-                let (mut _q, mut _r) = self.1.retrieve().div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
+                let (mut _q, mut _r) = self
+                    .1
+                    .retrieve()
+                    .div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
 
                 if self.1.retrieve().bit(255).into() {
                     // _q = _q - <$uint_type>::ONE;
@@ -147,6 +152,7 @@ macro_rules! DefineFinitePrimeField {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crypto_bigint::U256;
     const MODULUS: [u64; 4] = [
         0x3C208C16D87CFD47,
         0x97816A916871CA8D,
@@ -154,20 +160,19 @@ mod tests {
         0x30644E72E131A029,
     ];
     const BN254_MOD_STRING: &str =
-    "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
+        "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
     DefineFinitePrimeField!(Bn254Field, U256, BN254_MOD_STRING);
-    fn create_field(value: [u64;4]) -> Bn254Field {
+    fn create_field(value: [u64; 4]) -> Bn254Field {
         Bn254Field::new(U256::from_words(value))
     }
     mod test_modulus_conversion {
-        use super::*; 
+        use super::*;
         #[test]
-        fn test_modulus(){
-            for i in U256::from_be_hex(BN254_MOD_STRING).as_limbs(){
+        fn test_modulus() {
+            for i in U256::from_be_hex(BN254_MOD_STRING).as_limbs() {
                 println!("{:X}", i.0);
             }
         }
-
     }
     mod addition_tests {
         use super::*;
@@ -183,17 +188,13 @@ mod tests {
             let a = create_field([1, 2, 3, 4]);
             let b = create_field([5, 6, 7, 8]);
             let c = create_field([9, 10, 11, 12]);
-            assert_eq!(
-                *(a.clone() + b.clone()) + *c,
-                *a + *(b + c),
-                "Addition is not associative"
-            );
+            assert_eq!((a + b) + c, a + (b + c), "Addition is not associative");
         }
         #[test]
         fn test_addition_commutativity() {
             let a = create_field([1, 2, 3, 4]);
             let b = create_field([5, 6, 7, 8]);
-            assert_eq!(a.clone() + b.clone(), b + a, "Addition is not commutative");
+            assert_eq!(a + b, b + a, "Addition is not commutative");
         }
         #[test]
         fn test_addition_cases() {
@@ -201,7 +202,7 @@ mod tests {
             let a = create_field([1, 0, 0, 0]);
             let b = create_field([2, 0, 0, 0]);
             assert_eq!(
-                *(a + b),
+                (a + b).value(),
                 U256::from_words([3, 0, 0, 0]),
                 "Simple addition failed"
             );
@@ -210,7 +211,7 @@ mod tests {
             let c = create_field([0xFFFFFFFFFFFFFFFF, 0, 0, 0]);
             let d = create_field([1, 0, 0, 0]);
             assert_eq!(
-                *(c + d),
+                (c + d).value(),
                 U256::from_words([0, 1, 0, 0]),
                 "Addition with carry failed"
             );
@@ -219,7 +220,7 @@ mod tests {
             let e = create_field(MODULUS);
             let f = create_field([1, 0, 0, 0]);
             assert_eq!(
-                *(e + f),
+                (e + f).value(),
                 U256::from_words([1, 0, 0, 0]),
                 "Modular wrap-around failed"
             );
@@ -233,7 +234,7 @@ mod tests {
             ]);
             let h = create_field([1, 0, 0, 0]);
             assert_eq!(
-                *(g + h),
+                (g + h).value(),
                 U256::from_words([0, 0, 0, 0]),
                 "Addition to modulus failed"
             );
@@ -243,7 +244,7 @@ mod tests {
         fn test_addition_edge_cases() {
             let a = create_field([1, 2, 3, 4]);
             let zero = create_field([0, 0, 0, 0]);
-            assert_eq!(a.clone() + zero, a, "Adding zero failed");
+            assert_eq!(a + zero, a, "Adding zero failed");
 
             let almost_modulus = create_field([
                 0x3C208C16D87CFD46,
@@ -253,7 +254,7 @@ mod tests {
             ]);
             let one = create_field([1, 0, 0, 0]);
             assert_eq!(
-                *(almost_modulus + one),
+                (almost_modulus + one).value(),
                 U256::from_words([0, 0, 0, 0]),
                 "Adding to get exact modulus failed"
             );
@@ -275,7 +276,7 @@ mod tests {
             let a = create_field([3, 0, 0, 0]);
             let b = create_field([1, 0, 0, 0]);
             assert_eq!(
-                *(a - b),
+                (a - b).value(),
                 U256::from_words([2, 0, 0, 0]),
                 "Simple subtraction failed"
             );
@@ -284,7 +285,7 @@ mod tests {
             let c = create_field([0, 1, 0, 0]);
             let d = create_field([1, 0, 0, 0]);
             assert_eq!(
-                *(c - d),
+                (c - d).value(),
                 U256::from_words([0xFFFFFFFFFFFFFFFF, 0, 0, 0]),
                 "Subtraction with borrow failed"
             );
@@ -293,7 +294,7 @@ mod tests {
             let e = create_field([0, 0, 0, 0]);
             let f = create_field([1, 0, 0, 0]);
             assert_eq!(
-                *(e - f),
+                (e - f).value(),
                 U256::from_words([
                     0x3C208C16D87CFD46,
                     0x97816A916871CA8D,
@@ -306,7 +307,7 @@ mod tests {
             // Subtraction resulting in zero
             let g = create_field(MODULUS);
             assert_eq!(
-                *(g.clone() - g),
+                (g - g).value(),
                 U256::from_words([0, 0, 0, 0]),
                 "Subtraction to zero failed"
             );
@@ -316,11 +317,11 @@ mod tests {
         fn test_subtraction_edge_cases() {
             let a = create_field([1, 2, 3, 4]);
             let zero = create_field([0, 0, 0, 0]);
-            assert_eq!(a.clone() - zero.clone(), a, "Subtracting zero failed");
+            assert_eq!(a - zero, a, "Subtracting zero failed");
 
             let one = create_field([1, 0, 0, 0]);
             assert_eq!(
-                *(zero - one),
+                (zero - one).value(),
                 U256::from_words([
                     0x3C208C16D87CFD46,
                     0x97816A916871CA8D,
@@ -347,7 +348,7 @@ mod tests {
             let b = create_field([0x2222222222222222, 0, 0, 0]);
             let c = create_field([0x3333333333333333, 0, 0, 0]);
             assert_eq!(
-                (a.clone() * b.clone()) * c.clone(),
+                (a * b) * c,
                 a * (b * c),
                 "Multiplication is not associative"
             );
@@ -357,11 +358,7 @@ mod tests {
         fn test_multiplication_commutativity() {
             let a = create_field([0x1234567890ABCDEF, 0xFEDCBA9876543210, 0, 0]);
             let b = create_field([0x9876543210FEDCBA, 0x1234567890ABCDEF, 0, 0]);
-            assert_eq!(
-                a.clone() * b.clone(),
-                b * a,
-                "Multiplication is not commutative"
-            );
+            assert_eq!(a * b, b * a, "Multiplication is not commutative");
         }
 
         #[test]
@@ -370,8 +367,8 @@ mod tests {
             let b = create_field([0x2222222222222222, 0, 0, 0]);
             let c = create_field([0x3333333333333333, 0, 0, 0]);
             assert_eq!(
-                a.clone() * (b.clone() + c.clone()),
-                (a.clone() * b) + (a * c),
+                a * (b + c),
+                (a * b) + (a * c),
                 "Multiplication is not distributive over addition"
             );
         }
@@ -382,7 +379,7 @@ mod tests {
             let a = create_field([2, 0, 0, 0]);
             let b = create_field([3, 0, 0, 0]);
             assert_eq!(
-                *(a * b),
+                (a * b).value(),
                 U256::from_words([6, 0, 0, 0]),
                 "Simple multiplication failed"
             );
@@ -391,7 +388,7 @@ mod tests {
             let c = create_field([0xFFFFFFFFFFFFFFFF, 0, 0, 0]);
             let d = create_field([2, 0, 0, 0]);
             assert_eq!(
-                *(c * d),
+                (c * d).value(),
                 U256::from_words([0xFFFFFFFFFFFFFFFE, 1, 0, 0]),
                 "Multiplication with carry failed"
             );
@@ -405,7 +402,7 @@ mod tests {
             ]);
             let f = create_field([2, 0, 0, 0]);
             assert_eq!(
-                *(e * f),
+                (e * f).value(),
                 U256::from_words([
                     0xFFFFFFFFFFFFFFFF,
                     0xFFFFFFFFFFFFFFFF,
@@ -422,12 +419,8 @@ mod tests {
             let zero = create_field([0, 0, 0, 0]);
             let one = create_field([1, 0, 0, 0]);
 
-            assert_eq!(
-                a.clone() * zero.clone(),
-                zero,
-                "Multiplication by zero failed"
-            );
-            assert_eq!(a.clone() * one, a, "Multiplication by one failed");
+            assert_eq!(a * zero, zero, "Multiplication by zero failed");
+            assert_eq!(a * one, a, "Multiplication by one failed");
 
             let large = create_field([
                 0xFFFFFFFFFFFFFFFF,
@@ -436,7 +429,7 @@ mod tests {
                 0x3064497359141831,
             ]);
             assert_eq!(
-                *(large.clone() * large),
+                (large * large).value(),
                 U256::from_words([1, 0, 0, 0]),
                 "Multiplication of large numbers failed"
             );
@@ -458,14 +451,10 @@ mod tests {
             let b = create_field([5, 6, 7, 8]);
             let one = create_field([1, 0, 0, 0]);
 
+            assert_eq!((a / a).value(), U256::ONE, "Division by self failed");
+            assert_eq!((a / one), a, "Division by one failed");
             assert_eq!(
-                *(a.clone() / a.clone()),
-                U256::ONE,
-                "Division by self failed"
-            );
-            assert_eq!((a.clone() / one), a, "Division by one failed");
-            assert_eq!(
-                ((a.clone() / b.clone()) * b),
+                ((a / b) * b),
                 a,
                 "Division and multiplication property failed"
             );
@@ -486,24 +475,24 @@ mod tests {
         fn test_additive_identity() {
             let a = create_field([1, 2, 3, 4]);
             let zero = create_field([0, 0, 0, 0]);
-            assert_eq!(a.clone() + zero.clone(), a, "Additive identity failed");
-            assert_eq!(zero + a.clone(), a, "Additive identity failed");
+            assert_eq!(a + zero, a, "Additive identity failed");
+            assert_eq!(zero + a, a, "Additive identity failed");
         }
 
         #[test]
         fn test_multiplicative_identity() {
             let a = create_field([1, 2, 3, 4]);
             let one = create_field([1, 0, 0, 0]);
-            assert_eq!(a.clone() * one.clone(), a, "Multiplicative identity failed");
-            assert_eq!(one * a.clone(), a, "Multiplicative identity failed");
+            assert_eq!(a * one, a, "Multiplicative identity failed");
+            assert_eq!(one * a, a, "Multiplicative identity failed");
         }
 
         #[test]
         fn test_additive_inverse() {
             let a = create_field([1, 2, 3, 4]);
             let zero = create_field([0, 0, 0, 0]);
-            let neg_a = (-a.clone()).clone();
-            assert_eq!(a.clone() + neg_a.clone(), zero, "Additive inverse failed");
+            let neg_a = -a;
+            assert_eq!(a + neg_a, zero, "Additive inverse failed");
             assert_eq!(neg_a + a, zero, "Additive inverse failed");
         }
 
@@ -511,12 +500,8 @@ mod tests {
         fn test_multiplicative_inverse() {
             let a = create_field([1, 2, 3, 4]);
             let one = create_field([1, 0, 0, 0]);
-            let inv_a = a.clone().inv();
-            assert_eq!(
-                a.clone() * inv_a.clone(),
-                one,
-                "Multiplicative inverse failed"
-            );
+            let inv_a = a.inv();
+            assert_eq!(a * inv_a, one, "Multiplicative inverse failed");
             assert_eq!(inv_a * a, one, "Multiplicative inverse failed");
         }
     }
@@ -528,14 +513,10 @@ mod tests {
             let a = create_field([1, 2, 3, 4]);
             let b = create_field([5, 6, 7, 8]);
             let c = create_field([9, 10, 11, 12]);
+            assert_eq!(a * (b + c), (a * b) + (a * c), "Left distributivity failed");
             assert_eq!(
-                a.clone() * (b.clone() + c.clone()),
-                (a.clone() * b.clone()) + (a.clone() * c.clone()),
-                "Left distributivity failed"
-            );
-            assert_eq!(
-                (a.clone() + b.clone()) * c.clone(),
-                (a * c.clone()) + (b * c),
+                (a + b) * c,
+                (a * c) + (b * c),
                 "Right distributivity failed"
             );
         }
@@ -545,11 +526,7 @@ mod tests {
             let a = create_field([1, 2, 3, 4]);
             let b = create_field([5, 6, 7, 8]);
             let c = create_field([9, 10, 11, 12]);
-            assert_eq!(
-                a.clone() + c.clone() == b.clone() + c,
-                a == b,
-                "Additive cancellation failed"
-            );
+            assert_eq!(a + c == b + c, a == b, "Additive cancellation failed");
         }
 
         #[test]
@@ -559,11 +536,7 @@ mod tests {
             let c = create_field([9, 10, 11, 12]);
             let zero = create_field([0, 0, 0, 0]);
             if c != zero {
-                assert_eq!(
-                    a.clone() * c.clone() == b.clone() * c,
-                    a == b,
-                    "Multiplicative cancellation failed"
-                );
+                assert_eq!(a * c == b * c, a == b, "Multiplicative cancellation failed");
             }
         }
 
@@ -573,16 +546,16 @@ mod tests {
             let one = create_field([1, 0, 0, 0]);
 
             // 1 + 0 = 1
-            assert_eq!(one.clone() + zero.clone(), one, "1 + 0 = 1 failed");
+            assert_eq!(one + zero, one, "1 + 0 = 1 failed");
 
             // 1 * 0 = 0
-            assert_eq!(one.clone() * zero.clone(), zero, "1 * 0 = 0 failed");
+            assert_eq!(one * zero, zero, "1 * 0 = 0 failed");
 
             // -0 = 0
-            assert_eq!(-zero.clone(), zero, "-0 = 0 failed");
+            assert_eq!(-zero, zero, "-0 = 0 failed");
 
             // 1^(-1) = 1
-            assert_eq!(one.clone().inv(), one, "1^(-1) = 1 failed");
+            assert_eq!(one.inv(), one, "1^(-1) = 1 failed");
         }
 
         #[test]
@@ -591,11 +564,7 @@ mod tests {
             let b = create_field([5, 6, 7, 8]);
 
             // (a - b) + b = a
-            assert_eq!(
-                (a.clone() - b.clone()) + b,
-                a,
-                "Subtraction and addition property failed"
-            );
+            assert_eq!((a - b) + b, a, "Subtraction and addition property failed");
         }
 
         #[test]
@@ -607,7 +576,7 @@ mod tests {
             // (a / b) * b = a (for non-zero b)
             if b != zero {
                 assert_eq!(
-                    (a.clone() / b.clone()) * b,
+                    (a / b) * b,
                     a,
                     "Division and multiplication property failed"
                 );
@@ -621,19 +590,11 @@ mod tests {
             let zero = create_field([0, 0, 0, 0]);
 
             // Non-commutativity of subtraction
-            assert_ne!(
-                a.clone() - b.clone(),
-                b.clone() - a.clone(),
-                "Subtraction should not be commutative"
-            );
+            assert_ne!(a - b, b - a, "Subtraction should not be commutative");
 
             // Non-commutativity of division
-            if a.clone() != zero && b.clone() != zero {
-                assert_ne!(
-                    a.clone() / b.clone(),
-                    b / a,
-                    "Division should not be commutative"
-                );
+            if a != zero && b != zero {
+                assert_ne!(a / b, b / a, "Division should not be commutative");
             }
         }
 
@@ -643,11 +604,7 @@ mod tests {
             let b = create_field([3, 0, 0, 0]);
             let k = create_field([5, 0, 0, 0]);
 
-            assert_eq!(
-                k.clone() * (a.clone() + b.clone()),
-                k.clone() * a + k * b,
-                "Linearity of addition failed"
-            );
+            assert_eq!(k * (a + b), k * a + k * b, "Linearity of addition failed");
         }
     }
 }
