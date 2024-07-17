@@ -13,6 +13,14 @@ macro_rules! DefineFinitePrimeField {
         impl $wrapper_name {
             pub const ZERO: Self = Self::new(<$uint_type>::from_u64(0));
             pub const ONE: Self = Self::new(<$uint_type>::from_u64(1));
+            pub const TWO: Self = Self::new(<$uint_type>::from_u64(2));
+            pub const THREE: Self = Self::new(<$uint_type>::from_u64(3));
+            pub const FOUR: Self = Self::new(<$uint_type>::from_u64(4));
+            pub const FIVE: Self = Self::new(<$uint_type>::from_u64(5));
+            pub const SIX: Self = Self::new(<$uint_type>::from_u64(6));
+            pub const SEVEN: Self = Self::new(<$uint_type>::from_u64(7));
+            pub const EIGHT: Self = Self::new(<$uint_type>::from_u64(8));
+            pub const NINE: Self = Self::new(<$uint_type>::from_u64(9));
             pub const __MODULUS: &'static NonZero<$uint_type> = ModulusStruct::MODULUS.as_nz_ref();
             pub const fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
@@ -24,6 +32,15 @@ macro_rules! DefineFinitePrimeField {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
                 // = -1
                 Self::new(Self::ONE.neg().1.retrieve())
+            }
+            pub fn square(&self) -> Self {
+                (*self) * (*self)
+            }
+            pub fn sqrt(&self) -> Self {
+                Self::new(self.value().sqrt())
+            }
+            pub fn pow(&self, exponent: &$uint_type) -> Self {
+                Self::new(self.1.pow(exponent).retrieve())
             }
         }
         impl Add for $wrapper_name {

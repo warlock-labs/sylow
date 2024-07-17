@@ -36,15 +36,19 @@ impl Fp2 {
         }
     }
     pub fn square(&self) -> Self {
-        // This is a specialized version of the Mul below. See docstring there.
-        let inner_prod = self.0 * self.1;
+        (*self ) * (*self)
+    }
+    pub fn quadratic_non_residue() -> Self {
         Self::new(
-            (self.1 * Fp::quadratic_non_residue() + self.0) * (self.0 + self.1)
-                - inner_prod
-                - inner_prod * Fp::quadratic_non_residue(),
-            inner_prod + inner_prod,
+            Fp::NINE, Fp::ONE
         )
     }
+    // pub fn sqrt(&self) -> Self {
+    //     const MINUS_3_OVER_4: Fp = -Fp::THREE / Fp::FOUR;
+    //     const MINUS_1_OVER_2: Fp = -Fp::ONE / Fp::TWO;
+
+
+    // }
 }
 impl Add for Fp2 {
     type Output = Self;
@@ -71,21 +75,30 @@ impl Mul for Fp2 {
         // in order to multiply, we must implement complex Karatsuba
         // multiplication.
         // See https://eprint.iacr.org/2006/471.pdf, Sec 3
+        // We create the addition chain from Algo 1 of https://eprint.iacr.org/2022/367.pdf
         // TODO: Implement optimized squaring algorithm in base field?
-        let p1 = self.0 * rhs.0;
-        let p2 = self.1 * rhs.1;
+        let t0 = self.0 * rhs.0;
+        let t1 = self.1 * rhs.1;
 
-        Self::new(
-            p2 * Fp::quadratic_non_residue() + p1,
-            (self.0 + self.1) * (rhs.0 + rhs.1) - p1 - p2,
-        )
+        let temp0 = self.0 + self.1;
+        let temp1 = rhs.0 + rhs.1;
+
+        let mut t2 = temp0 * temp1;
+
+        let t3 = t0 + t1;
+        t2 -= t3;
+
+        let c1 = t2;
+        let c0 = t0 - (t1 * Fp::quadratic_non_residue());
+
+        Fp2::new(c0, c1)
     }
 }
 impl Inv for Fp2 {
     type Output = Self;
     fn inv(self) -> Self {
-        let c0_squared = self.0 * self.0;
-        let c1_squared = self.1 * self.1;
+        let c0_squared = self.0.square();
+        let c1_squared = self.1.square();
         let tmp = (c0_squared - (c1_squared * Fp::quadratic_non_residue())).inv();
         Self::new(self.0 * tmp, -(self.1 * tmp))
     }
