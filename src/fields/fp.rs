@@ -1,11 +1,7 @@
-#[allow(unused_imports)]
-use crypto_bigint::{impl_modulus, modular::ConstMontyParams, NonZero};
-#[allow(unused_imports)]
+use crypto_bigint::{impl_modulus, modular::ConstMontyParams, NonZero, U256};
 use num_traits::{Euclid, Inv, One, Zero};
-#[allow(unused_imports)]
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
-#[allow(unused_macros)]
 macro_rules! DefineFinitePrimeField {
     ($wrapper_name:ident, $uint_type:ty, $modulus:expr) => {
         impl_modulus!(ModulusStruct, $uint_type, $modulus);
@@ -15,14 +11,19 @@ macro_rules! DefineFinitePrimeField {
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
         pub struct $wrapper_name(ModulusStruct, Output);
         impl $wrapper_name {
-            const ZERO: Self = Self::new(<$uint_type>::from_u64(0));
-            const ONE: Self = Self::new(<$uint_type>::from_u64(1));
+            pub const ZERO: Self = Self::new(<$uint_type>::from_u64(0));
+            pub const ONE: Self = Self::new(<$uint_type>::from_u64(1));
             pub const __MODULUS: &'static NonZero<$uint_type> = ModulusStruct::MODULUS.as_nz_ref();
             pub const fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
             }
             pub const fn value(&self) -> $uint_type {
                 self.1.retrieve()
+            }
+            pub fn quadratic_non_residue() -> Self {
+                //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
+                // = -1
+                Self::new(Self::ONE.neg().1.retrieve())
             }
         }
         impl Add for $wrapper_name {
@@ -149,21 +150,21 @@ macro_rules! DefineFinitePrimeField {
         }
     };
 }
+
+const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
+DefineFinitePrimeField!(Fp, U256, BN254_MOD_STRING);
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crypto_bigint::U256;
     const MODULUS: [u64; 4] = [
         0x3C208C16D87CFD47,
         0x97816A916871CA8D,
         0xB85045B68181585D,
         0x30644E72E131A029,
     ];
-    const BN254_MOD_STRING: &str =
-        "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-    DefineFinitePrimeField!(Bn254Field, U256, BN254_MOD_STRING);
-    fn create_field(value: [u64; 4]) -> Bn254Field {
-        Bn254Field::new(U256::from_words(value))
+    fn create_field(value: [u64; 4]) -> Fp {
+        Fp::new(U256::from_words(value))
     }
     mod test_modulus_conversion {
         use super::*;

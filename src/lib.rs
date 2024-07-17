@@ -1,1 +1,1 @@
-mod finite_field;
+mod fields;
