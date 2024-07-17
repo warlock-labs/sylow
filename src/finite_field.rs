@@ -118,10 +118,28 @@ macro_rules! DefineFinitePrimeField {
         }
         impl Euclid for $wrapper_name {
             fn div_euclid(&self, other: &Self) -> Self {
-                todo!()
+                if other.is_zero() {
+                    return Self::ZERO;
+                }
+                let (mut _q, mut _r) = self.1.retrieve().div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
+
+                if self.1.retrieve().bit(255).into() {
+                    _q = _q - <$uint_type>::ONE;
+                    _r = other.1.retrieve() - _r;
+                }
+                Self::new(_q)
             }
             fn rem_euclid(&self, other: &Self) -> Self {
-                todo!()
+                if other.is_zero() {
+                    return Self::ZERO;
+                }
+                let (mut _q, mut _r) = self.1.retrieve().div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
+
+                if self.1.retrieve().bit(255).into() {
+                    // _q = _q - <$uint_type>::ONE;
+                    _r = other.1.retrieve() - _r;
+                }
+                Self::new(_r)
             }
         }
     };
