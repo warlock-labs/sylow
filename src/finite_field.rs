@@ -1,19 +1,22 @@
 use core::marker::{Send, Sync};
 use crypto_bigint::modular::{montgomery_reduction, ConstMontyForm, ConstMontyParams};
-use crypto_bigint::{impl_modulus, const_monty_form, Limb, Odd, Word, U256};
-use num_traits::Inv;
+use crypto_bigint::{impl_modulus, const_monty_form, Limb, Odd, Word, U256, Uint, NonZero};
+use num_traits::{Euclid, Inv, Zero, One};
 use std::fmt::Write;
-use std::ops::{Add, Deref, Div, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign, Rem};
 
 macro_rules! DefineFinitePrimeField {
-    ($wrapper_name:ident, $modulus:expr) => {
-        impl_modulus!(ModulusStruct, U256, $modulus);
+    ($wrapper_name:ident, $uint_type:ty, $modulus:expr) => {
+        impl_modulus!(ModulusStruct, $uint_type, $modulus);
         type Output = crypto_bigint::modular::ConstMontyForm::<ModulusStruct, { ModulusStruct::LIMBS }>;
 
-        #[derive(Clone, Debug)]
+        #[derive(Clone, Debug, Copy)] //to be used in const contexts
         pub struct $wrapper_name(ModulusStruct, Output);
         impl $wrapper_name {
-            pub const fn new(value: U256) -> Self {
+            const ZERO: Self = Self::new(<$uint_type>::from_u64(0));
+            const ONE: Self = Self::new(<$uint_type>::from_u64(1));
+            pub const __MODULUS: & 'static NonZero<$uint_type> = ModulusStruct::MODULUS.as_nz_ref();
+            pub const fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
             }
         }
@@ -23,10 +26,38 @@ macro_rules! DefineFinitePrimeField {
                 Self::new((self.1+other.1).retrieve())
             }
         }
+        impl AddAssign for $wrapper_name {
+            fn add_assign(&mut self, other: Self){
+                *self = *self + other;
+            }
+        }
+        impl Zero for $wrapper_name {
+            fn zero() -> Self {
+                Self::ZERO
+            }
+            fn is_zero(&self) -> bool {
+                self.1.is_zero()
+            }
+        }
+        impl One for $wrapper_name {
+            fn one() -> Self {
+                Self::ONE
+            }
+        }
+        impl Default for $wrapper_name {
+            fn default() -> Self {
+                Self::ZERO
+            }
+        }
         impl Sub for $wrapper_name {
             type Output = Self;
             fn sub(self, other: Self) -> Self {
                 Self::new((self.1-other.1).retrieve())
+            }
+        }
+        impl SubAssign for $wrapper_name {
+            fn sub_assign(&mut self, other: Self) {
+                *self = *self - other;
             }
         }
         impl PartialEq for $wrapper_name {
@@ -40,6 +71,11 @@ macro_rules! DefineFinitePrimeField {
                 Self::new((self.1*other.1).retrieve())
             }
         }
+        impl MulAssign for $wrapper_name {
+            fn mul_assign(&mut self, other: Self) {
+                *self = *self * other;
+            }
+        }
         impl Inv for $wrapper_name {
             type Output = Self;
             fn inv(self) -> Self {
@@ -50,6 +86,11 @@ macro_rules! DefineFinitePrimeField {
             type Output = Self;
             fn div(self, other: Self) -> Self {
                 self * other.inv()
+            }
+        }
+        impl DivAssign for $wrapper_name {
+            fn div_assign(&mut self, other: Self){
+                *self = *self / other;
             }
         }
         impl Neg for $wrapper_name {
@@ -69,6 +110,20 @@ macro_rules! DefineFinitePrimeField {
                 }
             }
         }
+        impl Rem for $wrapper_name {
+            type Output = Self;
+            fn rem(self, other: Self) -> Self::Output {
+                Self::new(self.1.retrieve().rem(NonZero::<$uint_type>::new(other.1.retrieve()).unwrap()))
+            }
+        }
+        impl Euclid for $wrapper_name {
+            fn div_euclid(&self, other: &Self) -> Self {
+                todo!()
+            }
+            fn rem_euclid(&self, other: &Self) -> Self {
+                todo!()
+            }
+        }
     };
 }
 #[cfg(test)]
@@ -82,7 +137,7 @@ mod tests {
     ];
     const BN254_MOD_STRING: &str =
     "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-    DefineFinitePrimeField!(Bn254Field, BN254_MOD_STRING);
+    DefineFinitePrimeField!(Bn254Field, U256, BN254_MOD_STRING);
     fn create_field(value: [u64;4]) -> Bn254Field {
         Bn254Field::new(U256::from_words(value))
     }
