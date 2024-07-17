@@ -1,25 +1,22 @@
+#[allow(unused_imports)]
 use crypto_bigint::{impl_modulus, modular::ConstMontyParams, NonZero, U256};
+#[allow(unused_imports)]
 use num_traits::{Euclid, Inv, One, Zero};
+#[allow(unused_imports)]
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
+#[allow(unused_macros)]
 macro_rules! DefineFinitePrimeField {
     ($wrapper_name:ident, $uint_type:ty, $modulus:expr) => {
         impl_modulus!(ModulusStruct, $uint_type, $modulus);
         type Output =
             crypto_bigint::modular::ConstMontyForm<ModulusStruct, { ModulusStruct::LIMBS }>;
-
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
         pub struct $wrapper_name(ModulusStruct, Output);
+        #[allow(dead_code)]
         impl $wrapper_name {
             pub const ZERO: Self = Self::new(<$uint_type>::from_u64(0));
             pub const ONE: Self = Self::new(<$uint_type>::from_u64(1));
-            pub const TWO: Self = Self::new(<$uint_type>::from_u64(2));
-            pub const THREE: Self = Self::new(<$uint_type>::from_u64(3));
-            pub const FOUR: Self = Self::new(<$uint_type>::from_u64(4));
-            pub const FIVE: Self = Self::new(<$uint_type>::from_u64(5));
-            pub const SIX: Self = Self::new(<$uint_type>::from_u64(6));
-            pub const SEVEN: Self = Self::new(<$uint_type>::from_u64(7));
-            pub const EIGHT: Self = Self::new(<$uint_type>::from_u64(8));
             pub const NINE: Self = Self::new(<$uint_type>::from_u64(9));
             pub const __MODULUS: &'static NonZero<$uint_type> = ModulusStruct::MODULUS.as_nz_ref();
             pub const fn new(value: $uint_type) -> Self {
@@ -42,6 +39,16 @@ macro_rules! DefineFinitePrimeField {
             pub fn pow(&self, exponent: &$uint_type) -> Self {
                 Self::new(self.1.pow(exponent).retrieve())
             }
+            pub fn characteristic() -> $uint_type {
+                <$uint_type>::from(Self::__MODULUS.get())
+            }
+            // pub fn sqrt_exponents() ->  [$uint_type; 2] {
+            //     let three = <$uint_type>::from_u64(3u64);
+            //     let four = <$uint_type>::from_u64(4u64);
+
+            //     let a = (Self::characteristic() - three) / four;
+            //     [a,a]
+            // }
         }
         impl Add for $wrapper_name {
             type Output = Self;
@@ -167,10 +174,7 @@ macro_rules! DefineFinitePrimeField {
         }
     };
 }
-
-const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-DefineFinitePrimeField!(Fp, U256, BN254_MOD_STRING);
-
+pub(crate) use DefineFinitePrimeField;
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -180,6 +184,9 @@ mod tests {
         0xB85045B68181585D,
         0x30644E72E131A029,
     ];
+    const BN254_MOD_STRING: &str =
+        "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
+    DefineFinitePrimeField!(Fp, U256, BN254_MOD_STRING);
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
     }
