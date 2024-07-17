@@ -1,208 +1,79 @@
 use core::marker::{Send, Sync};
 use crypto_bigint::modular::{montgomery_reduction, ConstMontyForm, ConstMontyParams};
-use crypto_bigint::{Limb, Odd, Word, U256};
+use crypto_bigint::{impl_modulus, const_monty_form, Limb, Odd, Word, U256};
 use num_traits::Inv;
 use std::fmt::Write;
 use std::ops::{Add, Deref, Div, Mul, Neg, Sub};
 
-fn hex_str_to_u64_array<const L: usize>(input: &str) -> [u64; L] {
-    let mut n_array = [0u64; L];
-    let n_hex = input.strip_prefix("0x").unwrap();
+macro_rules! DefineFinitePrimeField {
+    ($wrapper_name:ident, $modulus:expr) => {
+        impl_modulus!(ModulusStruct, U256, $modulus);
+        type Output = crypto_bigint::modular::ConstMontyForm::<ModulusStruct, { ModulusStruct::LIMBS }>;
 
-    for (i, chunk) in n_hex.as_bytes().rchunks(16).enumerate() {
-        if i >= L {
-            break;
+        #[derive(Clone, Debug)]
+        pub struct $wrapper_name(ModulusStruct, Output);
+        impl $wrapper_name {
+            pub const fn new(value: U256) -> Self {
+                Self(ModulusStruct, Output::new(&value))
+            }
         }
-        let limb_hex = std::str::from_utf8(chunk).unwrap();
-        n_array[i] = u64::from_str_radix(limb_hex, 16).unwrap();
-    }
-
-    n_array
-}
-pub fn u64_array_to_hex_str<const L: usize>(arr: &[u64; L]) -> String {
-    let mut hex = String::with_capacity(2 + L * 16);
-    hex.push_str("0x");
-
-    let mut started = false;
-    for &limb in arr.iter().rev() {
-        if started {
-            write!(hex, "{:016x}", limb).unwrap();
-        } else if limb != 0 {
-            write!(hex, "{:x}", limb).unwrap();
-            started = true;
+        impl Add for $wrapper_name {
+            type Output = Self;
+            fn add(self, other: Self)-> Self {
+                Self::new((self.1+other.1).retrieve())
+            }
         }
-    }
-
-    if !started {
-        hex.push('0');
-    }
-
-    hex
-}
-
-pub trait ModulusTrait:
-    std::cmp::Eq + std::default::Default + std::fmt::Debug + std::marker::Copy + Send + Sync + 'static
-{
-}
-
-impl<
-        T: std::cmp::Eq
-            + std::default::Default
-            + std::fmt::Debug
-            + std::marker::Copy
-            + Send
-            + Sync
-            + 'static,
-    > ModulusTrait for T
-{
-}
-
-pub trait ModulusConfig {
-    const MODULUS_HEX: &'static str;
-}
-
-#[derive(PartialEq, Eq, Default, Debug, Clone, Copy)]
-pub struct Modulus<T: ModulusConfig> {
-    _phantom: std::marker::PhantomData<T>,
-}
-
-impl<T: ModulusConfig> Modulus<T> {
-    pub const fn new() -> Self {
-        Self {
-            _phantom: std::marker::PhantomData,
+        impl Sub for $wrapper_name {
+            type Output = Self;
+            fn sub(self, other: Self) -> Self {
+                Self::new((self.1-other.1).retrieve())
+            }
         }
-    }
-}
-
-impl<T: ModulusConfig + 'static + ModulusTrait> ConstMontyParams<{ U256::LIMBS }> for Modulus<T> {
-    const LIMBS: usize = U256::LIMBS;
-
-    const MODULUS: Odd<U256> = Odd::<U256>::from_be_hex(T::MODULUS_HEX);
-
-    const ONE: U256 = U256::MAX
-        .rem_vartime(Self::MODULUS.as_nz_ref())
-        .wrapping_add(&U256::ONE);
-
-    const R2: U256 = U256::rem_wide_vartime(Self::ONE.square_wide(), Self::MODULUS.as_nz_ref());
-
-    const MOD_NEG_INV: Limb = Limb(
-        Word::MIN.wrapping_sub(
-            Self::MODULUS
-                .as_ref()
-                .inv_mod2k_vartime(Word::BITS)
-                .expect("modulus ensured odd")
-                .as_limbs()[0]
-                .0,
-        ),
-    );
-
-    const R3: U256 =
-        montgomery_reduction(&Self::R2.square_wide(), &Self::MODULUS, Self::MOD_NEG_INV);
-}
-
-pub type MontgomeryForm<T> = ConstMontyForm<Modulus<T>, { U256::LIMBS }>;
-
-#[derive(Clone, Debug)]
-pub struct FinitePrimeField<const L: usize, const D: usize, T: ModulusConfig + ModulusTrait>(
-    MontgomeryForm<T>,
-);
-
-impl<const L: usize, const D: usize, T: ModulusConfig + ModulusTrait> FinitePrimeField<L, D, T> {
-    const ZERO: U256 = U256::ZERO;
-    const ONE: U256 = U256::ONE;
-
-    pub const fn new(value: U256) -> Self {
-        if D != 2 * L {
-            panic!("Double size D must be twice the size of the field L");
+        impl PartialEq for $wrapper_name {
+            fn eq(&self, other: &Self) -> bool {
+                self.1.as_montgomery() == other.1.as_montgomery()
+            }
         }
-
-        // let _modulus = Modulus::<T>::new();
-        let _value = MontgomeryForm::<T>::new(&value);
-
-        Self(_value)
-    }
-}
-// TODO: UNSAFE, needed to use self.0.retrieve() every time I call to th efunction
-impl<const L: usize, const D: usize, T: ModulusConfig + ModulusTrait> Deref
-    for FinitePrimeField<L, D, T>
-{
-    type Target = U256;
-
-    fn deref(&self) -> &Self::Target {
-        static mut RETRIEVED: Option<U256> = None;
-        unsafe {
-            RETRIEVED = Some(self.0.retrieve());
-            RETRIEVED.as_ref().unwrap()
+        impl Mul for $wrapper_name {
+            type Output = Self;
+            fn mul(self, other: Self) -> Self {
+                Self::new((self.1*other.1).retrieve())
+            }
         }
-    }
-}
+        impl Inv for $wrapper_name {
+            type Output = Self;
+            fn inv(self) -> Self {
+                Self::new((self.1.inv().unwrap()).retrieve())
+            }
+        }
+        impl Div for $wrapper_name {
+            type Output = Self;
+            fn div(self, other: Self) -> Self {
+                self * other.inv()
+            }
+        }
+        impl Neg for $wrapper_name {
+            type Output = Self;
+            fn neg(self) -> Self {
+                Self::new((-self.1).retrieve())
+            }
+        }
+        impl Deref for $wrapper_name {
+            type Target = U256;
 
-impl<const L: usize, const D: usize, T: ModulusConfig + ModulusTrait> Add
-    for FinitePrimeField<L, D, T>
-{
-    type Output = Self;
-    fn add(self, other: Self) -> Self {
-        Self::new((self.0 + other.0).retrieve())
-    }
+            fn deref(&self) -> &Self::Target {
+                static mut RETRIEVED: Option<U256> = None;
+                unsafe {
+                    RETRIEVED = Some(self.1.retrieve());
+                    RETRIEVED.as_ref().unwrap()
+                }
+            }
+        }
+    };
 }
-impl<const L: usize, const D: usize, T: ModulusConfig + ModulusTrait> Sub
-    for FinitePrimeField<L, D, T>
-{
-    type Output = Self;
-    fn sub(self, other: Self) -> Self {
-        Self::new((self.0 - other.0).retrieve())
-    }
-}
-
-impl<const L: usize, const D: usize, T: ModulusConfig + ModulusTrait> PartialEq
-    for FinitePrimeField<L, D, T>
-{
-    fn eq(&self, other: &Self) -> bool {
-        // First compare the montgomery values, which encodes the modulus
-        self.0.as_montgomery() == other.0.as_montgomery()
-    }
-}
-impl<const L: usize, const D: usize, T: ModulusConfig + ModulusTrait> Mul
-    for FinitePrimeField<L, D, T>
-{
-    type Output = Self;
-    fn mul(self, other: Self) -> Self {
-        // let product = self.0.as_montgomery().split_mul(other.0.as_montgomery());
-        // Self::new(montgomery_reduction(&product, &Modulus::<T>::MODULUS, Modulus::<T>::MOD_NEG_INV))
-        Self::new((self.0 * other.0).retrieve())
-    }
-}
-impl<const L: usize, const D: usize, T: ModulusConfig + ModulusTrait> Inv
-    for FinitePrimeField<L, D, T>
-{
-    type Output = Self;
-    fn inv(self) -> Self {
-        Self::new((self.0.inv().unwrap()).retrieve())
-    }
-}
-
-impl<const L: usize, const D: usize, T: ModulusConfig + ModulusTrait> Div
-    for FinitePrimeField<L, D, T>
-{
-    type Output = Self;
-    fn div(self, other: Self) -> Self {
-        self * other.inv()
-    }
-}
-
-impl<const L: usize, const D: usize, T: ModulusConfig + ModulusTrait> Neg
-    for FinitePrimeField<L, D, T>
-{
-    type Output = Self;
-    fn neg(self) -> Self {
-        Self::new((-self.0).retrieve())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cmp::PartialEq;
     const MODULUS: [u64; 4] = [
         0x3C208C16D87CFD47,
         0x97816A916871CA8D,
@@ -210,18 +81,11 @@ mod tests {
         0x30644E72E131A029,
     ];
     const BN254_MOD_STRING: &str =
-        "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-
-    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-    struct BN254Modulus;
-    impl ModulusConfig for BN254Modulus {
-        const MODULUS_HEX: &'static str = BN254_MOD_STRING;
+    "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
+    DefineFinitePrimeField!(Bn254Field, BN254_MOD_STRING);
+    fn create_field(value: [u64;4]) -> Bn254Field {
+        Bn254Field::new(U256::from_words(value))
     }
-
-    fn create_field(value: [u64; 4]) -> FinitePrimeField<4, 8, BN254Modulus> {
-        FinitePrimeField::new(U256::from_words(value))
-    }
-
     mod test_modulus_conversion {
         use super::*; 
         #[test]
