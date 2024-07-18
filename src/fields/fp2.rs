@@ -1,53 +1,15 @@
-#[allow(unused_imports)]
-use crate::fields::fp;
-use crate::fields::fp::BaseField;
-#[allow(unused_imports)]
-use crypto_bigint::{impl_modulus, modular::ConstMontyParams, NonZero, U256};
-#[allow(unused_imports)]
-use num_traits::{Euclid, Inv, One, Zero};
-#[allow(unused_imports)]
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
-
-const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-fp::DefineFinitePrimeField!(Fp, U256, 8, BN254_MOD_STRING);
-
-// the following struct can unfortunately not have much that is const,
-// since the underlying Mul, Add, etc, are not, and const traits are in the works
-// https://github.com/rust-lang/rust/issues/67792
+use crate::fields::extensions::FieldExtension;
+use crate::fields::fp::{FinitePrimeField, Fp};
+use num_traits::{Inv, One, Zero};
+use std::ops::{Div, DivAssign, Mul, MulAssign};
 
 // This describes the quadratic field extension of the base field of BN254
 // defined by the tower Fp^2 = Fp[X] / (X^2-\beta). Further, the quadratic nature implies
 // that elements of this field are represented as a_0 + a_1 X
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct FieldExtension<const D: usize, const N: usize, F: BaseField<8, U256>>([F; N]);
+type Fp2 = FieldExtension<2, 2, Fp>;
 
 #[allow(dead_code)]
-impl<const D: usize, const N: usize, F: BaseField<8, U256>> FieldExtension<D, N, F> {
-    pub fn new(c: &[F; N]) -> Self {
-        Self(*c)
-    }
-    pub fn value(&self) -> [U256; N] {
-        let mut i = 0;
-        let mut retval = [F::zero().value(); N];
-        while i < N {
-            retval[i] = self.0[i].value();
-            i += 1;
-        }
-        retval
-    }
-    pub fn scale(&self, factor: F) -> Self {
-        let mut i = 0;
-        let mut retval = [F::zero(); N];
-        while i < N {
-            retval[i] = self.0[i] * factor;
-            i += 1;
-        }
-        Self::new(&retval)
-    }
-}
-#[allow(dead_code)]
-impl FieldExtension<2, 2, Fp> {
+impl Fp2 {
     pub fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp2: &[Fp; 2] = &[
             // NONRESIDUE**(((q^0) - 1) / 2)
@@ -71,61 +33,31 @@ impl FieldExtension<2, 2, Fp> {
     }
 }
 
-impl<const D: usize, const N: usize, F: BaseField<8, U256>> Add for FieldExtension<D, N, F> {
+impl Mul for Fp2 {
     type Output = Self;
-    fn add(self, rhs: Self) -> Self::Output {
-        let mut i = 0;
-        let mut retval = [F::zero(); N];
-        while i < N {
-            retval[i] = self.0[i] + rhs.0[i];
-            i += 1;
-        }
-        Self::new(&retval)
-    }
-}
-impl<const D: usize, const N: usize, F: BaseField<8, U256>> Sub for FieldExtension<D, N, F> {
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self::Output {
-        let mut i = 0;
-        let mut retval = [F::zero(); N];
-        while i < N {
-            retval[i] = self.0[i] - rhs.0[i];
-            i += 1;
-        }
-        Self::new(&retval)
-    }
-}
-impl<const D: usize, const N: usize, F: BaseField<8, U256>> Neg for FieldExtension<D, N, F> {
-    type Output = Self;
-    fn neg(self) -> Self::Output {
-        let mut i = 0;
-        let mut retval = [F::zero(); N];
-        while i < N {
-            retval[i] = -self.0[i];
-            i += 1;
-        }
-        Self::new(&retval)
-    }
-}
-impl Mul for FieldExtension<2, 2, Fp> {
-    type Output = Self;
-    fn mul(self, rhs: Self) -> Self::Output {
+    fn mul(self, other: Self) -> Self::Output {
         // This requires a bit more consideration. In Fp2,
         // in order to multiply, we must implement complex Karatsuba
         // multiplication.
         // See https://eprint.iacr.org/2006/471.pdf, Sec 3
         // We create the addition chain from Algo 1 of https://eprint.iacr.org/2022/367.pdf
         // TODO: Implement optimized squaring algorithm in base field?
-        let t0 = self.0[0] * rhs.0[0];
-        let t1 = self.0[1] * rhs.0[1];
+        let t0 = self.0[0] * other.0[0];
+        let t1 = self.0[1] * other.0[1];
 
         Self([
             t1 * Fp::quadratic_non_residue() + t0,
-            (self.0[0] + self.0[1]) * (rhs.0[0] + rhs.0[1]) - t0 - t1,
+            (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1,
         ])
     }
 }
-impl Inv for FieldExtension<2, 2, Fp> {
+impl MulAssign for Fp2 {
+    fn mul_assign(&mut self, other: Self) {
+        *self = *self * other;
+    }
+}
+
+impl Inv for Fp2 {
     type Output = Self;
     fn inv(self) -> Self {
         let c0_squared = self.0[0].square();
@@ -134,22 +66,8 @@ impl Inv for FieldExtension<2, 2, Fp> {
         Self::new(&[self.0[0] * tmp, -(self.0[1] * tmp)])
     }
 }
-impl<const D: usize, const N: usize, F: BaseField<8, U256>> Zero for FieldExtension<D, N, F> {
-    fn zero() -> Self {
-        Self::new(&[F::zero(); N])
-    }
-    fn is_zero(&self) -> bool {
-        let mut i = 0;
-        let mut retval = true;
-        while i < N {
-            retval &= self.0[i].is_zero();
-            i += 1;
-        }
-        retval
-    }
-}
 
-impl One for FieldExtension<2, 2, Fp> {
+impl One for Fp2 {
     fn one() -> Self {
         Self::new(&[Fp::one(), Fp::zero()])
     }
@@ -159,13 +77,17 @@ impl One for FieldExtension<2, 2, Fp> {
 }
 
 #[allow(clippy::suspicious_arithmetic_impl)]
-impl Div for FieldExtension<2, 2, Fp> {
+impl Div for Fp2 {
     type Output = Self;
-    fn div(self, rhs: Self) -> Self {
-        self * rhs.inv()
+    fn div(self, other: Self) -> Self {
+        self * other.inv()
     }
 }
-
+impl DivAssign for Fp2 {
+    fn div_assign(&mut self, other: Self) {
+        *self = *self / other;
+    }
+}
 // Tests of associativity, commutivity, etc, follow directly from
 // these properties in the base field, as the extension simply performs
 // these operations elementwise. The only tests are really to be done
@@ -173,8 +95,8 @@ impl Div for FieldExtension<2, 2, Fp> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crypto_bigint::U256;
 
-    type Fp2 = FieldExtension<2, 2, Fp>;
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
     }

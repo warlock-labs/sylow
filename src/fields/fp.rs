@@ -1,11 +1,9 @@
 #[allow(unused_imports)]
 use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, Uint, U256};
-#[allow(unused_imports)]
 use num_traits::{Euclid, Inv, One, Zero};
-#[allow(unused_imports)]
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
-pub trait BaseField<const DLIMBS: usize, UintType>:
+pub trait FinitePrimeField<const DLIMBS: usize, UintType>:
     Sized
     + Copy
     + Clone
@@ -27,7 +25,7 @@ pub trait BaseField<const DLIMBS: usize, UintType>:
     + Inv<Output = Self>
     + Euclid
 where
-    UintType: crypto_bigint::ConcatMixed<MixedOutput = crypto_bigint::Uint<DLIMBS>>,
+    UintType: ConcatMixed<MixedOutput = Uint<DLIMBS>>,
 {
     fn new(value: UintType) -> Self;
     fn new_from_u64(value: u64) -> Self;
@@ -48,7 +46,7 @@ macro_rules! DefineFinitePrimeField {
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
         pub struct $wrapper_name(ModulusStruct, Output);
         #[allow(dead_code)]
-        impl BaseField<$limbs, $uint_type> for $wrapper_name {
+        impl FinitePrimeField<$limbs, $uint_type> for $wrapper_name {
             fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
             }
@@ -208,7 +206,10 @@ macro_rules! DefineFinitePrimeField {
         }
     };
 }
-pub(crate) use DefineFinitePrimeField;
+
+const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
+DefineFinitePrimeField!(Fp, U256, 8, BN254_MOD_STRING);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,9 +219,7 @@ mod tests {
         0xB85045B68181585D,
         0x30644E72E131A029,
     ];
-    const BN254_MOD_STRING: &str =
-        "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-    DefineFinitePrimeField!(Fp, U256, 8, BN254_MOD_STRING);
+    
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
     }
