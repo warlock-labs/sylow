@@ -18,6 +18,7 @@ macro_rules! DefineFinitePrimeField {
             pub const ZERO: Self = Self::new(<$uint_type>::from_u64(0));
             pub const ONE: Self = Self::new(<$uint_type>::from_u64(1));
             pub const NINE: Self = Self::new(<$uint_type>::from_u64(9));
+            pub const NLIMBS: usize = <$uint_type>::LIMBS;
             pub const __MODULUS: &'static NonZero<$uint_type> = ModulusStruct::MODULUS.as_nz_ref();
             pub const fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
