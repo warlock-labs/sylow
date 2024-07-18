@@ -429,10 +429,10 @@ mod tests {
             assert_eq!(
                 (e * f).value(),
                 U256::from_words([
-                    0xFFFFFFFFFFFFFFFF,
-                    0xFFFFFFFFFFFFFFFF,
-                    0xFFFFFFFFFFFFFFFF,
-                    0
+                    0x00000BFFFFFFFFFF,
+                    0xFFFFFFFFAFFFFFFF,
+                    0xFFFFFE9FFFFFFFFE,
+                    0x0000000000096FFE
                 ]),
                 "Multiplication wrapping around modulus failed"
             );
