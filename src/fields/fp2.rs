@@ -17,23 +17,26 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, Su
 #[allow(unused_macros)]
 macro_rules! DefineQuadraticExtension {
     ($wrapper_name:ident, $uint_type:ty, $modulus:expr) => {
-        fp::DefineFinitePrimeField!(BaseField, $uint_type, $modulus);
+        fp::DefineFinitePrimeField!(Fp, $uint_type, $modulus);
         #[derive(Copy, Clone, Debug, PartialEq)]
-        pub struct $wrapper_name(BaseField, BaseField);
+        pub struct $wrapper_name(Fp, Fp);
         #[allow(dead_code)]
         impl $wrapper_name {
-            pub const fn new(c0: BaseField, c1: BaseField) -> Self {
+            pub const fn new(c0: Fp, c1: Fp) -> Self {
                 Self(c0, c1)
             }
-            pub fn scale(&self, factor: BaseField) -> Self {
+            pub const fn value(&self) -> [$uint_type; 2] {
+                [self.0.value(), self.1.value()]
+            }
+            pub fn scale(&self, factor: Fp) -> Self {
                 Self::new(self.0 * factor, self.1 * factor)
             }
             pub fn frobenius(&self, exponent: usize) -> Self {
-                let frobenius_coeff_fp2: &[BaseField] = &[
+                let frobenius_coeff_fp2: &[Fp] = &[
                     // NONRESIDUE**(((q^0) - 1) / 2)
-                    BaseField::ONE,
+                    Fp::ONE,
                     // NONRESIDUE**(((q^1) - 1) / 2)
-                    BaseField::quadratic_non_residue(),
+                    Fp::quadratic_non_residue(),
                 ];
                 match exponent % 2 {
                     0 => *self,
@@ -47,7 +50,7 @@ macro_rules! DefineQuadraticExtension {
                 (*self) * (*self)
             }
             pub fn quadratic_non_residue() -> Self {
-                Self::new(BaseField::NINE, BaseField::ONE)
+                Self::new(Fp::NINE, Fp::ONE)
             }
             // pub fn sqrt(&self) -> Self {
             //     // we implement shanks method here, which is valid
@@ -56,10 +59,10 @@ macro_rules! DefineQuadraticExtension {
             //         return *self;
             //     }
             //     //compute alpha = a^2 + \beta*b^2
-            //     let alpha = self.0.square() + BaseField::quadratic_non_residue() * self.1.square();
+            //     let alpha = self.0.square() + Fp::quadratic_non_residue() * self.1.square();
 
             //     // compute exponent
-            //     let p = BaseField::characteristic();
+            //     let p = Fp::characteristic();
 
             //     // (p-3)/4
             //     let exp1 = (p-3)/4;
@@ -96,18 +99,10 @@ macro_rules! DefineQuadraticExtension {
                 let t0 = self.0 * rhs.0;
                 let t1 = self.1 * rhs.1;
 
-                let temp0 = self.0 + self.1;
-                let temp1 = rhs.0 + rhs.1;
-
-                let mut t2 = temp0 * temp1;
-
-                let t3 = t0 + t1;
-                t2 -= t3;
-
-                let c1 = t2;
-                let c0 = t0 - (t1 * BaseField::quadratic_non_residue());
-
-                Self::new(c0, c1)
+                Self(
+                    t1 * Fp::quadratic_non_residue() + t0,
+                    (self.0 + self.1) * (rhs.0 + rhs.1) - t0 - t1,
+                )
             }
         }
         impl Inv for $wrapper_name {
@@ -115,13 +110,13 @@ macro_rules! DefineQuadraticExtension {
             fn inv(self) -> Self {
                 let c0_squared = self.0.square();
                 let c1_squared = self.1.square();
-                let tmp = (c0_squared - (c1_squared * BaseField::quadratic_non_residue())).inv();
+                let tmp = (c0_squared - (c1_squared * Fp::quadratic_non_residue())).inv();
                 Self::new(self.0 * tmp, -(self.1 * tmp))
             }
         }
         impl Zero for $wrapper_name {
             fn zero() -> Self {
-                Self::new(BaseField::ZERO, BaseField::ZERO)
+                Self::new(Fp::ZERO, Fp::ZERO)
             }
             fn is_zero(&self) -> bool {
                 self.0.is_zero() && self.1.is_zero()
@@ -129,19 +124,143 @@ macro_rules! DefineQuadraticExtension {
         }
         impl One for $wrapper_name {
             fn one() -> Self {
-                Self::new(BaseField::ONE, BaseField::ZERO)
+                Self::new(Fp::ONE, Fp::ZERO)
             }
             fn is_one(&self) -> bool {
                 self.0.is_one() && self.1.is_one()
             }
         }
+        #[allow(clippy::suspicious_arithmetic_impl)]
+        impl Div for $wrapper_name {
+            type Output = Self;
+            fn div(self, rhs: Self) -> Self {
+                self * rhs.inv()
+            }
+        }
     };
 }
 
+// Tests of associativity, commutivity, etc, follow directly from
+// these properties in the base field, as the extension simply performs
+// these operations elementwise. The only tests are really to be done
+// with multiplication and division
 #[cfg(test)]
 mod tests {
     use super::*;
-    const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
+    const BN254_MOD_STRING: &str =
+        "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
     DefineQuadraticExtension!(Fp2, U256, BN254_MOD_STRING);
-}
 
+    fn create_field(value: [u64; 4]) -> Fp {
+        Fp::new(U256::from_words(value))
+    }
+    fn create_field_extension(v1: [u64; 4], v2: [u64; 4]) -> Fp2 {
+        Fp2::new(create_field(v1), create_field(v2))
+    }
+    mod addition_tests {
+        use super::*;
+        #[test]
+        fn test_addition_closure() {
+            let a = create_field_extension([1, 2, 3, 4], [0, 0, 0, 0]);
+            let b = create_field_extension([0, 0, 0, 0], [1, 2, 3, 4]);
+            let _ = a + b;
+        }
+    }
+    mod subtraction_tests {
+        use super::*;
+        #[test]
+        fn test_subtraction_closure() {
+            let a = create_field_extension([1, 2, 3, 4], [0, 0, 0, 0]);
+            let b = create_field_extension([0, 0, 0, 0], [1, 2, 3, 4]);
+            let _ = a - b;
+        }
+    }
+    mod multiplication_tests {
+        use super::*;
+
+        #[test]
+        fn test_multiplication_closure() {
+            let a = create_field_extension([1, 2, 3, 4], [1, 2, 3, 4]);
+            let b = create_field_extension([5, 6, 7, 8], [5, 6, 7, 8]);
+            let _ = a * b;
+        }
+        #[test]
+        fn test_multiplication_associativity() {
+            let a = create_field_extension([1, 2, 3, 4], [1, 2, 3, 4]);
+            let b = create_field_extension([5, 6, 7, 8], [5, 6, 7, 8]);
+            let c = create_field_extension([9, 10, 11, 12], [9, 10, 11, 12]);
+            assert_eq!(
+                (a * b) * c,
+                a * (b * c),
+                "Multiplication is not associative"
+            );
+        }
+        #[test]
+        fn test_multiplication_commutativity() {
+            let a = create_field_extension([1, 2, 3, 4], [1, 2, 3, 4]);
+            let b = create_field_extension([5, 6, 7, 8], [5, 6, 7, 8]);
+
+            assert_eq!(a * b, b * a, "Multiplication is not commutative");
+        }
+
+        #[test]
+        fn test_multiplication_distributivity() {
+            let a = create_field_extension([1, 2, 3, 4], [1, 2, 3, 4]);
+            let b = create_field_extension([5, 6, 7, 8], [5, 6, 7, 8]);
+            let c = create_field_extension([9, 10, 11, 12], [9, 10, 11, 12]);
+            assert_eq!(
+                a * (b + c),
+                a * b + a * c,
+                "Multiplication is not associative"
+            );
+        }
+
+        #[test]
+        fn test_multiplication_cases() {
+            // simple stuff
+            let a = create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]);
+            let b = create_field_extension([1, 1, 1, 1], [1, 2, 3, 4]);
+            let c = create_field_extension(
+                [
+                    0x2221d7e243f5a6b7,
+                    0xf2dbb3e54415ac43,
+                    0xc1c16c86d80ba3fe,
+                    0x1ed70a64be2c4cf4,
+                ],
+                [
+                    0xcf869553cd163248,
+                    0xe9e0e365974ff82b,
+                    0xaa61fb7b7ed75708,
+                    0x952882769104fa9,
+                ],
+            );
+            assert_eq!(a * b, c, "Simple multiplication failed");
+
+            // multiplication with carry
+            let d = create_field_extension(
+                [0xFFFFFFFFFFFFFFFF, 0, 0, 0],
+                [0xFFFFFFFFFFFFFFFF, 0, 0, 0],
+            );
+            let e = create_field_extension([0xFFFFFFFFFFFFFFFF, 0, 0, 0], [2, 0, 0, 0]);
+            let f = create_field_extension(
+                [0x3, 0xfffffffffffffffc, 0x0, 0x0],
+                [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
+            );
+            assert_eq!(
+                d * e,
+                f,
+                "Multiplication with carry and around modulus failed"
+            );
+        }
+
+        #[test]
+        fn test_multiplication_edge_cases() {
+            let a = create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]);
+            let one = Fp2::one();
+            let zero = Fp2::zero();
+
+            assert_eq!(a * zero, zero, "Multiplication by zero failed");
+            assert_eq!(a * one, a, "Multiplication by one failed");
+        }
+    }
+}

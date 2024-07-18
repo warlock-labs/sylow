@@ -28,7 +28,7 @@ macro_rules! DefineFinitePrimeField {
             pub fn quadratic_non_residue() -> Self {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
                 // = -1
-                Self::new(Self::ONE.neg().1.retrieve())
+                Self::new((-Self::ONE).1.retrieve())
             }
             pub fn square(&self) -> Self {
                 (*self) * (*self)
@@ -133,6 +133,7 @@ macro_rules! DefineFinitePrimeField {
         impl Rem for $wrapper_name {
             type Output = Self;
             fn rem(self, other: Self) -> Self::Output {
+                //create our own check for zeroness?
                 Self::new(
                     self.1
                         .retrieve()
@@ -457,8 +458,8 @@ mod tests {
                 (large * large).value(),
                 U256::from_words([
                     0xB5E10AE6EEFA883B,
-                    0x198D06E9A0ECCA3F, 
-                    0xA1FD4D5C33BDCE95, 
+                    0x198D06E9A0ECCA3F,
+                    0xA1FD4D5C33BDCE95,
                     0x16A2244FF2849823
                 ]),
                 "Multiplication of large numbers failed"
