@@ -263,4 +263,51 @@ mod tests {
             assert_eq!(a * one, a, "Multiplication by one failed");
         }
     }
+
+    mod division_tests {
+        use super::*;
+
+        #[test]
+        fn test_division_closure() {
+            let a = create_field_extension([1, 2, 3, 4], [1, 2, 3, 4]);
+            let b = create_field_extension([5, 6, 7, 8], [5, 6, 7, 8]);
+            let _ = a / b;
+        }
+        #[test]
+        fn test_division_cases() {
+            let a = create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]);
+            let b = create_field_extension([1, 1, 1, 1], [1, 2, 3, 4]);
+            let one = Fp2::one();
+            // basics
+            assert_eq!(a / a, one, "Division by self failed");
+
+            assert_eq!(a / one, a, "Division by one failed");
+            assert_eq!(((a / b) * b), a, "Division-Mult composition failed");
+            //simple division
+
+            let c = create_field_extension(
+                [
+                    0xb696614e97737f6c,
+                    0xd2799b66974f80d,
+                    0x683ffb614c4317bb,
+                    0xec4ef6d41a263d3,
+                ],
+                [
+                    0x890b1e56c256dff3,
+                    0xbef14351d1d560c0,
+                    0xb825b915b766b744,
+                    0x2e71120e2f3641f7,
+                ],
+            );
+            assert_eq!(a / b, c, "Simple division failed");
+        }
+        #[test]
+        #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
+        fn test_divide_by_zero() {
+            let a = create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]);
+            let zero = Fp2::zero();
+
+            let _ = a / zero;
+        }
+    }
 }
