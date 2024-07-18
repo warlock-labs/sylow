@@ -1,4 +1,6 @@
 #[allow(unused_imports)]
+use crypto_bigint::subtle::ConstantTimeEq;
+#[allow(unused_imports)]
 use crypto_bigint::{impl_modulus, modular::ConstMontyParams, NonZero};
 #[allow(unused_imports)]
 use num_traits::{Euclid, Inv, One, Zero};
@@ -67,7 +69,10 @@ macro_rules! DefineFinitePrimeField {
         }
         impl PartialEq for $wrapper_name {
             fn eq(&self, other: &Self) -> bool {
-                self.1.as_montgomery() == other.1.as_montgomery()
+                match self.1.ct_eq(&other.1).unwrap_u8() {
+                    1u8 => true,
+                    _ => false,
+                }
             }
         }
         impl Mul for $wrapper_name {
