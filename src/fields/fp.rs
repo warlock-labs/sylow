@@ -455,7 +455,12 @@ mod tests {
             ]);
             assert_eq!(
                 (large * large).value(),
-                U256::from_words([1, 0, 0, 0]),
+                U256::from_words([
+                    0xB5E10AE6EEFA883B,
+                    0x198D06E9A0ECCA3F, 
+                    0xA1FD4D5C33BDCE95, 
+                    0x16A2244FF2849823
+                ]),
                 "Multiplication of large numbers failed"
             );
         }
