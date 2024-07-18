@@ -1,3 +1,30 @@
+//! This module implements the a basic finite field. The modulus of the finite field
+//! is assumed to be prime (and therefore odd). The basic idea is that we use the
+//! modulus to generate a struct, instances of which can be added, multiplied, etc
+//! all while conforming to the rules dictated by closed cyclic abelian groups.
+//! The generated struct is flexible enough to handle massively large multiprecision
+//! moduli and values, and performs all such modular arithemetic internally. The only
+//! requirements of the user are to provide the modulus, and the desired bit precision.
+//! Due to efficiency considerations, we do not simply "do modular arithmetic" on numbers.
+//! There are two levels of performance that we implement.
+//!
+//! 1. Montgomery arithmetic:
+//!     this is a special type of modular arithmetic that
+//!     allows for quick execution of binary operations
+//!     for a given modulus. This relies on the generation
+//!     of additional constants. For more information, see Ref [1].
+//! 2. Constant-time operations:
+//!     in general, code may be differently executed depending
+//!     on the inputs passed to it. unrolling for loops differently
+//!     for different inputs allows for side channel attacks. All
+//!     this to say that all operations are performed in constant
+//!     time with the usage of the `ConstMontyForm` struct of
+//!     `crypto_bigint`.
+//!                              
+//! References
+//! ----------
+//! [1] https://cacr.uwaterloo.ca/hac/about/chap14.pdf
+
 #[allow(unused_imports)]
 use crypto_bigint::subtle::ConstantTimeEq;
 #[allow(unused_imports)]
@@ -7,26 +34,43 @@ use num_traits::{Euclid, Inv, One, Zero};
 #[allow(unused_imports)]
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
+/// Due to the fact that we use `crypto_bigint` to handle the multiprecision arithmetic
+/// we must accept (for now) the fact that it requires the usage of a macro,
+/// `impl_modulus!`, which generates and contains all the need information.
+/// This means that we roll our implementation into a proc macro that
+/// provides all the needed functionality.
 #[allow(unused_macros)]
 macro_rules! DefineFinitePrimeField {
     ($wrapper_name:ident, $uint_type:ty, $modulus:expr) => {
         impl_modulus!(ModulusStruct, $uint_type, $modulus);
+
+        //special struct for const-time arithmetic on montgomery form integers mod p
         type Output =
             crypto_bigint::modular::ConstMontyForm<ModulusStruct, { ModulusStruct::LIMBS }>;
 
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
         pub struct $wrapper_name(ModulusStruct, Output);
         impl $wrapper_name {
+            // special constants of the base field used in binary operations
             const ZERO: Self = Self::new(<$uint_type>::from_u64(0));
             const ONE: Self = Self::new(<$uint_type>::from_u64(1));
+            // unfortunately, accessing the actual value of the modulus from the struct
+            // provided by `crypto_bigint` is not straightforward, thus the magic below
             pub const __MODULUS: &'static NonZero<$uint_type> = ModulusStruct::MODULUS.as_nz_ref();
+
+            // builder structure to create elements in the base field of a given value
             pub const fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
             }
+            // take the element and convert it to "normal" form from montgomery form
             pub const fn value(&self) -> $uint_type {
                 self.1.retrieve()
             }
         }
+
+        /// We now implement binary operations on the base field. This more or less
+        /// just wraps the same operations on the underlying montgomery representations
+        /// of the field element. All binops with assignment equivalents are given
         impl Add for $wrapper_name {
             type Output = Self;
             fn add(self, other: Self) -> Self {
@@ -67,6 +111,13 @@ macro_rules! DefineFinitePrimeField {
                 *self = *self - other;
             }
         }
+        /// There is a bit of additional consideration here. checking equality
+        /// is not generally speaking constant time. therefore, we use
+        /// the build in functionality from subtle::ConstantTimeEq to do the
+        /// operation in constant time. This does, however, return a Choice
+        /// Choice(1u8) if self.0 == other.0
+        /// Choice(0u8) if self.0 != other.0
+        /// We unwrap and match the choice
         impl PartialEq for $wrapper_name {
             fn eq(&self, other: &Self) -> bool {
                 match self.1.ct_eq(&other.1).unwrap_u8() {
@@ -86,6 +137,18 @@ macro_rules! DefineFinitePrimeField {
                 *self = *self * other;
             }
         }
+        /// For inversion, this is in general a difficult problem.
+        /// Our goal is to solve, for a field element x, another element
+        /// of the field y such that x * y = 1. To do this requires
+        /// cleverness to also do in constant time. We use the
+        /// Bernstein-Yang algorithm, which you can read more on here:
+        /// https://eprint.iacr.org/2019/266.pdf
+        ///
+        /// Due to the numerical complexity, it makes sense that this
+        /// returns an Option, for example in the case of an attempt to
+        /// determine 1/0. This is a bit unfortunate, since as of now
+        /// the code will panic should it fail. We unwrap the option for now.
+        /// https://github.com/RustCrypto/crypto-bigint/blob/be6a3abf7e65279ba0b5e4b1ce09eb0632e443f6/src/const_choice.rs#L237
         impl Inv for $wrapper_name {
             type Output = Self;
             fn inv(self) -> Self {
@@ -110,6 +173,12 @@ macro_rules! DefineFinitePrimeField {
                 Self::new((-self.1).retrieve())
             }
         }
+        /// For reasons similar to `inv()` above, the following operations, which
+        /// determine the quotient and remainder of a field element into another,
+        /// return Options, again for instance in the case of an attempt to do 1/0.
+        /// These specific operations require the casting to a `NonZero` struct which
+        /// checks the validity of the input, but therefore returns an Option,
+        /// which we unwrap. Otherwise, there will be panic.
         impl Rem for $wrapper_name {
             type Output = Self;
             fn rem(self, other: Self) -> Self::Output {
@@ -154,6 +223,10 @@ macro_rules! DefineFinitePrimeField {
         }
     };
 }
+
+/// This is a very comprehensive test suite, that checks every binary operation for validity, 
+/// associativity, commutativity, distributivity, sanity checks, and edge cases.
+/// The reference values for non-obvious field elements are generated with Sage.
 #[cfg(test)]
 mod tests {
     use super::*;
