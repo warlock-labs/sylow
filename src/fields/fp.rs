@@ -1,47 +1,79 @@
 #[allow(unused_imports)]
-use crypto_bigint::{impl_modulus, modular::ConstMontyParams, NonZero, U256};
+use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, Uint, U256};
 #[allow(unused_imports)]
 use num_traits::{Euclid, Inv, One, Zero};
 #[allow(unused_imports)]
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
+pub trait BaseField<const DLIMBS: usize, UintType>:
+    Sized
+    + Copy
+    + Clone
+    + std::fmt::Debug
+    + Default
+    + Add<Output = Self>
+    + AddAssign
+    + Sub<Output = Self>
+    + SubAssign
+    + Mul<Output = Self>
+    + MulAssign
+    + Div<Output = Self>
+    + DivAssign
+    + Neg<Output = Self>
+    + Rem<Output = Self>
+    + PartialEq
+    + Zero
+    + One
+    + Inv<Output = Self>
+    + Euclid
+where
+    UintType: crypto_bigint::ConcatMixed<MixedOutput = crypto_bigint::Uint<DLIMBS>>,
+{
+    fn new(value: UintType) -> Self;
+    fn new_from_u64(value: u64) -> Self;
+    fn value(&self) -> UintType;
+    fn quadratic_non_residue() -> Self;
+    fn square(&self) -> Self;
+    fn sqrt(&self) -> Self;
+    fn pow(&self, exponent: &UintType) -> Self;
+    fn characteristic() -> UintType;
+}
+
 #[allow(unused_macros)]
 macro_rules! DefineFinitePrimeField {
-    ($wrapper_name:ident, $uint_type:ty, $modulus:expr) => {
+    ($wrapper_name:ident, $uint_type:ty, $limbs:expr, $modulus:expr) => {
         impl_modulus!(ModulusStruct, $uint_type, $modulus);
         type Output =
             crypto_bigint::modular::ConstMontyForm<ModulusStruct, { ModulusStruct::LIMBS }>;
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
         pub struct $wrapper_name(ModulusStruct, Output);
         #[allow(dead_code)]
-        impl $wrapper_name {
-            pub const ZERO: Self = Self::new(<$uint_type>::from_u64(0));
-            pub const ONE: Self = Self::new(<$uint_type>::from_u64(1));
-            pub const NINE: Self = Self::new(<$uint_type>::from_u64(9));
-            pub const NLIMBS: usize = <$uint_type>::LIMBS;
-            pub const __MODULUS: &'static NonZero<$uint_type> = ModulusStruct::MODULUS.as_nz_ref();
-            pub const fn new(value: $uint_type) -> Self {
+        impl BaseField<$limbs, $uint_type> for $wrapper_name {
+            fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
             }
-            pub const fn value(&self) -> $uint_type {
+            fn new_from_u64(value: u64) -> Self {
+                Self(ModulusStruct, Output::new(&<$uint_type>::from_u64(value)))
+            }
+            fn value(&self) -> $uint_type {
                 self.1.retrieve()
             }
-            pub fn quadratic_non_residue() -> Self {
+            fn quadratic_non_residue() -> Self {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
                 // = -1
-                Self::new((-Self::ONE).1.retrieve())
+                Self::new((-Self::new_from_u64(1u64)).1.retrieve())
             }
-            pub fn square(&self) -> Self {
+            fn square(&self) -> Self {
                 (*self) * (*self)
             }
-            pub fn sqrt(&self) -> Self {
+            fn sqrt(&self) -> Self {
                 Self::new(self.value().sqrt())
             }
-            pub fn pow(&self, exponent: &$uint_type) -> Self {
+            fn pow(&self, exponent: &$uint_type) -> Self {
                 Self::new(self.1.pow(exponent).retrieve())
             }
-            pub fn characteristic() -> $uint_type {
-                <$uint_type>::from(Self::__MODULUS.get())
+            fn characteristic() -> $uint_type {
+                <$uint_type>::from(ModulusStruct::MODULUS.as_nz_ref().get())
             }
             // pub fn sqrt_exponents() ->  [$uint_type; 2] {
             //     let three = <$uint_type>::from_u64(3u64);
@@ -64,7 +96,7 @@ macro_rules! DefineFinitePrimeField {
         }
         impl Zero for $wrapper_name {
             fn zero() -> Self {
-                Self::ZERO
+                Self::new_from_u64(0u64)
             }
             fn is_zero(&self) -> bool {
                 self.1.is_zero()
@@ -72,12 +104,12 @@ macro_rules! DefineFinitePrimeField {
         }
         impl One for $wrapper_name {
             fn one() -> Self {
-                Self::ONE
+                Self::new_from_u64(1u64)
             }
         }
         impl Default for $wrapper_name {
             fn default() -> Self {
-                Self::ZERO
+                Self::new_from_u64(0u64)
             }
         }
         impl Sub for $wrapper_name {
@@ -145,7 +177,7 @@ macro_rules! DefineFinitePrimeField {
         impl Euclid for $wrapper_name {
             fn div_euclid(&self, other: &Self) -> Self {
                 if other.is_zero() {
-                    return Self::ZERO;
+                    return Self::new_from_u64(0u64);
                 }
                 let (mut _q, mut _r) = self
                     .1
@@ -160,7 +192,7 @@ macro_rules! DefineFinitePrimeField {
             }
             fn rem_euclid(&self, other: &Self) -> Self {
                 if other.is_zero() {
-                    return Self::ZERO;
+                    return Self::new_from_u64(0u64);
                 }
                 let (mut _q, mut _r) = self
                     .1
@@ -188,7 +220,7 @@ mod tests {
     ];
     const BN254_MOD_STRING: &str =
         "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-    DefineFinitePrimeField!(Fp, U256, BN254_MOD_STRING);
+    DefineFinitePrimeField!(Fp, U256, 8, BN254_MOD_STRING);
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
     }
