@@ -1,29 +1,12 @@
 use num_traits::Zero;
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
-
+use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
+use crate::fields::fp::FieldExtensionTrait;
 // the following struct can unfortunately not have much that is const,
 // since the underlying Mul, Add, etc., are not, and const traits are in the works
 // https://github.com/rust-lang/rust/issues/67792
 
 //items needed only for field extension
 // new, scale, add(assign), sub(assign), default, eq, neg, zero
-pub trait FieldExtensionTrait<const D: usize, const N: usize>:
-    Sized
-    + Add<Output = Self>
-    + AddAssign
-    + Sub<Output = Self>
-    + SubAssign
-    + Default
-    + PartialEq
-    + Mul<Output = Self>
-    + MulAssign
-    + Neg<Output = Self>
-    + Zero
-    + Copy
-    + Clone
-    + std::fmt::Debug
-{
-}
 
 #[derive(Copy, Clone, Debug)]
 pub struct FieldExtension<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>(
@@ -35,15 +18,6 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtensio
     pub fn new(c: &[F; N]) -> Self {
         Self(*c)
     }
-    // pub fn value(&self) -> [U256; N] {
-    //     let mut i = 0;
-    //     let mut retval = [F::zero().value(); N];
-    //     while i < N {
-    //         retval[i] = self.0[i].value();
-    //         i += 1;
-    //     }
-    //     retval
-    // }
     pub fn scale(&self, factor: F) -> Self {
         let mut i = 0;
         let mut retval = [F::zero(); N];

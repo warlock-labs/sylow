@@ -1,23 +1,44 @@
-use crate::fields::extensions::{FieldExtension, FieldExtensionTrait};
-use crate::fields::fp::{FinitePrimeField, Fp};
+use crate::fields::extensions::FieldExtension;
+use crate::fields::fp::{FinitePrimeField, Fp, FieldExtensionTrait};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
-
+use crypto_bigint::{Encoding, U512};
 // This describes the quadratic field extension of the base field of BN254
 // defined by the tower Fp^2 = Fp[X] / (X^2-\beta). Further, the quadratic nature implies
 // that elements of this field are represented as a_0 + a_1 X
-impl FieldExtensionTrait<1, 1> for Fp {}
-impl FieldExtensionTrait<2, 2> for Fp {}
-type Fp2 = FieldExtension<2, 2, Fp>;
 
-#[allow(dead_code)]
+pub(crate) type Fp2 = FieldExtension<2, 2, Fp>;
 impl Fp2 {
-    pub fn frobenius(&self, exponent: usize) -> Self {
+    pub(crate) fn pow_vartime(&self, by: &[u64]) -> Self {
+        let mut res = Self::one();
+        for e in by.iter().rev(){
+            for i in (0..64).rev() {
+                res = res * res;
+                if ((*e >> i) &1 ) == 1 {
+                    res *= *self;
+                }
+            }
+        }
+        res
+    }
+    fn characteristic() -> U512 {
+        let u256_bytes = Fp::characteristic().to_be_bytes();
+        let mut u512_bytes= [0u8; 64];
+        u512_bytes[32..].copy_from_slice(&u256_bytes);
+        let char512 = U512::from_be_bytes(u512_bytes);
+        char512 * char512
+    }
+}
+impl FieldExtensionTrait<2,2> for Fp2 {
+    fn quadratic_non_residue() -> Self {
+        Self::new(&[Fp::new_from_u64(9u64), Fp::one()])
+    }
+    fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp2: &[Fp; 2] = &[
             // NONRESIDUE**(((q^0) - 1) / 2)
             Fp::one(),
             // NONRESIDUE**(((q^1) - 1) / 2)
-            Fp::quadratic_non_residue(),
+            <Fp as FieldExtensionTrait<1,1>>::quadratic_non_residue(),
         ];
         match exponent % 2 {
             0 => *self,
@@ -27,12 +48,31 @@ impl Fp2 {
             ]),
         }
     }
-    pub fn square(&self) -> Self {
-        (*self) * (*self)
+    fn sqrt(&self) -> Self {
+        let p_minus_3_over_4 = ((Fp::new(Fp::characteristic()) - Fp::new_from_u64(3u64)) /
+            Fp::new_from_u64(4u64)).value();
+        let p_minus_1_over_2 = ((Fp::new(Fp::characteristic()) - Fp::new_from_u64(1u64)) /
+            Fp::new_from_u64(2u64)).value();
+        let p = Fp::characteristic();
+        let a1 = self.pow_vartime(&p_minus_3_over_4.to_words());
+
+        let alpha = a1 * a1 * (*self);
+        let a0 = alpha.pow_vartime(&p.to_words());
+        if a0 == -Fp2::one() {
+            return Fp2::zero();
+        }
+
+        if alpha == -Fp2::one() {
+            let i = Fp2::new(
+                &[Fp::zero(), Fp::one()]
+            );
+            i * a1 * (*self)
+        } else {
+            let b = (alpha + Fp2::one()).pow_vartime(&p_minus_1_over_2.to_words());
+            b * a1 * (*self)
+        }
     }
-    pub fn quadratic_non_residue() -> Self {
-        Self::new(&[Fp::new_from_u64(9u64), Fp::one()])
-    }
+
 }
 
 impl Mul for Fp2 {
@@ -48,7 +88,7 @@ impl Mul for Fp2 {
         let t1 = self.0[1] * other.0[1];
 
         Self([
-            t1 * Fp::quadratic_non_residue() + t0,
+            t1 * <Fp as FieldExtensionTrait<1,1>>::quadratic_non_residue() + t0,
             (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1,
         ])
     }
@@ -64,7 +104,7 @@ impl Inv for Fp2 {
     fn inv(self) -> Self {
         let c0_squared = self.0[0].square();
         let c1_squared = self.0[1].square();
-        let tmp = (c0_squared - (c1_squared * Fp::quadratic_non_residue())).inv();
+        let tmp = (c0_squared - (c1_squared * <Fp as FieldExtensionTrait<1,1>>::quadratic_non_residue())).inv();
         Self::new(&[self.0[0] * tmp, -(self.0[1] * tmp)])
     }
 }
@@ -88,6 +128,17 @@ impl Div for Fp2 {
 impl DivAssign for Fp2 {
     fn div_assign(&mut self, other: Self) {
         *self = *self / other;
+    }
+}
+impl FieldExtensionTrait<6,3> for Fp2 {
+    fn quadratic_non_residue() -> Self {
+        <Fp2 as FieldExtensionTrait<2,2>>::quadratic_non_residue()
+    }
+    fn frobenius(&self, exponent: usize) -> Self {
+        <Fp2 as FieldExtensionTrait<2,2>>::frobenius(self, exponent)
+    }
+    fn sqrt(&self) -> Self {
+        <Fp2 as FieldExtensionTrait<2,2>>::sqrt(self)
     }
 }
 // Tests of associativity, commutativity, etc., follow directly from
@@ -199,8 +250,50 @@ mod tests {
                 f,
                 "Multiplication with carry and around modulus failed"
             );
-        }
 
+            let g = <Fp2 as FieldExtensionTrait<2,2>>::sqrt(&e);
+            assert_eq!(
+                g * g,
+                e,
+                "Sqrt failed"
+            );
+        }
+        #[test]
+        fn test_sqrt(){
+            let a = create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]);
+            let b = create_field_extension([1, 1, 1, 1], [1, 2, 3, 4]);
+            let c = create_field_extension(
+                [
+                    0x2221d7e243f5a6b7,
+                    0xf2dbb3e54415ac43,
+                    0xc1c16c86d80ba3fe,
+                    0x1ed70a64be2c4cf4,
+                ],
+                [
+                    0xcf869553cd163248,
+                    0xe9e0e365974ff82b,
+                    0xaa61fb7b7ed75708,
+                    0x952882769104fa9,
+                ],
+            );
+            let d = create_field_extension(
+                [0xFFFFFFFFFFFFFFFF, 0, 0, 0],
+                [0xFFFFFFFFFFFFFFFF, 0, 0, 0],
+            );
+            let e = create_field_extension([0xFFFFFFFFFFFFFFFF, 0, 0, 0], [2, 0, 0, 0]);
+            let f = create_field_extension(
+                [0x3, 0xfffffffffffffffc, 0x0, 0x0],
+                [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
+            );
+            for i in [a,b,c,d,e,f] {
+                let tmp = <Fp2 as FieldExtensionTrait<2,2>>::sqrt(&i);
+                assert_eq!(
+                    tmp * tmp,
+                    i,
+                    "Sqrt failed"
+                );
+            }
+        }
         #[test]
         fn test_multiplication_edge_cases() {
             let a = create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]);

@@ -28,41 +28,47 @@
 use crypto_bigint::subtle::ConstantTimeEq;
 #[allow(unused_imports)]
 use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, Uint, U256};
-use num_traits::{Euclid, Inv, One, Zero};
+use num_traits::{Euclid, Inv, One, Zero, Pow};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
-pub trait FinitePrimeField<const DLIMBS: usize, UintType>:
-    Sized
-    + Copy
-    + Clone
-    + std::fmt::Debug
-    + Default
-    + Add<Output = Self>
-    + AddAssign
-    + Sub<Output = Self>
-    + SubAssign
-    + Mul<Output = Self>
-    + MulAssign
-    + Div<Output = Self>
-    + DivAssign
-    + Neg<Output = Self>
+pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
+Sized
++ Copy
++ Clone
++ std::fmt::Debug
++ Default
++ Add<Output = Self>
++ AddAssign
++ Sub<Output = Self>
++ SubAssign
++ Mul<Output = Self>
++ MulAssign
++ Div<Output = Self>
++ DivAssign
++ Neg<Output = Self>
++ PartialEq
++ Zero
++ One
++ Inv<Output = Self>
+{
+    fn quadratic_non_residue() -> Self;
+    fn frobenius(&self, exponent: usize) -> Self;
+    fn sqrt(&self) -> Self;
+}
+pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
+    FieldExtensionTrait<D,N>
     + Rem<Output = Self>
-    + PartialEq
-    + Zero
-    + One
-    + Inv<Output = Self>
     + Euclid
+    + Pow<U256>
 where
     UintType: ConcatMixed<MixedOutput = Uint<DLIMBS>>,
 {
     fn new(value: UintType) -> Self;
     fn new_from_u64(value: u64) -> Self;
     fn value(&self) -> UintType;
-    fn quadratic_non_residue() -> Self;
-    fn square(&self) -> Self;
-    fn sqrt(&self) -> Self;
-    fn pow(&self, exponent: &UintType) -> Self;
+    fn exponentiate(&self, exponent: &UintType) -> Self;
     fn characteristic() -> UintType;
+    fn square(&self) -> Self;
 }
 
 /// Due to the fact that we use `crypto_bigint` to handle the multiprecision arithmetic
@@ -73,7 +79,7 @@ where
 
 #[allow(unused_macros)]
 macro_rules! define_finite_prime_field {
-    ($wrapper_name:ident, $uint_type:ty, $limbs:expr, $modulus:expr) => {
+    ($wrapper_name:ident, $uint_type:ty, $limbs:expr, $modulus:expr, $degree:expr, $nreps:expr) => {
         impl_modulus!(ModulusStruct, $uint_type, $modulus);
 
         //special struct for const-time arithmetic on montgomery form integers mod p
@@ -82,7 +88,7 @@ macro_rules! define_finite_prime_field {
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
         pub struct $wrapper_name(ModulusStruct, Output);
         #[allow(dead_code)]
-        impl FinitePrimeField<$limbs, $uint_type> for $wrapper_name {
+        impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {
             // builder structure to create elements in the base field of a given value
             fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
@@ -94,18 +100,10 @@ macro_rules! define_finite_prime_field {
             fn value(&self) -> $uint_type {
                 self.1.retrieve()
             }
-            fn quadratic_non_residue() -> Self {
-                //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
-                // = -1
-                Self::new((-Self::new_from_u64(1u64)).1.retrieve())
-            }
             fn square(&self) -> Self {
                 (*self) * (*self)
             }
-            fn sqrt(&self) -> Self {
-                Self::new(self.value().sqrt())
-            }
-            fn pow(&self, exponent: &$uint_type) -> Self {
+            fn exponentiate(&self, exponent: &$uint_type) -> Self {
                 Self::new(self.1.pow(exponent).retrieve())
             }
             fn characteristic() -> $uint_type {
@@ -118,6 +116,19 @@ macro_rules! define_finite_prime_field {
             //     let a = (Self::characteristic() - three) / four;
             //     [a,a]
             // }
+        }
+        impl FieldExtensionTrait<$degree,$nreps> for $wrapper_name{
+            fn quadratic_non_residue() -> Self {
+                //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
+                // = -1
+                Self::new((-Self::new_from_u64(1u64)).1.retrieve())
+            }
+            fn frobenius(&self, _exponent: usize) -> Self {
+                Self::zero()
+            }
+            fn sqrt(&self) -> Self {
+                Self::new(self.value().sqrt())
+            }
         }
         /// We now implement binary operations on the base field. This more or less
         /// just wraps the same operations on the underlying montgomery representations
@@ -224,6 +235,13 @@ macro_rules! define_finite_prime_field {
                 Self::new((-self.1).retrieve())
             }
         }
+        impl Pow<U256> for $wrapper_name {
+            type Output = Self;
+            fn pow(self, rhs: U256) -> Self::Output {
+                // self.pow(rhs)
+                self.exponentiate(&rhs)
+            }
+        }
         /// For reasons similar to `inv()` above, the following operations, which
         /// determine the quotient and remainder of a field element into another,
         /// return Options, again for instance in the case of an attempt to do 1/0.
@@ -277,7 +295,18 @@ macro_rules! define_finite_prime_field {
 }
 
 const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-define_finite_prime_field!(Fp, U256, 8, BN254_MOD_STRING);
+define_finite_prime_field!(Fp, U256, 8, BN254_MOD_STRING, 1, 1);
+impl FieldExtensionTrait<2,2> for Fp {
+    fn quadratic_non_residue() -> Self {
+        <Fp as FieldExtensionTrait<1,1>>::quadratic_non_residue()
+    }
+    fn frobenius(&self, exponent: usize) -> Self {
+        <Fp as FieldExtensionTrait<1,1>>::frobenius(self, exponent)
+    }
+    fn sqrt(&self) -> Self {
+        <Fp as FieldExtensionTrait<1,1>>::sqrt(self)
+    }
+}
 
 /// This is a very comprehensive test suite, that checks every binary operation for validity,
 /// associativity, commutativity, distributivity, sanity checks, and edge cases.
