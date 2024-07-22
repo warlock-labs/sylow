@@ -1,9 +1,10 @@
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::fp2::Fp2;
-use crypto_bigint::U256;
+use crypto_bigint::{U2048, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
+use crate::fields::utils::u256_to_u2048;
 
 pub(crate) type Fp6 = FieldExtension<6, 3, Fp2>;
 
@@ -11,8 +12,16 @@ impl Fp6 {
     pub(crate) fn residue_mul(&self) -> Self {
         Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
     }
+    fn characteristic() -> U2048 {
+        let wide_p = u256_to_u2048(&Fp::characteristic());
+        let wide_p2 = wide_p * wide_p;
+        wide_p2 * wide_p2 * wide_p2
+    }
 }
 impl FieldExtensionTrait<6, 3> for Fp6 {
+    fn quadratic_non_residue() -> Self {
+        Self::new(&[Fp2::zero(), Fp2::one(), Fp2::zero()])
+    }
     fn frobenius(&self, exponent: usize) -> Self {
         // the following values are a bit difficult to compute. The reason
         // is that they involve operations up to p^11, which occupy a U4096
@@ -170,13 +179,12 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
             ]),
         ];
         Self::new(&[
-            self.0[0].frobenius(exponent),
-            self.0[1].frobenius(exponent) * frobenius_coeff_fp6_c1[exponent],
-            self.0[2].frobenius(exponent) * frobenius_coeff_fp6_c2[exponent],
+            <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[0], exponent),
+            <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[1], exponent)
+                * frobenius_coeff_fp6_c1[exponent],
+            <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[2], exponent)
+                * frobenius_coeff_fp6_c2[exponent],
         ])
-    }
-    fn quadratic_non_residue() -> Self {
-        Self::new(&[Fp2::zero(), Fp2::one(), Fp2::one()])
     }
 
     fn sqrt(&self) -> Self {
@@ -184,13 +192,15 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
     }
 
     fn square(&self) -> Self {
-        let t0 = self.0[0].square();
+        let t0 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.0[0]);
         let cross = self.0[0] * self.0[1];
         let t1 = cross + cross;
-        let t2 = (self.0[0] - self.0[1] + self.0[2]).square();
+        let mut t2 = self.0[0] - self.0[1] + self.0[2];
+        t2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&t2);
         let bc = self.0[1] * self.0[2];
         let s3 = bc + bc;
-        let s4 = self.0[2].square();
+        let mut s4 = self.0[2];
+        s4 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&s4);
 
         Self([
             t0 + s3.residue_mul(),
@@ -224,9 +234,11 @@ impl MulAssign for Fp6 {
 impl Inv for Fp6 {
     type Output = Self;
     fn inv(self) -> Self::Output {
-        let t0 = self.0[0].square() - self.0[1] * self.0[2].residue_mul();
-        let t1 = self.0[2].square().residue_mul() - self.0[0] * self.0[1];
-        let t2 = self.0[1].square() - self.0[0] * self.0[2];
+        let t0 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.0[0])
+            - self.0[1] * self.0[2].residue_mul();
+        let t1 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.0[2]).residue_mul()
+            - self.0[0] * self.0[1];
+        let t2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.0[1]) - self.0[0] * self.0[2];
 
         let inverse = ((self.0[2] * t1 + self.0[1] * t2).residue_mul() + self.0[0] * t0).inv();
         Self([inverse * t0, inverse * t1, inverse * t2])
@@ -237,8 +249,7 @@ impl One for Fp6 {
     fn one() -> Self {
         Self::new(&[Fp2::one(), Fp2::zero(), Fp2::zero()])
     }
-    fn is_one(&self) -> bool
-    {
+    fn is_one(&self) -> bool {
         self.0[0].is_one() && self.0[0].is_zero() && self.0[0].is_zero()
     }
 }
