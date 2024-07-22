@@ -12,7 +12,7 @@
 //!     this is a special type of modular arithmetic that
 //!     allows for quick execution of binary operations
 //!     for a given modulus. This relies on the generation
-//!     of additional constants. For more information, see Ref [1].
+//!     of additional constants. For more information, see Ref 1.
 //! 2. Constant-time operations:
 //!     in general, code may be differently executed depending
 //!     on the inputs passed to it. unrolling for loops differently
@@ -23,7 +23,7 @@
 //!                              
 //! References
 //! ----------
-//! [1] https://cacr.uwaterloo.ca/hac/about/chap14.pdf
+//! 1. <https://cacr.uwaterloo.ca/hac/about/chap14.pdf>
 
 #[allow(unused_imports)]
 use crypto_bigint::subtle::ConstantTimeEq;
