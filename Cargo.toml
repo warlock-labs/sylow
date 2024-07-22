@@ -17,7 +17,8 @@ edition = "2021"
 hex-literal = "0.4.1"
 num-traits = "0.2.19"
 subtle = "2.6.1"
+crypto-bigint = { git = "https://github.com/RustCrypto/crypto-bigint.git"}
 
 [lib]
-
+proc-macro = true
 [dev-dependencies]

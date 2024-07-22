@@ -1,367 +1,257 @@
-use num_traits::{Inv, Zero};
-use std::ops::{Add, Div, Mul, Neg, Sub};
+//! This module implements the basic finite field. The modulus of the finite field
+//! is assumed to be prime (and therefore odd). The basic idea is that we use the
+//! modulus to generate a struct, instances of which can be added, multiplied, etc.
+//! all while conforming to the rules dictated by closed cyclic abelian groups.
+//! The generated struct is flexible enough to handle massively large multiprecision
+//! moduli and values, and performs all such modular arithmetic internally. The only
+//! requirements of the user are to provide the modulus, and the desired bit precision.
+//! Due to efficiency considerations, we do not simply "do modular arithmetic" on numbers.
+//! There are two levels of performance that we implement.
+//!
+//! 1. Montgomery arithmetic:
+//!     this is a special type of modular arithmetic that
+//!     allows for quick execution of binary operations
+//!     for a given modulus. This relies on the generation
+//!     of additional constants. For more information, see Ref 1.
+//! 2. Constant-time operations:
+//!     in general, code may be differently executed depending
+//!     on the inputs passed to it. unrolling for loops differently
+//!     for different inputs allows for side channel attacks. All
+//!     this to say that all operations are performed in constant
+//!     time with the usage of the `ConstMontyForm` struct of
+//!     `crypto_bigint`.
+//!                              
+//! References
+//! ----------
+//! 1. <https://cacr.uwaterloo.ca/hac/about/chap14.pdf>
 
-/// A finite field scalar optimized for use in cryptographic operations.
-///
-/// All operations feature modular arithmetic, implemented in constant time.
-/// Primarily focusing on fields of prime order, non-prime order fields may
-/// have undefined behavior at this time.
-///
-/// Note: We have to keep the double size `D` as a constant due to generic limitations
-/// in rust.
-#[derive(Clone, Copy, Debug)]
-pub struct FinitePrimeField<const L: usize, const D: usize> {
-    modulus: [u64; L],
-    value: [u64; L],
-    correction: [u64; L],
-    r_squared: [u64; L],
-    n_prime: u64,
-}
+#[allow(unused_imports)]
+use crypto_bigint::subtle::ConstantTimeEq;
+#[allow(unused_imports)]
+use crypto_bigint::{impl_modulus, modular::ConstMontyParams, NonZero};
+#[allow(unused_imports)]
+use num_traits::{Euclid, Inv, One, Zero};
+#[allow(unused_imports)]
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
-impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
-    const ZERO: [u64; L] = Self::zero_array();
-    const ONE: [u64; L] = Self::one_array();
+/// Due to the fact that we use `crypto_bigint` to handle the multiprecision arithmetic
+/// we must accept (for now) the fact that it requires the usage of a macro,
+/// `impl_modulus!`, which generates and contains all the need information.
+/// This means that we roll our implementation into a proc macro that
+/// provides all the needed functionality.
+#[allow(unused_macros)]
+macro_rules! define_finite_prime_field {
+    ($wrapper_name:ident, $uint_type:ty, $modulus:expr) => {
+        impl_modulus!(ModulusStruct, $uint_type, $modulus);
 
-    pub const fn new(modulus: [u64; L], value: [u64; L]) -> Self {
-        if D != 2 * L {
-            panic!("Double size D must be twice the size of the field L");
-        }
-        // TODO(Cache these for a given modulus for the lifetime of the program)
-        // If it can be done in a way which doesn't introduce side-channel attacks
-        let correction = Self::subtraction_correction(&modulus);
-        let r_squared = Self::compute_r_squared(&modulus);
-        let n_prime = Self::compute_n_prime(&modulus);
-        Self {
-            modulus,
-            value,
-            correction,
-            r_squared,
-            n_prime,
-        }
-    }
+        //special struct for const-time arithmetic on montgomery form integers mod p
+        type Output =
+            crypto_bigint::modular::ConstMontyForm<ModulusStruct, { ModulusStruct::LIMBS }>;
 
-    /// Computes the correction factor for efficient subtraction.
-    ///
-    /// This method calculates 2^(64*L) - modulus, which is used to optimize
-    /// the subtraction operation in the finite field.
-    ///
-    /// # Arguments
-    ///
-    /// * `modulus` - The modulus of the field
-    ///
-    /// # Returns
-    ///
-    /// The computed correction factor
-    const fn subtraction_correction(modulus: &[u64; L]) -> [u64; L] {
-        let mut correction = [0; L];
-        let mut carry = 1u64;
-        let mut i = 0;
-        while i < L {
-            let (corrected_limb, new_carry) = (!modulus[i]).overflowing_add(carry);
-            correction[i] = corrected_limb;
-            carry = if new_carry { 1 } else { 0 };
-            i += 1;
-        }
-        correction
-    }
+        #[derive(Clone, Debug, Copy)] //to be used in const contexts
+        pub struct $wrapper_name(ModulusStruct, Output);
+        impl $wrapper_name {
+            // special constants of the base field used in binary operations
+            const ZERO: Self = Self::new(<$uint_type>::from_u64(0));
+            const ONE: Self = Self::new(<$uint_type>::from_u64(1));
+            // unfortunately, accessing the actual value of the modulus from the struct
+            // provided by `crypto_bigint` is not straightforward, thus the magic below
+            pub const __MODULUS: &'static NonZero<$uint_type> = ModulusStruct::MODULUS.as_nz_ref();
 
-    /// Creates an array representing zero in the field.
-    ///
-    /// # Returns
-    ///
-    /// An array of L u64 elements, all set to 0
-    const fn zero_array() -> [u64; L] {
-        [0; L]
-    }
-
-    /// Creates an array representing one in the field.
-    ///
-    /// # Returns
-    ///
-    /// An array of L u64 elements, with the least significant limb set to 1 and others to 0
-    const fn one_array() -> [u64; L] {
-        let mut arr = [0; L];
-        arr[0] = 1;
-        arr
-    }
-
-    const fn compute_r(modulus: &[u64; L]) -> [u64; L] {
-        // TODO (Implement Montgomery r squared)
-        Self::zero_array()
-    }
-
-    const fn compute_r_squared(modulus: &[u64; L]) -> [u64; L] {
-        // TODO (Implement Montgomery r squared)
-        Self::zero_array()
-    }
-
-    const fn compute_r_cubed(modulus: &[u64; L]) -> [u64; L] {
-        // TODO (Implement Montgomery r squared)
-        Self::zero_array()
-    }
-
-    const fn compute_n_prime(modulus: &[u64; L]) -> u64 {
-        // TODO (Implement Montgomery n prime)
-        0u64
-    }
-
-    pub const fn to_montgomery(&self, a: &[u64; L]) -> [u64; L] {
-        // TODO (Implement to monty form)
-        Self::zero_array()
-    }
-
-    pub const fn from_montgomery(&self, a: &[u64; L]) -> [u64; L] {
-        // TODO (Implement from monty form)
-        Self::zero_array()
-    }
-
-    /// Performs Montgomery multiplication of two large integers represented as arrays of u64.
-    ///
-    /// # Arguments
-    ///
-    /// * `a` - First operand as an array of u64
-    /// * `b` - Second operand as an array of u64
-    ///
-    /// # Returns
-    ///
-    /// The result of Montgomery multiplication as an array of u64
-    ///
-    /// Effectively result_mont = (a_mont * b_mont * R^{-1}) mod N
-    //  Assumes properly reduced input/output in montgomery form
-    pub const fn montgomery_multiply(&self, a: &[u64; L], b: &[u64; L]) -> [u64; L] {
-        // Initialize result and temporary arrays
-        let mut result = [0_u64; L];
-        let mut temp = [0_u64; D];
-
-        // The outer loop: iterate through each limb of b
-        let mut i = 0;
-        while i < L {
-            // The inner loop: multiply each limb of a with b[i] and accumulate
-            let mut carry = 0_u64;
-            let mut j = 0;
-            while j < L {
-                // Perform multiplication and addition with 128-bit precision
-                // We use explicit casts to u128 for constant-time compatibility
-                let hilo =
-                    (a[j] as u128) * (b[i] as u128) + (temp[i + j] as u128) + (carry as u128);
-
-                // Store the lower 64 bits in temp
-                temp[i + j] = hilo as u64;
-
-                // Store the upper 64 bits as carry for the next iteration
-                carry = (hilo >> 64) as u64;
-
-                j += 1;
+            // builder structure to create elements in the base field of a given value
+            pub const fn new(value: $uint_type) -> Self {
+                Self(ModulusStruct, Output::new(&value))
             }
-
-            // Add the final carry to the next limb
-            temp[i + L] = temp[i + L].wrapping_add(carry);
-
-            // Calculate m for Montgomery reduction
-            let m: u64 = temp[i].wrapping_mul(self.n_prime);
-
-            // Perform Montgomery reduction
-            let mut carry = 0_u64;
-            let mut j = 0;
-            while j < L {
-                let hilo =
-                    (m as u128) * (self.n_prime as u128) + (temp[i + j] as u128) + (carry as u128);
-                temp[i + j] = hilo as u64;
-                carry = (hilo >> 64) as u64;
-                j += 1;
+            // take the element and convert it to "normal" form from montgomery form
+            pub const fn value(&self) -> $uint_type {
+                self.1.retrieve()
             }
-
-            // Add the final carry to the next limb
-            temp[i + L] = temp[i + L].wrapping_add(carry);
-
-            i += 1;
         }
 
-        // Final subtraction to ensure the result is less than modulus
-        let mut dec = [0_u64; L];
-        let mut borrow = false;
-        let mut j = 0;
-        while j < L {
-            // Perform subtraction with borrow
-            let (diff, borrow_tmp) = temp[j + L].overflowing_sub(self.n_prime + (borrow as u64));
-            dec[j] = diff;
-            borrow = borrow_tmp;
-            j += 1;
+        /// We now implement binary operations on the base field. This more or less
+        /// just wraps the same operations on the underlying montgomery representations
+        /// of the field element. All binops with assignment equivalents are given
+        impl Add for $wrapper_name {
+            type Output = Self;
+            fn add(self, other: Self) -> Self {
+                Self::new((self.1 + other.1).retrieve())
+            }
         }
-
-        // Select between temp and dec based on borrow
-        // This is a constant-time selection to avoid timing attacks
-        let select_temp = (borrow as u64).wrapping_neg();
-        let mut j = 0;
-        while j < L {
-            result[j] = (select_temp & temp[j + L]) | (!select_temp & dec[j]);
-            j += 1;
+        impl AddAssign for $wrapper_name {
+            fn add_assign(&mut self, other: Self) {
+                *self = *self + other;
+            }
         }
+        impl Zero for $wrapper_name {
+            fn zero() -> Self {
+                Self::ZERO
+            }
+            fn is_zero(&self) -> bool {
+                self.1.is_zero()
+            }
+        }
+        impl One for $wrapper_name {
+            fn one() -> Self {
+                Self::ONE
+            }
+        }
+        impl Default for $wrapper_name {
+            fn default() -> Self {
+                Self::ZERO
+            }
+        }
+        impl Sub for $wrapper_name {
+            type Output = Self;
+            fn sub(self, other: Self) -> Self {
+                Self::new((self.1 - other.1).retrieve())
+            }
+        }
+        impl SubAssign for $wrapper_name {
+            fn sub_assign(&mut self, other: Self) {
+                *self = *self - other;
+            }
+        }
+        /// There is a bit of additional consideration here. checking equality
+        /// is not generally speaking constant time. therefore, we use
+        /// the build in functionality from subtle::ConstantTimeEq to do the
+        /// operation in constant time. This does, however, return a Choice
+        /// Choice(1u8) if self.0 == other.0
+        /// Choice(0u8) if self.0 != other.0
+        /// We unwrap and match the choice
+        impl PartialEq for $wrapper_name {
+            fn eq(&self, other: &Self) -> bool {
+                match self.1.ct_eq(&other.1).unwrap_u8() {
+                    1u8 => true,
+                    _ => false,
+                }
+            }
+        }
+        impl Mul for $wrapper_name {
+            type Output = Self;
+            fn mul(self, other: Self) -> Self {
+                Self::new((self.1 * other.1).retrieve())
+            }
+        }
+        impl MulAssign for $wrapper_name {
+            fn mul_assign(&mut self, other: Self) {
+                *self = *self * other;
+            }
+        }
+        /// For inversion, this is in general a difficult problem.
+        /// Our goal is to solve, for a field element x, another element
+        /// of the field y such that x * y = 1. To do this requires
+        /// cleverness to also do in constant time. We use the
+        /// Bernstein-Yang algorithm, which you can read more on here:
+        /// https://eprint.iacr.org/2019/266.pdf
+        ///
+        /// Due to the numerical complexity, it makes sense that this
+        /// returns an Option, for example in the case of an attempt to
+        /// determine 1/0. This is a bit unfortunate, since as of now
+        /// the code will panic should it fail. We unwrap the option for now.
+        /// https://github.com/RustCrypto/crypto-bigint/blob/be6a3abf7e65279ba0b5e4b1ce09eb0632e443f6/src/const_choice.rs#L237
+        impl Inv for $wrapper_name {
+            type Output = Self;
+            fn inv(self) -> Self {
+                Self::new((self.1.inv().unwrap()).retrieve())
+            }
+        }
+        #[allow(clippy::suspicious_arithmetic_impl)]
+        impl Div for $wrapper_name {
+            type Output = Self;
+            fn div(self, other: Self) -> Self {
+                self * other.inv()
+            }
+        }
+        impl DivAssign for $wrapper_name {
+            fn div_assign(&mut self, other: Self) {
+                *self = *self / other;
+            }
+        }
+        impl Neg for $wrapper_name {
+            type Output = Self;
+            fn neg(self) -> Self {
+                Self::new((-self.1).retrieve())
+            }
+        }
+        /// For reasons similar to `inv()` above, the following operations, which
+        /// determine the quotient and remainder of a field element into another,
+        /// return Options, again for instance in the case of an attempt to do 1/0.
+        /// These specific operations require the casting to a `NonZero` struct which
+        /// checks the validity of the input, but therefore returns an Option,
+        /// which we unwrap. Otherwise, there will be panic.
+        impl Rem for $wrapper_name {
+            type Output = Self;
+            fn rem(self, other: Self) -> Self::Output {
+                Self::new(
+                    self.1
+                        .retrieve()
+                        .rem(NonZero::<$uint_type>::new(other.1.retrieve()).unwrap()),
+                )
+            }
+        }
+        impl Euclid for $wrapper_name {
+            fn div_euclid(&self, other: &Self) -> Self {
+                if other.is_zero() {
+                    return Self::ZERO;
+                }
+                let (mut _q, mut _r) = self
+                    .1
+                    .retrieve()
+                    .div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
 
-        result
-    }
+                if self.1.retrieve().bit(255).into() {
+                    _q = _q - <$uint_type>::ONE;
+                    _r = other.1.retrieve() - _r;
+                }
+                Self::new(_q)
+            }
+            fn rem_euclid(&self, other: &Self) -> Self {
+                if other.is_zero() {
+                    return Self::ZERO;
+                }
+                let (mut _q, mut _r) = self
+                    .1
+                    .retrieve()
+                    .div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
 
-    pub const fn bernstein_yang_invert(&self, a: &[u64; L]) -> [u64; L] {
-        // TODO: implement bernstein yang inversion
-        Self::zero_array()
-    }
+                if self.1.retrieve().bit(255).into() {
+                    // _q = _q - <$uint_type>::ONE;
+                    _r = other.1.retrieve() - _r;
+                }
+                Self::new(_r)
+            }
+        }
+    };
 }
 
-impl<const L: usize, const D: usize> Add for FinitePrimeField<L, D> {
-    type Output = Self;
-
-    /// Performs modular addition.
-    ///
-    /// This method adds two field elements and reduces the result modulo the field's modulus.
-    fn add(self, other: Self) -> Self {
-        // Initialize sum to zero
-        let mut sum = Self::new(self.modulus, Self::zero_array());
-        let mut carry = false;
-
-        // Perform addition with carry propagation
-        for i in 0..L {
-            let sum_with_other = self.value[i].overflowing_add(other.value[i]);
-            let sum_with_carry = sum_with_other.0.overflowing_add(if carry { 1 } else { 0 });
-            sum.value[i] = sum_with_carry.0;
-            carry = sum_with_other.1 | sum_with_carry.1;
-        }
-
-        // Perform trial subtraction of modulus
-        let mut trial = Self::new(self.modulus, Self::zero_array());
-        let mut borrow = false;
-        for i in 0..L {
-            // Note: a single overflowing_sub is enough because modulus[i]+borrow can never overflow
-            let diff_with_borrow =
-                sum.value[i].overflowing_sub(self.modulus[i] + if borrow { 1 } else { 0 });
-            trial.value[i] = diff_with_borrow.0;
-            borrow = diff_with_borrow.1;
-        }
-
-        // Select between sum and trial based on borrow flag
-        let mut result = Self::new(self.modulus, Self::zero_array());
-        let select_mask = u64::from(borrow).wrapping_neg();
-        for i in 0..L {
-            // If borrow is true (select_mask is all 1s), choose sum, otherwise choose trial
-            result.value[i] = (select_mask & sum.value[i]) | (!select_mask & trial.value[i]);
-        }
-        result
-    }
-}
-
-impl<const L: usize, const D: usize> Neg for FinitePrimeField<L, D> {
-    type Output = Self;
-
-    fn neg(self) -> Self {
-        let zero = Self::new(self.modulus, Self::zero_array());
-        let z = self == zero;
-        let mut negated = Self::new(self.modulus, Self::zero_array());
-        for i in 0..L {
-            negated.value[i] = self.modulus[i].wrapping_sub(self.value[i]);
-        }
-        if z {
-            zero
-        } else {
-            negated
-        }
-    }
-}
-
-impl<const L: usize, const D: usize> Sub for FinitePrimeField<L, D> {
-    type Output = Self;
-
-    /// Performs modular subtraction.
-    ///
-    /// This method subtracts one field element from another and ensures the result
-    /// is in the correct range by adding the modulus if necessary.
-    fn sub(self, other: Self) -> Self {
-        // Initialize difference to zero
-        let mut difference = Self::new(self.modulus, Self::zero_array());
-        let mut borrow = false;
-
-        // Perform subtraction with borrow propagation
-        for i in 0..L {
-            let diff_without_borrow = self.value[i].overflowing_sub(other.value[i]);
-            let diff_with_borrow =
-                diff_without_borrow
-                    .0
-                    .overflowing_sub(if borrow { 1 } else { 0 });
-            difference.value[i] = diff_with_borrow.0;
-            borrow = diff_without_borrow.1 | diff_with_borrow.1;
-        }
-
-        // Always subtract the correction, which effectively adds the modulus if borrow occurred
-        let correction_mask = u64::from(borrow).wrapping_neg();
-        let mut correction_borrow = false;
-        for i in 0..L {
-            let correction_term =
-                (correction_mask & self.correction[i]) + if correction_borrow { 1 } else { 0 };
-            let (corrected_limb, new_borrow) = difference.value[i].overflowing_sub(correction_term);
-            difference.value[i] = corrected_limb;
-            correction_borrow = new_borrow;
-        }
-
-        difference
-    }
-}
-
-// TODO(Make this constant time)
-// We can make constant time choices with the subtle crate
-impl<const L: usize, const D: usize> PartialEq for FinitePrimeField<L, D> {
-    fn eq(&self, other: &Self) -> bool {
-        // First, check if the moduli are the same
-        if self.modulus != other.modulus {
-            return false;
-        }
-
-        // Then, compare the values
-        self.value == other.value
-    }
-}
-
-impl<const L: usize, const D: usize> Mul for FinitePrimeField<L, D> {
-    type Output = Self;
-
-    fn mul(self, other: Self) -> Self {
-        let result = self.montgomery_multiply(&self.value, &other.value);
-        Self::new(self.modulus, result)
-    }
-}
-
-impl<const L: usize, const D: usize> Inv for FinitePrimeField<L, D> {
-    type Output = Self;
-
-    fn inv(self) -> Self {
-        let inverted = self.bernstein_yang_invert(&self.value);
-        Self::new(self.modulus, inverted)
-    }
-}
-
-impl<const L: usize, const D: usize> Div for FinitePrimeField<L, D> {
-    type Output = Self;
-
-    fn div(self, other: Self) -> Self {
-        // In modular arithmetic division is equivalent to multiplication
-        // by the multiplicative inverse.
-        self * other.inv()
-    }
-}
-
+/// This is a very comprehensive test suite, that checks every binary operation for validity,
+/// associativity, commutativity, distributivity, sanity checks, and edge cases.
+/// The reference values for non-obvious field elements are generated with Sage.
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cmp::PartialEq;
-
+    use crypto_bigint::U256;
     const MODULUS: [u64; 4] = [
         0x3C208C16D87CFD47,
         0x97816A916871CA8D,
         0xB85045B68181585D,
         0x30644E72E131A029,
     ];
-
-    fn create_field(value: [u64; 4]) -> FinitePrimeField<4, 8> {
-        FinitePrimeField::new(MODULUS, value)
+    const BN254_MOD_STRING: &str =
+        "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
+    define_finite_prime_field!(Bn254Field, U256, BN254_MOD_STRING);
+    fn create_field(value: [u64; 4]) -> Bn254Field {
+        Bn254Field::new(U256::from_words(value))
     }
-
+    mod test_modulus_conversion {
+        use super::*;
+        #[test]
+        fn test_modulus() {
+            for i in U256::from_be_hex(BN254_MOD_STRING).as_limbs() {
+                println!("{:X}", i.0);
+            }
+        }
+    }
     mod addition_tests {
         use super::*;
 
@@ -371,7 +261,6 @@ mod tests {
             let b = create_field([5, 6, 7, 8]);
             let _ = a + b;
         }
-
         #[test]
         fn test_addition_associativity() {
             let a = create_field([1, 2, 3, 4]);
@@ -379,30 +268,40 @@ mod tests {
             let c = create_field([9, 10, 11, 12]);
             assert_eq!((a + b) + c, a + (b + c), "Addition is not associative");
         }
-
         #[test]
         fn test_addition_commutativity() {
             let a = create_field([1, 2, 3, 4]);
             let b = create_field([5, 6, 7, 8]);
             assert_eq!(a + b, b + a, "Addition is not commutative");
         }
-
         #[test]
         fn test_addition_cases() {
             // Simple addition
             let a = create_field([1, 0, 0, 0]);
             let b = create_field([2, 0, 0, 0]);
-            assert_eq!((a + b).value, [3, 0, 0, 0], "Simple addition failed");
+            assert_eq!(
+                (a + b).value(),
+                U256::from_words([3, 0, 0, 0]),
+                "Simple addition failed"
+            );
 
             // Addition with carry
             let c = create_field([0xFFFFFFFFFFFFFFFF, 0, 0, 0]);
             let d = create_field([1, 0, 0, 0]);
-            assert_eq!((c + d).value, [0, 1, 0, 0], "Addition with carry failed");
+            assert_eq!(
+                (c + d).value(),
+                U256::from_words([0, 1, 0, 0]),
+                "Addition with carry failed"
+            );
 
             // Addition that wraps around the modulus
             let e = create_field(MODULUS);
             let f = create_field([1, 0, 0, 0]);
-            assert_eq!((e + f).value, [1, 0, 0, 0], "Modular wrap-around failed");
+            assert_eq!(
+                (e + f).value(),
+                U256::from_words([1, 0, 0, 0]),
+                "Modular wrap-around failed"
+            );
 
             // Addition that just reaches the modulus
             let g = create_field([
@@ -412,7 +311,11 @@ mod tests {
                 0x30644E72E131A029,
             ]);
             let h = create_field([1, 0, 0, 0]);
-            assert_eq!((g + h).value, [0, 0, 0, 0], "Addition to modulus failed");
+            assert_eq!(
+                (g + h).value(),
+                U256::from_words([0, 0, 0, 0]),
+                "Addition to modulus failed"
+            );
         }
 
         #[test]
@@ -429,13 +332,12 @@ mod tests {
             ]);
             let one = create_field([1, 0, 0, 0]);
             assert_eq!(
-                (almost_modulus + one).value,
-                [0, 0, 0, 0],
+                (almost_modulus + one).value(),
+                U256::from_words([0, 0, 0, 0]),
                 "Adding to get exact modulus failed"
             );
         }
     }
-
     mod subtraction_tests {
         use super::*;
 
@@ -451,14 +353,18 @@ mod tests {
             // Simple subtraction
             let a = create_field([3, 0, 0, 0]);
             let b = create_field([1, 0, 0, 0]);
-            assert_eq!((a - b).value, [2, 0, 0, 0], "Simple subtraction failed");
+            assert_eq!(
+                (a - b).value(),
+                U256::from_words([2, 0, 0, 0]),
+                "Simple subtraction failed"
+            );
 
             // Subtraction with borrow
             let c = create_field([0, 1, 0, 0]);
             let d = create_field([1, 0, 0, 0]);
             assert_eq!(
-                (c - d).value,
-                [0xFFFFFFFFFFFFFFFF, 0, 0, 0],
+                (c - d).value(),
+                U256::from_words([0xFFFFFFFFFFFFFFFF, 0, 0, 0]),
                 "Subtraction with borrow failed"
             );
 
@@ -466,19 +372,23 @@ mod tests {
             let e = create_field([0, 0, 0, 0]);
             let f = create_field([1, 0, 0, 0]);
             assert_eq!(
-                (e - f).value,
-                [
+                (e - f).value(),
+                U256::from_words([
                     0x3C208C16D87CFD46,
                     0x97816A916871CA8D,
                     0xB85045B68181585D,
                     0x30644E72E131A029,
-                ],
+                ]),
                 "Modular borrow failed"
             );
 
             // Subtraction resulting in zero
             let g = create_field(MODULUS);
-            assert_eq!((g - g).value, [0, 0, 0, 0], "Subtraction to zero failed");
+            assert_eq!(
+                (g - g).value(),
+                U256::from_words([0, 0, 0, 0]),
+                "Subtraction to zero failed"
+            );
         }
 
         #[test]
@@ -489,18 +399,17 @@ mod tests {
 
             let one = create_field([1, 0, 0, 0]);
             assert_eq!(
-                (zero - one).value,
-                [
+                (zero - one).value(),
+                U256::from_words([
                     0x3C208C16D87CFD46,
                     0x97816A916871CA8D,
                     0xB85045B68181585D,
                     0x30644E72E131A029,
-                ],
+                ]),
                 "Subtracting from zero failed"
             );
         }
     }
-
     mod multiplication_tests {
         use super::*;
 
@@ -547,14 +456,18 @@ mod tests {
             // Simple multiplication
             let a = create_field([2, 0, 0, 0]);
             let b = create_field([3, 0, 0, 0]);
-            assert_eq!((a * b).value, [6, 0, 0, 0], "Simple multiplication failed");
+            assert_eq!(
+                (a * b).value(),
+                U256::from_words([6, 0, 0, 0]),
+                "Simple multiplication failed"
+            );
 
             // Multiplication with carry
             let c = create_field([0xFFFFFFFFFFFFFFFF, 0, 0, 0]);
             let d = create_field([2, 0, 0, 0]);
             assert_eq!(
-                (c * d).value,
-                [0xFFFFFFFFFFFFFFFE, 1, 0, 0],
+                (c * d).value(),
+                U256::from_words([0xFFFFFFFFFFFFFFFE, 1, 0, 0]),
                 "Multiplication with carry failed"
             );
 
@@ -567,13 +480,13 @@ mod tests {
             ]);
             let f = create_field([2, 0, 0, 0]);
             assert_eq!(
-                (e * f).value,
-                [
-                    0xFFFFFFFFFFFFFFFF,
-                    0xFFFFFFFFFFFFFFFF,
-                    0xFFFFFFFFFFFFFFFF,
-                    0
-                ],
+                (e * f).value(),
+                U256::from_words([
+                    0x00000BFFFFFFFFFF,
+                    0xFFFFFFFFAFFFFFFF,
+                    0xFFFFFE9FFFFFFFFE,
+                    0x0000000000096FFE
+                ]),
                 "Multiplication wrapping around modulus failed"
             );
         }
@@ -594,13 +507,17 @@ mod tests {
                 0x3064497359141831,
             ]);
             assert_eq!(
-                (large * large).value,
-                [1, 0, 0, 0],
+                (large * large).value(),
+                U256::from_words([
+                    0xB5E10AE6EEFA883B,
+                    0x198D06E9A0ECCA3F,
+                    0xA1FD4D5C33BDCE95,
+                    0x16A2244FF2849823
+                ]),
                 "Multiplication of large numbers failed"
             );
         }
     }
-
     mod division_tests {
         use super::*;
 
@@ -617,24 +534,23 @@ mod tests {
             let b = create_field([5, 6, 7, 8]);
             let one = create_field([1, 0, 0, 0]);
 
-            assert_eq!((a / a), one, "Division by self failed");
-            assert_eq!((a / one), a, "Division by one failed");
+            assert_eq!((a / a).value(), U256::ONE, "Division by self failed");
+            assert_eq!(a / one, a, "Division by one failed");
             assert_eq!(
-                ((a / b) * b),
+                (a / b) * b,
                 a,
                 "Division and multiplication property failed"
             );
         }
 
         #[test]
-        #[should_panic(expected = "attempt to divide by zero")]
+        #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
         fn test_division_by_zero() {
             let a = create_field([1, 2, 3, 4]);
             let zero = create_field([0, 0, 0, 0]);
             let _ = a / zero;
         }
     }
-
     mod identity_and_inverse_tests {
         use super::*;
 
@@ -672,7 +588,6 @@ mod tests {
             assert_eq!(inv_a * a, one, "Multiplicative inverse failed");
         }
     }
-
     mod composite_property_tests {
         use super::*;
 
