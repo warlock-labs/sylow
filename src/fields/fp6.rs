@@ -7,6 +7,11 @@ use std::ops::{Div, DivAssign, Mul, MulAssign};
 
 pub(crate) type Fp6 = FieldExtension<6, 3, Fp2>;
 
+impl Fp6 {
+    pub(crate) fn residue_mul(&self) -> Self {
+        Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
+    }
+}
 impl FieldExtensionTrait<6, 3> for Fp6 {
     fn frobenius(&self, exponent: usize) -> Self {
         // the following values are a bit difficult to compute. The reason
@@ -164,17 +169,104 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
                 ])),
             ]),
         ];
-        Self::new( &[ 
+        Self::new(&[
             self.0[0].frobenius(exponent),
             self.0[1].frobenius(exponent) * frobenius_coeff_fp6_c1[exponent],
-            self.0[2].frobenius(exponent) * frobenius_coeff_fp6_c2[exponent]
+            self.0[2].frobenius(exponent) * frobenius_coeff_fp6_c2[exponent],
         ])
     }
     fn quadratic_non_residue() -> Self {
-        todo!()
+        Self::new(&[Fp2::zero(), Fp2::one(), Fp2::one()])
     }
 
     fn sqrt(&self) -> Self {
         todo!()
+    }
+
+    fn square(&self) -> Self {
+        let t0 = self.0[0].square();
+        let cross = self.0[0] * self.0[1];
+        let t1 = cross + cross;
+        let t2 = (self.0[0] - self.0[1] + self.0[2]).square();
+        let bc = self.0[1] * self.0[2];
+        let s3 = bc + bc;
+        let s4 = self.0[2].square();
+
+        Self([
+            t0 + s3.residue_mul(),
+            t1 + s4.residue_mul(),
+            t1 + t2 + s3 - t0 - s4,
+        ])
+    }
+}
+impl Mul for Fp6 {
+    type Output = Self;
+    fn mul(self, other: Self) -> Self::Output {
+        // This is the exact same strategy as multiplication in Fp2
+        // see the doc string therefore more details
+        let t0 = self.0[0] * other.0[0];
+        let t1 = self.0[1] * other.0[1];
+        let t2 = self.0[2] * other.0[2];
+
+        Self([
+            ((self.0[1] + self.0[2]) * (other.0[1] + other.0[2]) - t1 - t2).residue_mul() + t0,
+            (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1 + t2.residue_mul(),
+            (self.0[0] + self.0[2]) * (other.0[0] + other.0[2]) - t0 + t1 - t2,
+        ])
+    }
+}
+impl MulAssign for Fp6 {
+    fn mul_assign(&mut self, other: Self) {
+        *self = *self * other;
+    }
+}
+
+impl Inv for Fp6 {
+    type Output = Self;
+    fn inv(self) -> Self::Output {
+        let t0 = self.0[0].square() - self.0[1] * self.0[2].residue_mul();
+        let t1 = self.0[2].square().residue_mul() - self.0[0] * self.0[1];
+        let t2 = self.0[1].square() - self.0[0] * self.0[2];
+
+        let inverse = ((self.0[2] * t1 + self.0[1] * t2).residue_mul() + self.0[0] * t0).inv();
+        Self([inverse * t0, inverse * t1, inverse * t2])
+    }
+}
+
+impl One for Fp6 {
+    fn one() -> Self {
+        Self::new(&[Fp2::one(), Fp2::zero(), Fp2::zero()])
+    }
+    fn is_one(&self) -> bool
+    {
+        self.0[0].is_one() && self.0[0].is_zero() && self.0[0].is_zero()
+    }
+}
+
+#[allow(clippy::suspicious_arithmetic_impl)]
+impl Div for Fp6 {
+    type Output = Self;
+    fn div(self, other: Self) -> Self::Output {
+        self * other.inv()
+    }
+}
+impl DivAssign for Fp6 {
+    fn div_assign(&mut self, other: Self) {
+        *self = *self / other;
+    }
+}
+
+impl FieldExtensionTrait<12, 2> for Fp6 {
+    fn quadratic_non_residue() -> Self {
+        <Fp6 as FieldExtensionTrait<6, 3>>::quadratic_non_residue()
+    }
+    fn frobenius(&self, exponent: usize) -> Self {
+        <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(self, exponent)
+    }
+    fn sqrt(&self) -> Self {
+        <Fp6 as FieldExtensionTrait<6, 3>>::sqrt(self)
+    }
+    fn square(&self) -> Self {
+        <Fp6 as FieldExtensionTrait<6, 3>>::square(self)
     }
 }

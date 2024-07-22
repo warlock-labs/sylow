@@ -54,6 +54,7 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     fn quadratic_non_residue() -> Self;
     fn frobenius(&self, exponent: usize) -> Self;
     fn sqrt(&self) -> Self;
+    fn square(&self) -> Self;
 }
 pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256>
@@ -65,7 +66,6 @@ where
     fn value(&self) -> UintType;
     fn exponentiate(&self, exponent: &UintType) -> Self;
     fn characteristic() -> UintType;
-    fn square(&self) -> Self;
 }
 
 /// Due to the fact that we use `crypto_bigint` to handle the multiprecision arithmetic
@@ -97,9 +97,6 @@ macro_rules! define_finite_prime_field {
             fn value(&self) -> $uint_type {
                 self.1.retrieve()
             }
-            fn square(&self) -> Self {
-                (*self) * (*self)
-            }
             fn exponentiate(&self, exponent: &$uint_type) -> Self {
                 Self::new(self.1.pow(exponent).retrieve())
             }
@@ -125,6 +122,9 @@ macro_rules! define_finite_prime_field {
             }
             fn sqrt(&self) -> Self {
                 Self::new(self.value().sqrt())
+            }
+            fn square(&self) -> Self {
+                (*self) * (*self)
             }
         }
         /// We now implement binary operations on the base field. This more or less
@@ -302,6 +302,9 @@ impl FieldExtensionTrait<2, 2> for Fp {
     }
     fn sqrt(&self) -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::sqrt(self)
+    }
+    fn square(&self) -> Self {
+        <Fp as FieldExtensionTrait<1, 1>>::square(self)
     }
 }
 

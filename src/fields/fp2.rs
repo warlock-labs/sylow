@@ -26,6 +26,10 @@ impl Fp2 {
         let wide_p = u256_to_u512(&Fp::characteristic());
         wide_p * wide_p
     }
+
+    pub(crate) fn residue_mul(&self) -> Self {
+        *self * <Self as FieldExtensionTrait<2, 2>>::quadratic_non_residue()
+    }
 }
 impl FieldExtensionTrait<2, 2> for Fp2 {
     fn quadratic_non_residue() -> Self {
@@ -70,6 +74,16 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
             b * a1 * (*self)
         }
     }
+    fn square(&self) -> Self {
+        let t0 = self.0[0] * self.0[1];
+        Self([
+            (self.0[1] * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() + self.0[0])
+                * (self.0[0] + self.0[1])
+                - t0
+                - t0 * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue(),
+            t0 + t0,
+        ])
+    }
 }
 
 impl Mul for Fp2 {
@@ -99,8 +113,8 @@ impl MulAssign for Fp2 {
 impl Inv for Fp2 {
     type Output = Self;
     fn inv(self) -> Self {
-        let c0_squared = self.0[0].square();
-        let c1_squared = self.0[1].square();
+        let c0_squared = <Fp as FieldExtensionTrait<1, 1>>::square(&self.0[0]);
+        let c1_squared = <Fp as FieldExtensionTrait<1, 1>>::square(&self.0[1]);
         let tmp = (c0_squared
             - (c1_squared * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()))
         .inv();
@@ -108,12 +122,15 @@ impl Inv for Fp2 {
     }
 }
 
+// because mult cannot be implemented generally for all degrees
+// this must be defined only for the specific case here, aka not
+// in extensions.rs
 impl One for Fp2 {
     fn one() -> Self {
         Self::new(&[Fp::one(), Fp::zero()])
     }
     fn is_one(&self) -> bool {
-        self.0[0].is_one() && self.0[1].is_one()
+        self.0[0].is_one() && self.0[1].is_zero()
     }
 }
 
@@ -138,6 +155,9 @@ impl FieldExtensionTrait<6, 3> for Fp2 {
     }
     fn sqrt(&self) -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::sqrt(self)
+    }
+    fn square(&self) -> Self {
+        <Fp2 as FieldExtensionTrait<2, 2>>::square(self)
     }
 }
 // Tests of associativity, commutativity, etc., follow directly from
@@ -175,8 +195,6 @@ mod tests {
     }
     mod multiplication_tests {
         use super::*;
-        use crypto_bigint::NonZero;
-
         #[test]
         fn test_multiplication_closure() {
             let a = create_field_extension([1, 2, 3, 4], [1, 2, 3, 4]);
@@ -283,7 +301,32 @@ mod tests {
                 assert_eq!(tmp * tmp, i, "Sqrt failed");
             }
         }
-
+        #[test]
+        fn test_square() {
+            let a = create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]);
+            let b = create_field_extension([1, 1, 1, 1], [1, 2, 3, 4]);
+            let c = create_field_extension(
+                [
+                    0x2221d7e243f5a6b7,
+                    0xf2dbb3e54415ac43,
+                    0xc1c16c86d80ba3fe,
+                    0x1ed70a64be2c4cf4,
+                ],
+                [
+                    0xcf869553cd163248,
+                    0xe9e0e365974ff82b,
+                    0xaa61fb7b7ed75708,
+                    0x952882769104fa9,
+                ],
+            );
+            for i in [a, b, c] {
+                assert_eq!(
+                    <Fp2 as FieldExtensionTrait<2, 2>>::square(&i),
+                    i * i,
+                    "Squaring failed"
+                );
+            }
+        }
         #[test]
         fn test_frobenius() {
             let q = <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue();
