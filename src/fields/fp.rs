@@ -1,9 +1,9 @@
-//! This module implements the a basic finite field. The modulus of the finite field
+//! This module implements the basic finite field. The modulus of the finite field
 //! is assumed to be prime (and therefore odd). The basic idea is that we use the
-//! modulus to generate a struct, instances of which can be added, multiplied, etc
+//! modulus to generate a struct, instances of which can be added, multiplied, etc.
 //! all while conforming to the rules dictated by closed cyclic abelian groups.
 //! The generated struct is flexible enough to handle massively large multiprecision
-//! moduli and values, and performs all such modular arithemetic internally. The only
+//! moduli and values, and performs all such modular arithmetic internally. The only
 //! requirements of the user are to provide the modulus, and the desired bit precision.
 //! Due to efficiency considerations, we do not simply "do modular arithmetic" on numbers.
 //! There are two levels of performance that we implement.
@@ -12,7 +12,7 @@
 //!     this is a special type of modular arithmetic that
 //!     allows for quick execution of binary operations
 //!     for a given modulus. This relies on the generation
-//!     of additional constants. For more information, see Ref [1].
+//!     of additional constants. For more information, see Ref 1.
 //! 2. Constant-time operations:
 //!     in general, code may be differently executed depending
 //!     on the inputs passed to it. unrolling for loops differently
@@ -23,13 +23,13 @@
 //!                              
 //! References
 //! ----------
-//! [1] https://cacr.uwaterloo.ca/hac/about/chap14.pdf
-//! 
+//! 1. https://cacr.uwaterloo.ca/hac/about/chap14.pdf
+//!
+use crypto_bigint::subtle::ConstantTimeEq;
 #[allow(unused_imports)]
 use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, Uint, U256};
 use num_traits::{Euclid, Inv, One, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
-use crypto_bigint::subtle::ConstantTimeEq;
 
 pub trait FinitePrimeField<const DLIMBS: usize, UintType>:
     Sized
@@ -72,7 +72,7 @@ where
 /// provides all the needed functionality.
 
 #[allow(unused_macros)]
-macro_rules! DefineFinitePrimeField {
+macro_rules! define_finite_prime_field {
     ($wrapper_name:ident, $uint_type:ty, $limbs:expr, $modulus:expr) => {
         impl_modulus!(ModulusStruct, $uint_type, $modulus);
 
@@ -277,9 +277,9 @@ macro_rules! DefineFinitePrimeField {
 }
 
 const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-DefineFinitePrimeField!(Fp, U256, 8, BN254_MOD_STRING);
+define_finite_prime_field!(Fp, U256, 8, BN254_MOD_STRING);
 
-/// This is a very comprehensive test suite, that checks every binary operation for validity, 
+/// This is a very comprehensive test suite, that checks every binary operation for validity,
 /// associativity, commutativity, distributivity, sanity checks, and edge cases.
 /// The reference values for non-obvious field elements are generated with Sage.
 #[cfg(test)]
@@ -291,7 +291,7 @@ mod tests {
         0xB85045B68181585D,
         0x30644E72E131A029,
     ];
-    
+
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
     }
@@ -587,9 +587,9 @@ mod tests {
             let one = create_field([1, 0, 0, 0]);
 
             assert_eq!((a / a).value(), U256::ONE, "Division by self failed");
-            assert_eq!((a / one), a, "Division by one failed");
+            assert_eq!(a / one, a, "Division by one failed");
             assert_eq!(
-                ((a / b) * b),
+                (a / b) * b,
                 a,
                 "Division and multiplication property failed"
             );

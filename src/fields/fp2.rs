@@ -1,4 +1,4 @@
-use crate::fields::extensions::FieldExtension;
+use crate::fields::extensions::{FieldExtension, FieldExtensionTrait};
 use crate::fields::fp::{FinitePrimeField, Fp};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
@@ -6,6 +6,8 @@ use std::ops::{Div, DivAssign, Mul, MulAssign};
 // This describes the quadratic field extension of the base field of BN254
 // defined by the tower Fp^2 = Fp[X] / (X^2-\beta). Further, the quadratic nature implies
 // that elements of this field are represented as a_0 + a_1 X
+impl FieldExtensionTrait<1, 1> for Fp {}
+impl FieldExtensionTrait<2, 2> for Fp {}
 type Fp2 = FieldExtension<2, 2, Fp>;
 
 #[allow(dead_code)]
@@ -88,7 +90,7 @@ impl DivAssign for Fp2 {
         *self = *self / other;
     }
 }
-// Tests of associativity, commutivity, etc, follow directly from
+// Tests of associativity, commutativity, etc., follow directly from
 // these properties in the base field, as the extension simply performs
 // these operations elementwise. The only tests are really to be done
 // with multiplication and division
@@ -228,7 +230,7 @@ mod tests {
             assert_eq!(a / a, one, "Division by self failed");
 
             assert_eq!(a / one, a, "Division by one failed");
-            assert_eq!(((a / b) * b), a, "Division-Mult composition failed");
+            assert_eq!((a / b) * b, a, "Division-Mult composition failed");
             //simple division
 
             let c = create_field_extension(

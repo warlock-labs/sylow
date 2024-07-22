@@ -21,12 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: [ "stable", "beta", "nightly", "1.65" ] # MSRV
+        rust: [ "stable", "beta", "nightly" ] # MSRV
         flags: [ "--no-default-features", "", "--all-features" ]
-        exclude:
-          # Skip because some features have highest MSRV.
-          - rust: "1.65" # MSRV
-            flags: "--all-features"
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
@@ -36,9 +32,6 @@ jobs:
         with:
           cache-on-failure: true
       # Only run tests on the latest stable and above
-      - name: check
-        if: ${{ matrix.rust == '1.65' }} # MSRV
-        run: cargo check --workspace ${{ matrix.flags }}
       - name: test
         if: ${{ matrix.rust != '1.65' }} # MSRV
         run: cargo test --workspace ${{ matrix.flags }}
@@ -78,26 +71,26 @@ jobs:
           files: lcov.info
           fail_ci_if_error: false
 
-# TODO(Miri presently has errors/detects undefined behavior in the codebase)
-# We should fix this and then enable.
-#  miri:
-#    name: miri ${{ matrix.flags }}
-#    runs-on: ubuntu-latest
-#    timeout-minutes: 30
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        flags: [ "--no-default-features", "", "--all-features" ]
-#    env:
-#      MIRIFLAGS: -Zmiri-strict-provenance
-#    steps:
-#      - uses: actions/checkout@v3
-#      - uses: dtolnay/rust-toolchain@miri
-#      - uses: Swatinem/rust-cache@v2
-#        with:
-#          cache-on-failure: true
-#      - run: cargo miri setup ${{ matrix.flags }}
-#      - run: cargo miri test ${{ matrix.flags }}
+  # TODO(Miri presently has errors/detects undefined behavior in the codebase)
+  # We should fix this and then enable.
+  #  miri:
+  #    name: miri ${{ matrix.flags }}
+  #    runs-on: ubuntu-latest
+  #    timeout-minutes: 30
+  #    strategy:
+  #      fail-fast: false
+  #      matrix:
+  #        flags: [ "--no-default-features", "", "--all-features" ]
+  #    env:
+  #      MIRIFLAGS: -Zmiri-strict-provenance
+  #    steps:
+  #      - uses: actions/checkout@v3
+  #      - uses: dtolnay/rust-toolchain@miri
+  #      - uses: Swatinem/rust-cache@v2
+  #        with:
+  #          cache-on-failure: true
+  #      - run: cargo miri setup ${{ matrix.flags }}
+  #      - run: cargo miri test ${{ matrix.flags }}
 
   feature-checks:
     runs-on: ubuntu-latest
