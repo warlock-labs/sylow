@@ -1,10 +1,10 @@
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::fp2::Fp2;
+use crate::fields::utils::u256_to_u2048;
 use crypto_bigint::{U2048, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
-use crate::fields::utils::u256_to_u2048;
 
 pub(crate) type Fp6 = FieldExtension<6, 3, Fp2>;
 
@@ -279,5 +279,146 @@ impl FieldExtensionTrait<12, 2> for Fp6 {
     }
     fn square(&self) -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::square(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crypto_bigint::U256;
+
+    fn create_field(value: [u64; 4]) -> Fp {
+        Fp::new(U256::from_words(value))
+    }
+    fn create_quadratic_extension(v1: [u64; 4], v2: [u64; 4]) -> Fp2 {
+        Fp2::new(&[create_field(v1), create_field(v2)])
+    }
+    fn create_field_extension(
+        v1: [u64; 4],
+        v2: [u64; 4],
+        v3: [u64; 4],
+        v4: [u64; 4],
+        v5: [u64; 4],
+        v6: [u64; 4],
+    ) -> Fp6 {
+        Fp6::new(&[
+            Fp2::new(&[create_field(v1), create_field(v2)]),
+            Fp2::new(&[create_field(v3), create_field(v4)]),
+            Fp2::new(&[create_field(v5), create_field(v6)]),
+        ])
+    }
+
+    mod addition_tests {
+        use super::*;
+
+        #[test]
+        fn test_addition_closure() {
+            let a = create_field_extension(
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+            );
+            let b = create_field_extension(
+                [0, 6, 0, 0],
+                [5, 0, 0, 0],
+                [0, 0, 0, 4],
+                [0, 0, 3, 0],
+                [0, 2, 0, 0],
+                [1, 0, 0, 0],
+            );
+            let _ = a + b;
+        }
+    }
+    mod subtraction_tests {
+        use super::*;
+
+        #[test]
+        fn test_subtraction_closure() {
+            let a = create_field_extension(
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+            );
+            let b = create_field_extension(
+                [0, 6, 0, 0],
+                [5, 0, 0, 0],
+                [0, 0, 0, 4],
+                [0, 0, 3, 0],
+                [0, 2, 0, 0],
+                [1, 0, 0, 0],
+            );
+            let _ = a - b;
+        }
+    }
+    mod multiplication_tests {
+        use super::*;
+
+        #[test]
+        fn test_multiplication_closure() {
+            let a = create_field_extension(
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+            );
+            let b = create_field_extension(
+                [0, 6, 0, 0],
+                [5, 0, 0, 0],
+                [0, 0, 0, 4],
+                [0, 0, 3, 0],
+                [0, 2, 0, 0],
+                [1, 0, 0, 0],
+            );
+            let _ = a * b;
+        }
+        
+        #[test]
+        fn test_multiplication_associativity_commutativity_distributivity() {
+            let a = create_field_extension(
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+            );
+            let b = create_field_extension(
+                [0, 6, 0, 0],
+                [5, 0, 0, 0],
+                [0, 0, 0, 4],
+                [0, 0, 3, 0],
+                [0, 2, 0, 0],
+                [1, 0, 0, 0],
+            );
+            assert_eq!(a * b, b * a, "Multiplication is not commutative");
+            
+            let c = create_field_extension(
+                [1, 0, 0, 0],
+                [5, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 0, 4],
+                [0, 0, 3, 0],
+                [0, 6, 0, 0],
+            );
+            assert_eq!(
+                (a * b) * c,
+                a * (b * c),
+                "Multiplication is not associative"
+            );
+
+            assert_eq!(
+                a * (b + c),
+                a * b + a * c,
+                "Multiplication is not distributive"
+            );
+        }
     }
 }
