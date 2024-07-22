@@ -1,9 +1,9 @@
-//! This module implements the a basic finite field. The modulus of the finite field
+//! This module implements the basic finite field. The modulus of the finite field
 //! is assumed to be prime (and therefore odd). The basic idea is that we use the
-//! modulus to generate a struct, instances of which can be added, multiplied, etc
+//! modulus to generate a struct, instances of which can be added, multiplied, etc.
 //! all while conforming to the rules dictated by closed cyclic abelian groups.
 //! The generated struct is flexible enough to handle massively large multiprecision
-//! moduli and values, and performs all such modular arithemetic internally. The only
+//! moduli and values, and performs all such modular arithmetic internally. The only
 //! requirements of the user are to provide the modulus, and the desired bit precision.
 //! Due to efficiency considerations, we do not simply "do modular arithmetic" on numbers.
 //! There are two levels of performance that we implement.
@@ -40,7 +40,7 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, Su
 /// This means that we roll our implementation into a proc macro that
 /// provides all the needed functionality.
 #[allow(unused_macros)]
-macro_rules! DefineFinitePrimeField {
+macro_rules! define_finite_prime_field {
     ($wrapper_name:ident, $uint_type:ty, $modulus:expr) => {
         impl_modulus!(ModulusStruct, $uint_type, $modulus);
 
@@ -224,7 +224,7 @@ macro_rules! DefineFinitePrimeField {
     };
 }
 
-/// This is a very comprehensive test suite, that checks every binary operation for validity, 
+/// This is a very comprehensive test suite, that checks every binary operation for validity,
 /// associativity, commutativity, distributivity, sanity checks, and edge cases.
 /// The reference values for non-obvious field elements are generated with Sage.
 #[cfg(test)]
@@ -239,7 +239,7 @@ mod tests {
     ];
     const BN254_MOD_STRING: &str =
         "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-    DefineFinitePrimeField!(Bn254Field, U256, BN254_MOD_STRING);
+    define_finite_prime_field!(Bn254Field, U256, BN254_MOD_STRING);
     fn create_field(value: [u64; 4]) -> Bn254Field {
         Bn254Field::new(U256::from_words(value))
     }
@@ -482,10 +482,10 @@ mod tests {
             assert_eq!(
                 (e * f).value(),
                 U256::from_words([
-                    0xFFFFFFFFFFFFFFFF,
-                    0xFFFFFFFFFFFFFFFF,
-                    0xFFFFFFFFFFFFFFFF,
-                    0
+                    0x00000BFFFFFFFFFF,
+                    0xFFFFFFFFAFFFFFFF,
+                    0xFFFFFE9FFFFFFFFE,
+                    0x0000000000096FFE
                 ]),
                 "Multiplication wrapping around modulus failed"
             );
@@ -508,7 +508,12 @@ mod tests {
             ]);
             assert_eq!(
                 (large * large).value(),
-                U256::from_words([1, 0, 0, 0]),
+                U256::from_words([
+                    0xB5E10AE6EEFA883B,
+                    0x198D06E9A0ECCA3F,
+                    0xA1FD4D5C33BDCE95,
+                    0x16A2244FF2849823
+                ]),
                 "Multiplication of large numbers failed"
             );
         }
@@ -530,9 +535,9 @@ mod tests {
             let one = create_field([1, 0, 0, 0]);
 
             assert_eq!((a / a).value(), U256::ONE, "Division by self failed");
-            assert_eq!((a / one), a, "Division by one failed");
+            assert_eq!(a / one, a, "Division by one failed");
             assert_eq!(
-                ((a / b) * b),
+                (a / b) * b,
                 a,
                 "Division and multiplication property failed"
             );
