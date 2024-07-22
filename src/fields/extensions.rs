@@ -1,6 +1,6 @@
+use crate::fields::fp::FieldExtensionTrait;
 use num_traits::Zero;
 use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
-use crate::fields::fp::FieldExtensionTrait;
 // the following struct can unfortunately not have much that is const,
 // since the underlying Mul, Add, etc., are not, and const traits are in the works
 // https://github.com/rust-lang/rust/issues/67792

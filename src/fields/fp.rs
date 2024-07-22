@@ -28,38 +28,35 @@
 use crypto_bigint::subtle::ConstantTimeEq;
 #[allow(unused_imports)]
 use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, Uint, U256};
-use num_traits::{Euclid, Inv, One, Zero, Pow};
+use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
 pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
-Sized
-+ Copy
-+ Clone
-+ std::fmt::Debug
-+ Default
-+ Add<Output = Self>
-+ AddAssign
-+ Sub<Output = Self>
-+ SubAssign
-+ Mul<Output = Self>
-+ MulAssign
-+ Div<Output = Self>
-+ DivAssign
-+ Neg<Output = Self>
-+ PartialEq
-+ Zero
-+ One
-+ Inv<Output = Self>
+    Sized
+    + Copy
+    + Clone
+    + std::fmt::Debug
+    + Default
+    + Add<Output = Self>
+    + AddAssign
+    + Sub<Output = Self>
+    + SubAssign
+    + Mul<Output = Self>
+    + MulAssign
+    + Div<Output = Self>
+    + DivAssign
+    + Neg<Output = Self>
+    + PartialEq
+    + Zero
+    + One
+    + Inv<Output = Self>
 {
     fn quadratic_non_residue() -> Self;
     fn frobenius(&self, exponent: usize) -> Self;
     fn sqrt(&self) -> Self;
 }
 pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
-    FieldExtensionTrait<D,N>
-    + Rem<Output = Self>
-    + Euclid
-    + Pow<U256>
+    FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256>
 where
     UintType: ConcatMixed<MixedOutput = Uint<DLIMBS>>,
 {
@@ -117,7 +114,7 @@ macro_rules! define_finite_prime_field {
             //     [a,a]
             // }
         }
-        impl FieldExtensionTrait<$degree,$nreps> for $wrapper_name{
+        impl FieldExtensionTrait<$degree, $nreps> for $wrapper_name {
             fn quadratic_non_residue() -> Self {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
                 // = -1
@@ -296,15 +293,15 @@ macro_rules! define_finite_prime_field {
 
 const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
 define_finite_prime_field!(Fp, U256, 8, BN254_MOD_STRING, 1, 1);
-impl FieldExtensionTrait<2,2> for Fp {
+impl FieldExtensionTrait<2, 2> for Fp {
     fn quadratic_non_residue() -> Self {
-        <Fp as FieldExtensionTrait<1,1>>::quadratic_non_residue()
+        <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()
     }
     fn frobenius(&self, exponent: usize) -> Self {
-        <Fp as FieldExtensionTrait<1,1>>::frobenius(self, exponent)
+        <Fp as FieldExtensionTrait<1, 1>>::frobenius(self, exponent)
     }
     fn sqrt(&self) -> Self {
-        <Fp as FieldExtensionTrait<1,1>>::sqrt(self)
+        <Fp as FieldExtensionTrait<1, 1>>::sqrt(self)
     }
 }
 
