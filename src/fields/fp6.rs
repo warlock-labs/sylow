@@ -1,3 +1,7 @@
+// we likewise define the specifics of the sextic extension of
+// bn254 here. there are some additional helper functions we create
+// just as with the quadratic extension. The sextic extension is
+// defined by the tower Fp6 = Fp2(v) / (v^3-(9+u))/
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::fp2::Fp2;
@@ -6,9 +10,6 @@ use crypto_bigint::{U2048, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 
-// we likewise define the specifics of the sextic extension of
-// bn254 here. there are some additional helper functions we create
-// just as with the quadratic extension.
 pub(crate) type Fp6 = FieldExtension<6, 3, Fp2>;
 
 impl Fp6 {

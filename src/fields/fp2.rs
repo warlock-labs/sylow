@@ -48,9 +48,9 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
     }
     fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp2: &[Fp; 2] = &[
-            // NONRESIDUE**(((q^0) - 1) / 2)
+            // Fp::quadratic_non_residue()**(((p^0) - 1) / 2)
             Fp::one(),
-            // NONRESIDUE**(((q^1) - 1) / 2)
+            // Fp::quadratic_non_residue()**(((p^1) - 1) / 2)
             <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue(),
         ];
         match exponent % 2 {
