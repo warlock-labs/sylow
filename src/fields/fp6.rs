@@ -12,6 +12,7 @@ use std::ops::{Div, DivAssign, Mul, MulAssign};
 pub(crate) type Fp6 = FieldExtension<6, 3, Fp2>;
 
 impl Fp6 {
+    #[allow(dead_code)]
     pub(crate) fn residue_mul(&self) -> Self {
         Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
     }
@@ -320,10 +321,10 @@ mod tests {
     mod residue_tests {
         use super::*;
         #[test]
-        fn test_residue(){
-            let q1 = <Fp as FieldExtensionTrait<1,1>>::quadratic_non_residue();
-            let q2 = <Fp2 as FieldExtensionTrait<2,2>>::quadratic_non_residue();
-            let q3 = <Fp6 as FieldExtensionTrait<6,3>>::quadratic_non_residue();
+        fn test_residue() {
+            let q1 = <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue();
+            let q2 = <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue();
+            let q3 = <Fp6 as FieldExtensionTrait<6, 3>>::quadratic_non_residue();
             println!("{:?}\n", q1.value());
             for i in q2.0 {
                 println!("{:?}", i.value());
@@ -467,14 +468,39 @@ mod tests {
                 [1, 0, 0, 0],
             );
             let c = create_field_extension(
-                [0xed9d072bc3003126, 0x9bf0c48f5b9081c5, 0x654e4b31ffe4ae14, 0x229c18498af45bd8],
-                [0x4a5e9416106932a0, 0xa91300efa307f9c3, 0x7a71433b8b7f4be1, 0x1b414a8e45c427d0],
-                [0x3c208c16d87cfd42, 0x97816a916871cab1, 0xb85045b681815851, 0x30644e72e131a025],
-                [0x4e8384eb157ccc4e, 0xfb90a6020ce148c7, 0x5301fa84819caab4, 0xdc83629563d4475],
+                [
+                    0xed9d072bc3003126,
+                    0x9bf0c48f5b9081c5,
+                    0x654e4b31ffe4ae14,
+                    0x229c18498af45bd8,
+                ],
+                [
+                    0x4a5e9416106932a0,
+                    0xa91300efa307f9c3,
+                    0x7a71433b8b7f4be1,
+                    0x1b414a8e45c427d0,
+                ],
+                [
+                    0x3c208c16d87cfd42,
+                    0x97816a916871cab1,
+                    0xb85045b681815851,
+                    0x30644e72e131a025,
+                ],
+                [
+                    0x4e8384eb157ccc4e,
+                    0xfb90a6020ce148c7,
+                    0x5301fa84819caab4,
+                    0xdc83629563d4475,
+                ],
                 [0x0, 0x0, 0x0, 0x0],
-                [0x7bcf82ea8e801788, 0x5ce8acfe387071f2, 0x3423a8065d60818b, 0x99dd9ae870a50e4]
+                [
+                    0x7bcf82ea8e801788,
+                    0x5ce8acfe387071f2,
+                    0x3423a8065d60818b,
+                    0x99dd9ae870a50e4,
+                ],
             );
-            assert_eq!(a*b, c, "Multiplication failed");
+            assert_eq!(a * b, c, "Multiplication failed");
 
             let d = create_field_extension(
                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
@@ -482,28 +508,49 @@ mod tests {
                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
-                [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0]
+                [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
             );
             let e = create_field_extension(
-                [0x2acc09f69abdc416, 0x51f287ef9c76823, 0xd6e5fdaf211d9813, 0x289ebddf5a43c395],
-                [0xca72021005dd2367, 0xb6353d4fea7f71b, 0x48f943b451719e38, 0x13e67cd30093f3e],
-                [0x956604fb4d5ee20b, 0x828f943f7ce3b411, 0xeb72fed7908ecc09, 0x144f5eefad21e1ca],
-                [0xc14085a5e75d3bea, 0x595bb61cac703800, 0x7ba0694d5163f56b, 0x128c73f1f5836d18],
+                [
+                    0x2acc09f69abdc416,
+                    0x51f287ef9c76823,
+                    0xd6e5fdaf211d9813,
+                    0x289ebddf5a43c395,
+                ],
+                [
+                    0xca72021005dd2367,
+                    0xb6353d4fea7f71b,
+                    0x48f943b451719e38,
+                    0x13e67cd30093f3e,
+                ],
+                [
+                    0x956604fb4d5ee20b,
+                    0x828f943f7ce3b411,
+                    0xeb72fed7908ecc09,
+                    0x144f5eefad21e1ca,
+                ],
+                [
+                    0xc14085a5e75d3bea,
+                    0x595bb61cac703800,
+                    0x7ba0694d5163f56b,
+                    0x128c73f1f5836d18,
+                ],
                 [0x0, 0x0, 0x0, 0x0],
-                [0xb80f093bc8dd546d, 0xa75418645a3878e5, 0xae478ee651564c9e, 0x23da8016bafd9af2]
+                [
+                    0xb80f093bc8dd546d,
+                    0xa75418645a3878e5,
+                    0xae478ee651564c9e,
+                    0x23da8016bafd9af2,
+                ],
             );
-            assert_eq!(
-                d * d,
-                e,
-                "Multiplication around modulus failed"
-            )
+            assert_eq!(d * d, e, "Multiplication around modulus failed")
         }
     }
     mod division_tests {
         use super::*;
 
         #[test]
-        fn test_division_closure(){
+        fn test_division_closure() {
             let a = create_field_extension(
                 [1, 0, 0, 0],
                 [0, 2, 0, 0],
@@ -547,21 +594,51 @@ mod tests {
             assert_eq!(a / one, a, "Division by one failed");
             assert_eq!((a / b) * b, a, "Division-Mult composition failed");
             let c = create_field_extension(
-                [0x84e6a5203ee06c1f, 0xe454d7444c984683, 0x6f93b7fbe3a950f2, 0x8d38addcc0f23c3],
-                [0x97037fedf337819b, 0xbc9270b6b3447c73, 0xef69d13908dccbfd, 0x183646045c9d4de4],
-                [0xcdd371606cb11cef, 0x73bf89f28ff84711, 0x2d8b9a2dfafce09e, 0x2e16964414763c9c],
-                [0x79b457c7829a90b9, 0x1ed5aeb323fb2bd8, 0x3216a5bca91f0262, 0x23491bb4c5bf7205],
-                [0x7c147d3f60ed789b, 0x6d417fc08b9ed71e, 0xac50e9ab55b112fd, 0x14cb8703533e40c9],
-                [0xe5ceae140b00664c, 0x6d499e720e48f860, 0x5f1bb5244a2466aa, 0x216c40cb063969a4]
+                [
+                    0x84e6a5203ee06c1f,
+                    0xe454d7444c984683,
+                    0x6f93b7fbe3a950f2,
+                    0x8d38addcc0f23c3,
+                ],
+                [
+                    0x97037fedf337819b,
+                    0xbc9270b6b3447c73,
+                    0xef69d13908dccbfd,
+                    0x183646045c9d4de4,
+                ],
+                [
+                    0xcdd371606cb11cef,
+                    0x73bf89f28ff84711,
+                    0x2d8b9a2dfafce09e,
+                    0x2e16964414763c9c,
+                ],
+                [
+                    0x79b457c7829a90b9,
+                    0x1ed5aeb323fb2bd8,
+                    0x3216a5bca91f0262,
+                    0x23491bb4c5bf7205,
+                ],
+                [
+                    0x7c147d3f60ed789b,
+                    0x6d417fc08b9ed71e,
+                    0xac50e9ab55b112fd,
+                    0x14cb8703533e40c9,
+                ],
+                [
+                    0xe5ceae140b00664c,
+                    0x6d499e720e48f860,
+                    0x5f1bb5244a2466aa,
+                    0x216c40cb063969a4,
+                ],
             );
             assert_eq!(a / b, c, "Simple division failed");
         }
         #[test]
         #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
-        fn test_divide_by_zero(){
+        fn test_divide_by_zero() {
             let a = Fp6::one();
             let b = Fp6::zero();
-            let _ = a/b;
+            let _ = a / b;
         }
     }
 }

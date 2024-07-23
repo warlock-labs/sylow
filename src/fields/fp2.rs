@@ -31,6 +31,7 @@ impl Fp2 {
         res
     }
     // type casting must be done on case-by-case basis
+    #[allow(dead_code)]
     fn characteristic() -> U512 {
         let wide_p = u256_to_u512(&Fp::characteristic());
         wide_p * wide_p
