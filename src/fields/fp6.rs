@@ -317,6 +317,25 @@ mod tests {
         ])
     }
 
+    mod residue_tests {
+        use super::*;
+        #[test]
+        fn test_residue(){
+            let q1 = <Fp as FieldExtensionTrait<1,1>>::quadratic_non_residue();
+            let q2 = <Fp2 as FieldExtensionTrait<2,2>>::quadratic_non_residue();
+            let q3 = <Fp6 as FieldExtensionTrait<6,3>>::quadratic_non_residue();
+            println!("{:?}\n", q1.value());
+            for i in q2.0 {
+                println!("{:?}", i.value());
+            }
+            println!("\n");
+            for j in q3.0 {
+                for k in j.0 {
+                    println!("{:?} ", k.value());
+                }
+            }
+        }
+    }
     mod addition_tests {
         use super::*;
 

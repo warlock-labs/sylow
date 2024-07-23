@@ -6,7 +6,6 @@ symbols = {mul: '*', truediv: '/'}
 def assertTrue(condition, message=""):
     assert condition, message
 
-
 def assertEqual(first, second, message=""):
     assert first == second, message
 is_iterable = lambda obj: isinstance(obj, Iterable)
@@ -77,9 +76,7 @@ class FieldTestMetaclass(type):
                 def test_method(self):
                     test_values = getattr(self, f"{fn}_test_values", [])
                     if not test_values:
-                        # test_values = [(f.random_element(), f.random_element()) for _ in range(3)]
                         return
-                    # print(f"Running {field_name}...")
                     for value in test_values:
                         a, b = value
                         a = convert_to_field(a, f)
@@ -87,7 +84,6 @@ class FieldTestMetaclass(type):
                         for j in [a, b]:
                             if is_iterable(j):
                                 flattened = recursive_flatten(j)
-                                # max_depth = max(isinstance(x, list) for x in j) + 1 if isinstance(j, list) else 1
                             if isinstance(j, Iterable):
                                 assertEqual(
                                     len(flattened),
@@ -103,14 +99,12 @@ class FieldTestMetaclass(type):
                         )
 
                         # Debug print with limited number of elements
-                        print(f"Debug {fn}: a = {self.limited_repr(a, self.D)}")
-                        print(f"Debug {fn}: b = {self.limited_repr(b, self.D)}")
-                        print(
-                            f"Debug {fn}: a{symbols[self.operation]}b = {self.limited_repr(result, self.D)}"
+                        logging.debug(f"{fn}: a = {self.limited_repr(a, self.D)}")
+                        logging.debug(f"{fn}: b = {self.limited_repr(b, self.D)}")
+                        logging.debug(
+                            f"{fn}: a{symbols[self.operation]}b = {self.limited_repr(result, self.D)}"
                         )
-                        print("-" * 50)
 
-                # print(f"{field_name} passed!")
                 return test_method
 
             attrs[f"test_{field_name}_multiplication"] = create_test_method(
@@ -141,3 +135,30 @@ class FieldTestMetaclass(type):
         attrs["D"] = D
 
         return super().__new__(cls, name, bases, attrs)
+
+
+def determine_uint_size(n):
+    bit_length = n.nbits()
+
+    if bit_length <= 8:
+        return "U8"
+    elif bit_length <= 16:
+        return "U16"
+    elif bit_length <= 32:
+        return "U32"
+    elif bit_length <= 64:
+        return "U64"
+    elif bit_length <= 128:
+        return "U128"
+    elif bit_length <= 256:
+        return "U256"
+    elif bit_length <= 512:
+        return "U512"
+    elif bit_length <= 1024:
+        return "U1024"
+    elif bit_length <= 2048:
+        return "U2048"
+    elif bit_length <= 4096:
+        return "U4096"
+    else:
+        return f"Needs more than 2048 bits (actual: {bit_length} bits)"
