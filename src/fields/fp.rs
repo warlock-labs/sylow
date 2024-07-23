@@ -59,9 +59,11 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     // heavily such a value below
     fn quadratic_non_residue() -> Self;
     // this endomorphism is key for twist operations
+    #[allow(dead_code)]
     fn frobenius(&self, exponent: usize) -> Self;
     // specialized algorithms exist in each extension
     // for sqrt and square, simply helper functions really
+    #[allow(dead_code)]
     fn sqrt(&self) -> Self;
     fn square(&self) -> Self;
 }
@@ -72,6 +74,7 @@ where
 {
     fn new(value: UintType) -> Self;
     fn new_from_u64(value: u64) -> Self;
+    #[allow(dead_code)]
     fn value(&self) -> UintType;
     fn exponentiate(&self, exponent: &UintType) -> Self;
     fn characteristic() -> UintType;

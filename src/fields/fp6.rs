@@ -17,6 +17,7 @@ impl Fp6 {
         Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
     }
     // mainly for debug formatting
+    #[allow(dead_code)]
     fn characteristic() -> U2048 {
         let wide_p = u256_to_u2048(&Fp::characteristic());
         let wide_p2 = wide_p * wide_p;

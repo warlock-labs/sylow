@@ -18,6 +18,7 @@ impl Fp2 {
     // the below is indeed variable time depending
     // on the argument passed. It is not exposed to the
     // public api though.
+    #[allow(dead_code)]
     pub(crate) fn pow_vartime(&self, by: &[u64]) -> Self {
         let mut res = Self::one();
         for e in by.iter().rev() {
