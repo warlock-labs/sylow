@@ -18,3 +18,5 @@ notebooks/.ipynb_checkpoints
 
 # RustRover
 /.idea
+
+src/fields/sage_reference/*sage.py
