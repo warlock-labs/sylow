@@ -198,7 +198,7 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
 
     // this is simply the same as the multiplication below
     // however, there are some simple algebraic reductions
-    // you can do with squaring. this just implements that
+    // you can do with squaring. this just implements that,
     // but functionally it is the same as the `Mul` trait below
     fn square(&self) -> Self {
         let t0 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.0[0]);
@@ -299,9 +299,6 @@ mod tests {
 
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
-    }
-    fn create_quadratic_extension(v1: [u64; 4], v2: [u64; 4]) -> Fp2 {
-        Fp2::new(&[create_field(v1), create_field(v2)])
     }
     fn create_field_extension(
         v1: [u64; 4],

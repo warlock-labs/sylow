@@ -23,7 +23,7 @@
 //!                              
 //! References
 //! ----------
-//! 1. https://cacr.uwaterloo.ca/hac/about/chap14.pdf
+//! 1. <https://cacr.uwaterloo.ca/hac/about/chap14.pdf>
 //!
 use crypto_bigint::subtle::ConstantTimeEq;
 #[allow(unused_imports)]
@@ -213,13 +213,13 @@ macro_rules! define_finite_prime_field {
         /// of the field y such that x * y = 1. To do this requires
         /// cleverness to also do in constant time. We use the
         /// Bernstein-Yang algorithm, which you can read more on here:
-        /// https://eprint.iacr.org/2019/266.pdf
+        /// <https://eprint.iacr.org/2019/266.pdf>
         ///
         /// Due to the numerical complexity, it makes sense that this
         /// returns an Option, for example in the case of an attempt to
         /// determine 1/0. This is a bit unfortunate, since as of now
         /// the code will panic should it fail. We unwrap the option for now.
-        /// https://github.com/RustCrypto/crypto-bigint/blob/be6a3abf7e65279ba0b5e4b1ce09eb0632e443f6/src/const_choice.rs#L237
+        /// <https://github.com/RustCrypto/crypto-bigint/blob/be6a3abf7e65279ba0b5e4b1ce09eb0632e443f6/src/const_choice.rs#L237>
         impl Inv for $wrapper_name {
             type Output = Self;
             fn inv(self) -> Self {
