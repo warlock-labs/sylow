@@ -6,12 +6,16 @@ use crypto_bigint::{U2048, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 
+// we likewise define the specifics of the sextic extension of
+// bn254 here. there are some additional helper functions we create
+// just as with the quadratic extension.
 pub(crate) type Fp6 = FieldExtension<6, 3, Fp2>;
 
 impl Fp6 {
     pub(crate) fn residue_mul(&self) -> Self {
         Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
     }
+    // mainly for debug formatting
     fn characteristic() -> U2048 {
         let wide_p = u256_to_u2048(&Fp::characteristic());
         let wide_p2 = wide_p * wide_p;
@@ -191,6 +195,10 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
         todo!()
     }
 
+    // this is simply the same as the multiplication below
+    // however, there are some simple algebraic reductions
+    // you can do with squaring. this just implements that
+    // but functionally it is the same as the `Mul` trait below
     fn square(&self) -> Self {
         let t0 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.0[0]);
         let cross = self.0[0] * self.0[1];
@@ -267,6 +275,7 @@ impl DivAssign for Fp6 {
     }
 }
 
+// make sextic extension visible to the dodectic extension
 impl FieldExtensionTrait<12, 2> for Fp6 {
     fn quadratic_non_residue() -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::quadratic_non_residue()
