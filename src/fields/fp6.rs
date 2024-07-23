@@ -379,7 +379,7 @@ mod tests {
             );
             let _ = a * b;
         }
-        
+
         #[test]
         fn test_multiplication_associativity_commutativity_distributivity() {
             let a = create_field_extension(
@@ -399,7 +399,7 @@ mod tests {
                 [1, 0, 0, 0],
             );
             assert_eq!(a * b, b * a, "Multiplication is not commutative");
-            
+
             let c = create_field_extension(
                 [1, 0, 0, 0],
                 [5, 0, 0, 0],

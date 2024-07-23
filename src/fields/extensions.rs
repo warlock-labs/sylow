@@ -1,13 +1,20 @@
+//! This file dictates the implementation of the field extension struct that implements
+//! the appropriate traits. These are not a total list of the mathematical properties
+//! that are satisfied by an extension, but is a MWE of the functionality needed herein.
+//! Because of the quotienting on the finite field ring, the functional forms of
+//! multiplication and division will be specific to the base field, and the
+//! form of the extension. Therefore, the only common functionality we can guarantee
+//! is addition, subtraction, equality, negation, default, and the zero element.
+//!
+//! Other specifics must be dealt with on a case-by-case basis.
+
 use crate::fields::fp::FieldExtensionTrait;
 use num_traits::Zero;
 use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
+
 // the following struct can unfortunately not have much that is const,
 // since the underlying Mul, Add, etc., are not, and const traits are in the works
 // https://github.com/rust-lang/rust/issues/67792
-
-//items needed only for field extension
-// new, scale, add(assign), sub(assign), default, eq, neg, zero
-
 #[derive(Copy, Clone, Debug)]
 pub struct FieldExtension<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>(
     pub(crate) [F; N],

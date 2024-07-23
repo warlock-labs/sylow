@@ -1,15 +1,23 @@
+//! This describes the quadratic field extension of the base field of BN254
+//! defined by the tower Fp^2 = Fp[X] / (X^2-\beta). Further, the quadratic nature implies
+//! that elements of this field are represented as a_0 + a_1 X. This implements
+//! the specific behaviour for this extension, such as multiplication.
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::utils::u256_to_u512;
 use crypto_bigint::U512;
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
-// This describes the quadratic field extension of the base field of BN254
-// defined by the tower Fp^2 = Fp[X] / (X^2-\beta). Further, the quadratic nature implies
-// that elements of this field are represented as a_0 + a_1 X
 
 pub(crate) type Fp2 = FieldExtension<2, 2, Fp>;
+
+// there are some specific things that must be defined as
+// helper functions for us on this specific extension, but
+// dont generalize to any extension.
 impl Fp2 {
+    // the below is indeed variable time depending
+    // on the argument passed. It is not exposed to the
+    // public api though.
     pub(crate) fn pow_vartime(&self, by: &[u64]) -> Self {
         let mut res = Self::one();
         for e in by.iter().rev() {
@@ -22,6 +30,7 @@ impl Fp2 {
         }
         res
     }
+    // type casting must be done on case-by-case basis
     fn characteristic() -> U512 {
         let wide_p = u256_to_u512(&Fp::characteristic());
         wide_p * wide_p
@@ -146,6 +155,8 @@ impl DivAssign for Fp2 {
         *self = *self / other;
     }
 }
+// the below is again to make the quadratic extension visible to
+// higher order sextic extension
 impl FieldExtensionTrait<6, 3> for Fp2 {
     fn quadratic_non_residue() -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue()

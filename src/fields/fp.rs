@@ -31,6 +31,10 @@ use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZer
 use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
+/// This defines the key properties of a field extension. Now, mathmetically,
+/// a finite field satisfies many rigorous mathematical properties. The
+/// (non-exhaustive) list below simply suffices to illustrate those properties
+/// that are purely relevant to the task at hand here.
 pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     Sized
     + Copy
@@ -51,8 +55,13 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     + One
     + Inv<Output = Self>
 {
+    // multiplication in a field extension is dictated
+    // heavily such a value below
     fn quadratic_non_residue() -> Self;
+    // this endomorphism is key for twist operations
     fn frobenius(&self, exponent: usize) -> Self;
+    // specialized algorithms exist in each extension
+    // for sqrt and square, simply helper functions really
     fn sqrt(&self) -> Self;
     fn square(&self) -> Self;
 }
@@ -111,6 +120,9 @@ macro_rules! define_finite_prime_field {
             //     [a,a]
             // }
         }
+        // we make the base field an extension of the
+        // appropriate degree, in our case degree 1 (with
+        // therefore 1 unique representation of an element)
         impl FieldExtensionTrait<$degree, $nreps> for $wrapper_name {
             fn quadratic_non_residue() -> Self {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
@@ -293,6 +305,15 @@ macro_rules! define_finite_prime_field {
 
 const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
 define_finite_prime_field!(Fp, U256, 8, BN254_MOD_STRING, 1, 1);
+/// the code below makes the base field "visible" to higher
+/// order extensions. The issue is really the fact that generic
+/// traits cannot enforce arithmetic relations, such as the
+/// statement "the child finite field of an extension must have
+/// a degree strictly less than the current degree", which would
+/// look something like D_1 | D_0 < D_1. In order to get around this
+/// we make the extension explicitly usable by the higher order extension
+/// by manually specifying the traits D, N. This enforces the logic
+/// by means of manual input.
 impl FieldExtensionTrait<2, 2> for Fp {
     fn quadratic_non_residue() -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()
