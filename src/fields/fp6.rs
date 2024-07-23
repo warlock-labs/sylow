@@ -456,6 +456,28 @@ mod tests {
                 [0x7bcf82ea8e801788, 0x5ce8acfe387071f2, 0x3423a8065d60818b, 0x99dd9ae870a50e4]
             );
             assert_eq!(a*b, c, "Multiplication failed");
+
+            let d = create_field_extension(
+                [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
+                [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
+                [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
+                [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
+                [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
+                [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0]
+            );
+            let e = create_field_extension(
+                [0x2acc09f69abdc416, 0x51f287ef9c76823, 0xd6e5fdaf211d9813, 0x289ebddf5a43c395],
+                [0xca72021005dd2367, 0xb6353d4fea7f71b, 0x48f943b451719e38, 0x13e67cd30093f3e],
+                [0x956604fb4d5ee20b, 0x828f943f7ce3b411, 0xeb72fed7908ecc09, 0x144f5eefad21e1ca],
+                [0xc14085a5e75d3bea, 0x595bb61cac703800, 0x7ba0694d5163f56b, 0x128c73f1f5836d18],
+                [0x0, 0x0, 0x0, 0x0],
+                [0xb80f093bc8dd546d, 0xa75418645a3878e5, 0xae478ee651564c9e, 0x23da8016bafd9af2]
+            );
+            assert_eq!(
+                d * d,
+                e,
+                "Multiplication around modulus failed"
+            )
         }
     }
 }
