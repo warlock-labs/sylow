@@ -429,5 +429,33 @@ mod tests {
                 "Multiplication is not distributive"
             );
         }
+        #[test]
+        fn test_multiplication_cases() {
+            let a = create_field_extension(
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+            );
+            let b = create_field_extension(
+                [0, 6, 0, 0],
+                [5, 0, 0, 0],
+                [0, 0, 0, 4],
+                [0, 0, 3, 0],
+                [0, 2, 0, 0],
+                [1, 0, 0, 0],
+            );
+            let c = create_field_extension(
+                [0xed9d072bc3003126, 0x9bf0c48f5b9081c5, 0x654e4b31ffe4ae14, 0x229c18498af45bd8],
+                [0x4a5e9416106932a0, 0xa91300efa307f9c3, 0x7a71433b8b7f4be1, 0x1b414a8e45c427d0],
+                [0x3c208c16d87cfd42, 0x97816a916871cab1, 0xb85045b681815851, 0x30644e72e131a025],
+                [0x4e8384eb157ccc4e, 0xfb90a6020ce148c7, 0x5301fa84819caab4, 0xdc83629563d4475],
+                [0x0, 0x0, 0x0, 0x0],
+                [0x7bcf82ea8e801788, 0x5ce8acfe387071f2, 0x3423a8065d60818b, 0x99dd9ae870a50e4]
+            );
+            assert_eq!(a*b, c, "Multiplication failed");
+        }
     }
 }
