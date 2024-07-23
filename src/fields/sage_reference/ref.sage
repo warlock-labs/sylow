@@ -14,7 +14,7 @@ print("="*72)
 for instance in [
     FieldDivisionTest(),
     QuadraticFieldDivisionTest(),
-    #SexticFieldDivisionTest()
+    SexticFieldDivisionTest()
 ]:
     for method_name in dir(instance):
         if method_name.startswith("test_"):

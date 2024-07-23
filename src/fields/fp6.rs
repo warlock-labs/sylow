@@ -480,4 +480,69 @@ mod tests {
             )
         }
     }
+    mod division_tests {
+        use super::*;
+
+        #[test]
+        fn test_division_closure(){
+            let a = create_field_extension(
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+            );
+            let b = create_field_extension(
+                [0, 6, 0, 0],
+                [5, 0, 0, 0],
+                [0, 0, 0, 4],
+                [0, 0, 3, 0],
+                [0, 2, 0, 0],
+                [1, 0, 0, 0],
+            );
+            let _ = a / b;
+        }
+        #[test]
+        fn test_division_cases() {
+            let a = create_field_extension(
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+            );
+            let b = create_field_extension(
+                [0, 6, 0, 0],
+                [5, 0, 0, 0],
+                [0, 0, 0, 4],
+                [0, 0, 3, 0],
+                [0, 2, 0, 0],
+                [1, 0, 0, 0],
+            );
+            let one = Fp6::one();
+
+            assert_eq!(a / a, one, "Division by self failed");
+
+            assert_eq!(a / one, a, "Division by one failed");
+            assert_eq!((a / b) * b, a, "Division-Mult composition failed");
+            let c = create_field_extension(
+                [0x84e6a5203ee06c1f, 0xe454d7444c984683, 0x6f93b7fbe3a950f2, 0x8d38addcc0f23c3],
+                [0x97037fedf337819b, 0xbc9270b6b3447c73, 0xef69d13908dccbfd, 0x183646045c9d4de4],
+                [0xcdd371606cb11cef, 0x73bf89f28ff84711, 0x2d8b9a2dfafce09e, 0x2e16964414763c9c],
+                [0x79b457c7829a90b9, 0x1ed5aeb323fb2bd8, 0x3216a5bca91f0262, 0x23491bb4c5bf7205],
+                [0x7c147d3f60ed789b, 0x6d417fc08b9ed71e, 0xac50e9ab55b112fd, 0x14cb8703533e40c9],
+                [0xe5ceae140b00664c, 0x6d499e720e48f860, 0x5f1bb5244a2466aa, 0x216c40cb063969a4]
+            );
+            assert_eq!(a / b, c, "Simple division failed");
+        }
+        #[test]
+        #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
+        fn test_divide_by_zero(){
+            let a = Fp6::one();
+            let b = Fp6::zero();
+            let _ = a/b;
+        }
+    }
 }

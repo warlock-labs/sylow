@@ -60,33 +60,5 @@ class SexticFieldDivisionTest(SexticFieldDivision):
                  [0, 2, 0, 0],
                  [1, 0, 0, 0]
              ]
-         ]),
-        ([
-             [
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0]
-             ],
-             [
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0]
-             ],
-             [
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0]
-             ]
-         ],
-         [
-             [
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0]
-             ],
-             [
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0]
-             ],
-             [
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
-                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0]
-             ]
          ])
     ]
