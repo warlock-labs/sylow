@@ -2,19 +2,30 @@ from sagelib.facts import *
 from operator import mul, truediv
 from collections.abc import Iterable
 
-symbols = {mul: '*', truediv: '/'}
+symbols = {mul: "*", truediv: "/"}
+
+
 def assertTrue(condition, message=""):
     assert condition, message
 
+
 def assertEqual(first, second, message=""):
     assert first == second, message
+
+
 is_iterable = lambda obj: isinstance(obj, Iterable)
+
 
 def recursive_flatten(item, depth=0):
     if is_iterable(item):
-        return [element for sublist in item for element in recursive_flatten(sublist, depth + 1)]
+        return [
+            element
+            for sublist in item
+            for element in recursive_flatten(sublist, depth + 1)
+        ]
     else:
         return [item]
+
 
 def u256_to_u64_list_hex(u256_value):
     if u256_value < 0 or u256_value >= 2**256:
@@ -65,8 +76,8 @@ def convert_to_field(value, field):
 
 class FieldTestMetaclass(type):
     def __new__(cls, name, bases, attrs, **kwargs):
-        D = kwargs.get('D', 2)  # Get D from kwargs, default to 5 if not provided
-        operation = kwargs.get('operator', mul)
+        D = kwargs.get("D", 2)  # Get D from kwargs, default to 5 if not provided
+        operation = kwargs.get("operator", mul)
         fields = [Fp, Fp2, Fp6]
         field_names = ["Fp", "Fp2", "Fp6"]
 
@@ -95,7 +106,9 @@ class FieldTestMetaclass(type):
                             result in f, f"{fn} multiplication result not in field"
                         )
                         assertEqual(
-                            result, self.operation(a,b), f"{fn} multiplication not consistent"
+                            result,
+                            self.operation(a, b),
+                            f"{fn} multiplication not consistent",
                         )
 
                         # Debug print with limited number of elements
@@ -116,9 +129,9 @@ class FieldTestMetaclass(type):
             try:
                 coeffs = list(element)
                 return (
-                        "\n\t"
-                        + " ".join(self.limited_repr(coeff, 1) for coeff in coeffs)
-                        + "\n"
+                    "\n\t"
+                    + " ".join(self.limited_repr(coeff, 1) for coeff in coeffs)
+                    + "\n"
                 )
 
             except TypeError:
