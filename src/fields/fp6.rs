@@ -1,7 +1,7 @@
 // we likewise define the specifics of the sextic extension of
 // bn254 here. there are some additional helper functions we create
 // just as with the quadratic extension. The sextic extension is
-// defined by the tower Fp6 = Fp2(v) / (v^3-(9+u))/
+// defined by the tower F_{p^6} = F_{p^2}(v) / (v^3-(9+u))
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::fp2::Fp2;
@@ -48,9 +48,9 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
         // This is a lot of overhead, but it is doable with the components already provided
         // within should someone be interested
         let frobenius_coeff_fp6_c1: &[Fp2; 6] = &[
-            //Fp2::quadratic_non_residue().pow( ( p^0 - 1) / 3)
+            // Fp2::quadratic_non_residue().pow( ( p^0 - 1) / 3)
             Fp2::new(&[Fp::one(), Fp::zero()]),
-            //Fp2::quadratic_non_residue().pow( ( p^1 - 1) / 3)
+            // Fp2::quadratic_non_residue().pow( ( p^1 - 1) / 3)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0x99e39557176f553d,
@@ -65,7 +65,7 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
                     0x16c9e55061ebae20,
                 ])),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^2 - 1) / 3)
+            // Fp2::quadratic_non_residue().pow( ( p^2 - 1) / 3)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0xe4bd44e5607cfd48,
@@ -75,7 +75,7 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
                 ])),
                 Fp::zero(),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^3 - 1) / 3)
+            // Fp2::quadratic_non_residue().pow( ( p^3 - 1) / 3)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0x7b746ee87bdcfb6d,
@@ -90,7 +90,7 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
                     0x4f1de41b3d1766f,
                 ])),
             ]),
-            //Fp2::quadratic_non_residue().pow( (p^4 - 1) / 3)
+            // Fp2::quadratic_non_residue().pow( (p^4 - 1) / 3)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0x5763473177fffffe,
@@ -100,7 +100,7 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
                 ])),
                 Fp::zero(),
             ]),
-            //Fp2::quadratic_non_residue().pow( (p^5 - 1) / 3)
+            // Fp2::quadratic_non_residue().pow( (p^5 - 1) / 3)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0x62e913ee1dada9e4,
@@ -231,7 +231,7 @@ impl Mul for Fp6 {
     type Output = Self;
     fn mul(self, other: Self) -> Self::Output {
         // This is the exact same strategy as multiplication in Fp2
-        // see the doc string therefore more details
+        // see the doc string there for more details
         let t0 = self.0[0] * other.0[0];
         let t1 = self.0[1] * other.0[1];
         let t2 = self.0[2] * other.0[2];

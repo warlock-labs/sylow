@@ -37,7 +37,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtensio
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add for FieldExtension<D, N, F> {
     type Output = Self;
-    fn add(self, other: Self) -> Self::Output {
+    fn add(self, other: Self) -> Self {
         let mut i = 0;
         let mut retval = [F::zero(); N];
         while i < N {
@@ -56,7 +56,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> AddAssign
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Sub for FieldExtension<D, N, F> {
     type Output = Self;
-    fn sub(self, other: Self) -> Self::Output {
+    fn sub(self, other: Self) -> Self {
         let mut i = 0;
         let mut retval = [F::zero(); N];
         while i < N {
@@ -95,7 +95,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg for FieldExtension<D, N, F> {
     type Output = Self;
-    fn neg(self) -> Self::Output {
+    fn neg(self) -> Self {
         let mut i = 0;
         let mut retval = [F::zero(); N];
         while i < N {

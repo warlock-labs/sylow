@@ -6,7 +6,7 @@
     // missing_docs,
     missing_debug_implementations,
     missing_copy_implementations,
-    rust_2018_idioms,
+    rust_2021_compatibility,
     trivial_casts,
     trivial_numeric_casts,
     unused_qualifications

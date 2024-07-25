@@ -5,7 +5,6 @@ fp_non_residue = -Fp(1)
 fp2_non_residue = Fp2(9 + 1 * u)
 fp6_non_residue = Fp6(u)
 
-
 fp_frob_coeffs = Fp(0)
 fp2_frob_coeffs = [fp_non_residue ^ ((p ^ i - 1) / 2) for i in range(2)]
 fp6_frob_coeffs = [

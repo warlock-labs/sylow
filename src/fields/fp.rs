@@ -25,12 +25,17 @@
 //! ----------
 //! 1. <https://cacr.uwaterloo.ca/hac/about/chap14.pdf>
 //!
-use crypto_bigint::rand_core::CryptoRngCore;
+//!
+//! N.B.: the #[allow(unused_imports)] is actually not just arbitrarily importing non-used crates,
+//! it's a weird issue with clippy. The issue is that we had to roll the base field class as a
+//! procedural macro, which means it doesn't get expanded by the compiler, so any crates used inside
+//! the macro will be viewed by the linter as unused even if they're not, and complain.
+//! The unused imports just let the CI pipeline pass, but the crates themselves are actually
+//! used by the code :)
+
 use crypto_bigint::subtle::ConstantTimeEq;
 #[allow(unused_imports)]
-use crypto_bigint::{
-    impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, RandomMod, Uint, U256,
-};
+use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, Uint, U256};
 use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
@@ -59,7 +64,7 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     + Inv<Output = Self>
 {
     // multiplication in a field extension is dictated
-    // heavily by such a value below
+    // heavily such a value below
     fn quadratic_non_residue() -> Self;
     // this endomorphism is key for twist operations
     #[allow(dead_code)]
@@ -262,7 +267,7 @@ macro_rules! define_finite_prime_field {
         impl Rem for $wrapper_name {
             type Output = Self;
             fn rem(self, other: Self) -> Self::Output {
-                //create our own check for zeroness?
+                // create our own check for zeroness?
                 Self::new(
                     self.1
                         .retrieve()
