@@ -2,6 +2,7 @@ from sagelib.multiplication import *
 from sagelib.division import *
 from sagelib.frobenius import print_quadratic_non_residues, print_frobenius_coeffs
 
+
 if __name__ == "__main__":
     logging.info("*" * 20 + "Mul tests" + "*" * 20)
     for instance in [
