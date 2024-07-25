@@ -72,11 +72,11 @@ Multiplication is defined by multiplying the two polynomials, then using polynom
 You can "tower" extensions if the order of one divides the order of the other, so if $m_j | m_{j+1}$, then $\mathbb{F}_p \subset \mathbb{F}_{p^{m_1}}\subset\cdots\subset \mathbb{F}_{p^{m_k}}$.
 
 The [standard tower](https://eprint.iacr.org/2010/354.pdf) for BN254 is given by the following (see [here](https://github.com/ethereum/py_pairing/blob/master/py_ecc/bn128/bn128_field_elements.py) or [here](https://github.com/arkworks-rs/algebra/tree/master/curves/bn254/src/fields)):
-\begin{align}
-\mathbb{F}_{p^2}&=\mathbb{F}_{p}[u]/(u^2-\beta)\\
-\mathbb{F}_{p^6}&=\mathbb{F}_{p^2}[v]/(v^3-\xi)\\
-\mathbb{F}_{p^{12}}&=\mathbb{F}_{p^6}[w]/(w^2-v)
-\end{align}
+
+$$\mathbb{F}_{p^2}=\mathbb{F}_{p}[u]/(u^2-\beta)$$
+$$\mathbb{F}_{p^6}=\mathbb{F}_{p^2}[v]/(v^3-\xi)$$
+$$\mathbb{F}_{p^{12}}=\mathbb{F}_{p^6}[w]/(w^2-v)$$
+
 where $\beta$ is a quadratic nonresidue in $\mathbb{F}_p$ and $\xi$ neither a quadratic or cubic residue in $\mathbb{F_{p^2}}$, which amounts to saying that $X^6-\xi$ is irreducible in the ring $\mathbb{F}_{p^2}[X]$. Here, $\beta=-1,\xi=9+u$, which brings about $u^2=-1, w^2=v, v^3=9+u$, and therefore:
 $$\mathbb{F}_{p^{12}} = \mathbb{F}_{p^2}[w]/(w^6-(9+u))$$
 

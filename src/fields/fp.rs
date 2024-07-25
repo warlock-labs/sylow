@@ -24,50 +24,121 @@
 //! References
 //! ----------
 //! 1. <https://cacr.uwaterloo.ca/hac/about/chap14.pdf>
+//!
+//!
+//! N.B.: the #[allow(unused_imports)] is actually not just arbitrarily importing non-used crates,
+//! it's a weird issue with clippy. The issue is that we had to roll the base field class as a
+//! procedural macro, which means it doesn't get expanded by the compiler, so any crates used inside
+//! the macro will be viewed by the linter as unused even if they're not, and complain.
+//! The unused imports just let the CI pipeline pass, but the crates themselves are actually
+//! used by the code :)
 
-#[allow(unused_imports)]
 use crypto_bigint::subtle::ConstantTimeEq;
 #[allow(unused_imports)]
-use crypto_bigint::{impl_modulus, modular::ConstMontyParams, NonZero};
-#[allow(unused_imports)]
-use num_traits::{Euclid, Inv, One, Zero};
-#[allow(unused_imports)]
+use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, Uint, U256};
+use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
+
+/// This defines the key properties of a field extension. Now, mathematically,
+/// a finite field satisfies many rigorous mathematical properties. The
+/// (non-exhaustive) list below simply suffices to illustrate those properties
+/// that are purely relevant to the task at hand here.
+pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
+    Sized
+    + Copy
+    + Clone
+    + std::fmt::Debug
+    + Default
+    + Add<Output = Self>
+    + AddAssign
+    + Sub<Output = Self>
+    + SubAssign
+    + Mul<Output = Self>
+    + MulAssign
+    + Div<Output = Self>
+    + DivAssign
+    + Neg<Output = Self>
+    + PartialEq
+    + Zero
+    + One
+    + Inv<Output = Self>
+{
+    // multiplication in a field extension is dictated
+    // heavily such a value below
+    fn quadratic_non_residue() -> Self;
+    // this endomorphism is key for twist operations
+    #[allow(dead_code)]
+    fn frobenius(&self, exponent: usize) -> Self;
+    // specialized algorithms exist in each extension
+    // for sqrt and square, simply helper functions really
+    #[allow(dead_code)]
+    fn sqrt(&self) -> Self;
+    fn square(&self) -> Self;
+}
+pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
+    FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256>
+where
+    UintType: ConcatMixed<MixedOutput = Uint<DLIMBS>>,
+{
+    fn new(value: UintType) -> Self;
+    fn new_from_u64(value: u64) -> Self;
+    #[allow(dead_code)]
+    fn value(&self) -> UintType;
+    fn characteristic() -> UintType;
+}
 
 /// Due to the fact that we use `crypto_bigint` to handle the multiprecision arithmetic
 /// we must accept (for now) the fact that it requires the usage of a macro,
 /// `impl_modulus!`, which generates and contains all the need information.
 /// This means that we roll our implementation into a proc macro that
 /// provides all the needed functionality.
+
 #[allow(unused_macros)]
 macro_rules! define_finite_prime_field {
-    ($wrapper_name:ident, $uint_type:ty, $modulus:expr) => {
+    ($wrapper_name:ident, $uint_type:ty, $limbs:expr, $modulus:expr, $degree:expr, $nreps:expr) => {
         impl_modulus!(ModulusStruct, $uint_type, $modulus);
 
         //special struct for const-time arithmetic on montgomery form integers mod p
         type Output =
             crypto_bigint::modular::ConstMontyForm<ModulusStruct, { ModulusStruct::LIMBS }>;
-
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
         pub struct $wrapper_name(ModulusStruct, Output);
-        impl $wrapper_name {
-            // special constants of the base field used in binary operations
-            const ZERO: Self = Self::new(<$uint_type>::from_u64(0));
-            const ONE: Self = Self::new(<$uint_type>::from_u64(1));
-            // unfortunately, accessing the actual value of the modulus from the struct
-            // provided by `crypto_bigint` is not straightforward, thus the magic below
-            pub const __MODULUS: &'static NonZero<$uint_type> = ModulusStruct::MODULUS.as_nz_ref();
-
+        #[allow(dead_code)]
+        impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {
             // builder structure to create elements in the base field of a given value
-            pub const fn new(value: $uint_type) -> Self {
+            fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
             }
+            fn new_from_u64(value: u64) -> Self {
+                Self(ModulusStruct, Output::new(&<$uint_type>::from_u64(value)))
+            }
             // take the element and convert it to "normal" form from montgomery form
-            pub const fn value(&self) -> $uint_type {
+            fn value(&self) -> $uint_type {
                 self.1.retrieve()
             }
+            fn characteristic() -> $uint_type {
+                <$uint_type>::from(ModulusStruct::MODULUS.as_nz_ref().get())
+            }
         }
-
+        // we make the base field an extension of the
+        // appropriate degree, in our case degree 1 (with
+        // therefore 1 unique representation of an element)
+        impl FieldExtensionTrait<$degree, $nreps> for $wrapper_name {
+            fn quadratic_non_residue() -> Self {
+                //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
+                // = -1
+                Self::new((-Self::new_from_u64(1u64)).1.retrieve())
+            }
+            fn frobenius(&self, _exponent: usize) -> Self {
+                Self::zero()
+            }
+            fn sqrt(&self) -> Self {
+                Self::new(self.value().sqrt())
+            }
+            fn square(&self) -> Self {
+                (*self) * (*self)
+            }
+        }
         /// We now implement binary operations on the base field. This more or less
         /// just wraps the same operations on the underlying montgomery representations
         /// of the field element. All binops with assignment equivalents are given
@@ -84,7 +155,7 @@ macro_rules! define_finite_prime_field {
         }
         impl Zero for $wrapper_name {
             fn zero() -> Self {
-                Self::ZERO
+                Self::new_from_u64(0u64)
             }
             fn is_zero(&self) -> bool {
                 self.1.is_zero()
@@ -92,12 +163,12 @@ macro_rules! define_finite_prime_field {
         }
         impl One for $wrapper_name {
             fn one() -> Self {
-                Self::ONE
+                Self::new_from_u64(1u64)
             }
         }
         impl Default for $wrapper_name {
             fn default() -> Self {
-                Self::ZERO
+                Self::new_from_u64(0u64)
             }
         }
         impl Sub for $wrapper_name {
@@ -142,13 +213,13 @@ macro_rules! define_finite_prime_field {
         /// of the field y such that x * y = 1. To do this requires
         /// cleverness to also do in constant time. We use the
         /// Bernstein-Yang algorithm, which you can read more on here:
-        /// https://eprint.iacr.org/2019/266.pdf
+        /// <https://eprint.iacr.org/2019/266.pdf>
         ///
         /// Due to the numerical complexity, it makes sense that this
         /// returns an Option, for example in the case of an attempt to
         /// determine 1/0. This is a bit unfortunate, since as of now
         /// the code will panic should it fail. We unwrap the option for now.
-        /// https://github.com/RustCrypto/crypto-bigint/blob/be6a3abf7e65279ba0b5e4b1ce09eb0632e443f6/src/const_choice.rs#L237
+        /// <https://github.com/RustCrypto/crypto-bigint/blob/be6a3abf7e65279ba0b5e4b1ce09eb0632e443f6/src/const_choice.rs#L237>
         impl Inv for $wrapper_name {
             type Output = Self;
             fn inv(self) -> Self {
@@ -173,6 +244,12 @@ macro_rules! define_finite_prime_field {
                 Self::new((-self.1).retrieve())
             }
         }
+        impl Pow<U256> for $wrapper_name {
+            type Output = Self;
+            fn pow(self, rhs: U256) -> Self::Output {
+                Self::new(self.1.pow(&rhs).retrieve())
+            }
+        }
         /// For reasons similar to `inv()` above, the following operations, which
         /// determine the quotient and remainder of a field element into another,
         /// return Options, again for instance in the case of an attempt to do 1/0.
@@ -182,6 +259,7 @@ macro_rules! define_finite_prime_field {
         impl Rem for $wrapper_name {
             type Output = Self;
             fn rem(self, other: Self) -> Self::Output {
+                // create our own check for zeroness?
                 Self::new(
                     self.1
                         .retrieve()
@@ -192,7 +270,7 @@ macro_rules! define_finite_prime_field {
         impl Euclid for $wrapper_name {
             fn div_euclid(&self, other: &Self) -> Self {
                 if other.is_zero() {
-                    return Self::ZERO;
+                    return Self::new_from_u64(0u64);
                 }
                 let (mut _q, mut _r) = self
                     .1
@@ -207,7 +285,7 @@ macro_rules! define_finite_prime_field {
             }
             fn rem_euclid(&self, other: &Self) -> Self {
                 if other.is_zero() {
-                    return Self::ZERO;
+                    return Self::new_from_u64(0u64);
                 }
                 let (mut _q, mut _r) = self
                     .1
@@ -224,24 +302,47 @@ macro_rules! define_finite_prime_field {
     };
 }
 
+const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
+define_finite_prime_field!(Fp, U256, 8, BN254_MOD_STRING, 1, 1);
+/// the code below makes the base field "visible" to higher
+/// order extensions. The issue is really the fact that generic
+/// traits cannot enforce arithmetic relations, such as the
+/// statement "the child finite field of an extension must have
+/// a degree strictly less than the current degree", which would
+/// look something like D_1 | D_0 < D_1. In order to get around this
+/// we make the extension explicitly usable by the higher order extension
+/// by manually specifying the traits D, N. This enforces the logic
+/// by means of manual input.
+impl FieldExtensionTrait<2, 2> for Fp {
+    fn quadratic_non_residue() -> Self {
+        <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()
+    }
+    fn frobenius(&self, exponent: usize) -> Self {
+        <Fp as FieldExtensionTrait<1, 1>>::frobenius(self, exponent)
+    }
+    fn sqrt(&self) -> Self {
+        <Fp as FieldExtensionTrait<1, 1>>::sqrt(self)
+    }
+    fn square(&self) -> Self {
+        <Fp as FieldExtensionTrait<1, 1>>::square(self)
+    }
+}
+
 /// This is a very comprehensive test suite, that checks every binary operation for validity,
 /// associativity, commutativity, distributivity, sanity checks, and edge cases.
 /// The reference values for non-obvious field elements are generated with Sage.
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crypto_bigint::U256;
     const MODULUS: [u64; 4] = [
         0x3C208C16D87CFD47,
         0x97816A916871CA8D,
         0xB85045B68181585D,
         0x30644E72E131A029,
     ];
-    const BN254_MOD_STRING: &str =
-        "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-    define_finite_prime_field!(Bn254Field, U256, BN254_MOD_STRING);
-    fn create_field(value: [u64; 4]) -> Bn254Field {
-        Bn254Field::new(U256::from_words(value))
+
+    fn create_field(value: [u64; 4]) -> Fp {
+        Fp::new(U256::from_words(value))
     }
     mod test_modulus_conversion {
         use super::*;
