@@ -6,7 +6,7 @@ use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::fp2::Fp2;
 use crate::fields::utils::u256_to_u2048;
-use crypto_bigint::{U2048, U256};
+use crypto_bigint::{rand_core::CryptoRngCore, U2048, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 
@@ -219,6 +219,13 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
             t1 + t2 + s3 - t0 - s4,
         ])
     }
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        Self([
+            <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
+            <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
+            <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
+        ])
+    }
 }
 impl Mul for Fp6 {
     type Output = Self;
@@ -261,7 +268,7 @@ impl One for Fp6 {
         Self::new(&[Fp2::one(), Fp2::zero(), Fp2::zero()])
     }
     fn is_one(&self) -> bool {
-        self.0[0].is_one() && self.0[0].is_zero() && self.0[0].is_zero()
+        self.0[0].is_one() && self.0[1].is_zero() && self.0[2].is_zero()
     }
 }
 
@@ -291,6 +298,9 @@ impl FieldExtensionTrait<12, 2> for Fp6 {
     }
     fn square(&self) -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::square(self)
+    }
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng)
     }
 }
 

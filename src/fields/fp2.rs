@@ -5,7 +5,7 @@
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::utils::u256_to_u512;
-use crypto_bigint::U512;
+use crypto_bigint::{rand_core::CryptoRngCore, U512};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 
@@ -13,7 +13,7 @@ pub(crate) type Fp2 = FieldExtension<2, 2, Fp>;
 
 // there are some specific things that must be defined as
 // helper functions for us on this specific extension, but
-// dont generalize to any extension.
+// don't generalize to any extension.
 impl Fp2 {
     // the below is indeed variable time depending
     // on the argument passed. It is not exposed to the
@@ -95,6 +95,12 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
             t0 + t0,
         ])
     }
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        Self([
+            <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
+            <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
+        ])
+    }
 }
 
 impl Mul for Fp2 {
@@ -171,6 +177,9 @@ impl FieldExtensionTrait<6, 3> for Fp2 {
     }
     fn square(&self) -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::square(self)
+    }
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng)
     }
 }
 // Tests of associativity, commutativity, etc., follow directly from

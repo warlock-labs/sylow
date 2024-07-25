@@ -25,13 +25,16 @@
 //! ----------
 //! 1. <https://cacr.uwaterloo.ca/hac/about/chap14.pdf>
 //!
+use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::ConstantTimeEq;
 #[allow(unused_imports)]
-use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, Uint, U256};
+use crypto_bigint::{
+    impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, RandomMod, Uint, U256,
+};
 use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
-/// This defines the key properties of a field extension. Now, mathmetically,
+/// This defines the key properties of a field extension. Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
 /// that are purely relevant to the task at hand here.
@@ -56,7 +59,7 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     + Inv<Output = Self>
 {
     // multiplication in a field extension is dictated
-    // heavily such a value below
+    // heavily by such a value below
     fn quadratic_non_residue() -> Self;
     // this endomorphism is key for twist operations
     #[allow(dead_code)]
@@ -66,6 +69,8 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     #[allow(dead_code)]
     fn sqrt(&self) -> Self;
     fn square(&self) -> Self;
+
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
 }
 pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256>
@@ -115,13 +120,6 @@ macro_rules! define_finite_prime_field {
             fn characteristic() -> $uint_type {
                 <$uint_type>::from(ModulusStruct::MODULUS.as_nz_ref().get())
             }
-            // pub fn sqrt_exponents() ->  [$uint_type; 2] {
-            //     let three = <$uint_type>::from_u64(3u64);
-            //     let four = <$uint_type>::from_u64(4u64);
-
-            //     let a = (Self::characteristic() - three) / four;
-            //     [a,a]
-            // }
         }
         // we make the base field an extension of the
         // appropriate degree, in our case degree 1 (with
@@ -140,6 +138,12 @@ macro_rules! define_finite_prime_field {
             }
             fn square(&self) -> Self {
                 (*self) * (*self)
+            }
+            fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+                Self::new(<$uint_type>::random_mod(
+                    rng,
+                    ModulusStruct::MODULUS.as_nz_ref(),
+                ))
             }
         }
         /// We now implement binary operations on the base field. This more or less
@@ -329,6 +333,9 @@ impl FieldExtensionTrait<2, 2> for Fp {
     }
     fn square(&self) -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::square(self)
+    }
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
     }
 }
 
