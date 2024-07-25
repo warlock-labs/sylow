@@ -224,7 +224,7 @@ impl Mul for Fp6 {
     type Output = Self;
     fn mul(self, other: Self) -> Self::Output {
         // This is the exact same strategy as multiplication in Fp2
-        // see the doc string therefore more details
+        // see the doc string there for more details
         let t0 = self.0[0] * other.0[0];
         let t1 = self.0[1] * other.0[1];
         let t2 = self.0[2] * other.0[2];
@@ -261,7 +261,7 @@ impl One for Fp6 {
         Self::new(&[Fp2::one(), Fp2::zero(), Fp2::zero()])
     }
     fn is_one(&self) -> bool {
-        self.0[0].is_one() && self.0[0].is_zero() && self.0[0].is_zero()
+        self.0[0].is_one() && self.0[1].is_zero() && self.0[2].is_zero()
     }
 }
 

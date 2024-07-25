@@ -1,6 +1,6 @@
 //! This describes the quadratic field extension of the base field of BN254
-//! defined by the tower Fp^2 = Fp(X) / (X^2-\beta). Further, the quadratic nature implies
-//! that elements of this field are represented as a_0 + a_1 X. This implements
+//! defined by the tower F_{p^2} = F_p(X) / (X^2-\beta). Further, the quadratic nature implies
+//! that elements of this field are represented as a_0 + a_1*X. This implements
 //! the specific behaviour for this extension, such as multiplication.
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
@@ -13,7 +13,7 @@ pub(crate) type Fp2 = FieldExtension<2, 2, Fp>;
 
 // there are some specific things that must be defined as
 // helper functions for us on this specific extension, but
-// dont generalize to any extension.
+// don't generalize to any extension.
 impl Fp2 {
     // the below is indeed variable time depending
     // on the argument passed. It is not exposed to the
@@ -241,7 +241,7 @@ mod tests {
             assert_eq!(
                 a * (b + c),
                 a * b + a * c,
-                "Multiplication is not associative"
+                "Multiplication is not distributive"
             );
         }
 

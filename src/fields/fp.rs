@@ -31,7 +31,7 @@ use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZer
 use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
-/// This defines the key properties of a field extension. Now, mathmetically,
+/// This defines the key properties of a field extension. Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
 /// that are purely relevant to the task at hand here.
@@ -76,7 +76,6 @@ where
     fn new_from_u64(value: u64) -> Self;
     #[allow(dead_code)]
     fn value(&self) -> UintType;
-    fn exponentiate(&self, exponent: &UintType) -> Self;
     fn characteristic() -> UintType;
 }
 
@@ -109,19 +108,9 @@ macro_rules! define_finite_prime_field {
             fn value(&self) -> $uint_type {
                 self.1.retrieve()
             }
-            fn exponentiate(&self, exponent: &$uint_type) -> Self {
-                Self::new(self.1.pow(exponent).retrieve())
-            }
             fn characteristic() -> $uint_type {
                 <$uint_type>::from(ModulusStruct::MODULUS.as_nz_ref().get())
             }
-            // pub fn sqrt_exponents() ->  [$uint_type; 2] {
-            //     let three = <$uint_type>::from_u64(3u64);
-            //     let four = <$uint_type>::from_u64(4u64);
-
-            //     let a = (Self::characteristic() - three) / four;
-            //     [a,a]
-            // }
         }
         // we make the base field an extension of the
         // appropriate degree, in our case degree 1 (with
@@ -250,8 +239,7 @@ macro_rules! define_finite_prime_field {
         impl Pow<U256> for $wrapper_name {
             type Output = Self;
             fn pow(self, rhs: U256) -> Self::Output {
-                // self.pow(rhs)
-                self.exponentiate(&rhs)
+                Self::new(self.1.pow(&rhs).retrieve())
             }
         }
         /// For reasons similar to `inv()` above, the following operations, which
@@ -263,7 +251,7 @@ macro_rules! define_finite_prime_field {
         impl Rem for $wrapper_name {
             type Output = Self;
             fn rem(self, other: Self) -> Self::Output {
-                //create our own check for zeroness?
+                // create our own check for zeroness?
                 Self::new(
                     self.1
                         .retrieve()
