@@ -15,9 +15,13 @@ pub(crate) type Fp2 = FieldExtension<2, 2, Fp>;
 // helper functions for us on this specific extension, but
 // don't generalize to any extension.
 impl Fp2 {
-    // the below is indeed variable time depending
-    // on the argument passed. It is not exposed to the
-    // public api though.
+    // variable runtime with respect to the input argument,
+    // aka the size of the argument to the exponentiation.
+    // the naming convention makes it explicit to us that
+    // this should be used only in scenarios where we know
+    // precisely what we're doing to not expose vectors
+    // for side channel attacks in our api.
+    // the below is not exposed publicly
     #[allow(dead_code)]
     pub(crate) fn pow_vartime(&self, by: &[u64]) -> Self {
         let mut res = Self::one();
