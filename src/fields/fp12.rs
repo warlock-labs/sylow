@@ -1,14 +1,14 @@
 //! we likewise define the specifics of the dodectic extension of
-//! bn254 here, defined by the tower Fp12 = Fp6(w) / (w^2 - v)
+//! bn254 here, defined by the tower F_{p^{12}} = F_{p^6}(w) / (w^2 - v)
 //! Now, there is some flexibility in how we define this. Why?
-//! Well, we can either represent an element of Fp12 as 2 elements
-//! of Fp6, which the tower definition above gives us. OR, we can
-//! represent it as 6 elements from Fp2! The equivalent definition
-//! would then be Fp12 = Fp2(w) / (w^6 - (9+u)). This entirely
+//! Well, we can either represent an element of F_{p^{12}} as 2 elements
+//! of F_{p^6}, which the tower definition above gives us. OR, we can
+//! represent it as 6 elements from F_{p^2}! The equivalent definition
+//! would then be F_{p^{12}} = F_{p^2}(w) / (w^6 - (9+u)). This entirely
 //! depends on the performance. While requiring two implementations,
 //! one may be more efficient than the other. We would have to
 //! build both and compare to be totally rigorous. For now,
-//! we just do the (Fp6, Fp6) representation for simplicity.
+//! we just do the (F_{p^6}, F_{p^6}) representation for simplicity.
 
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
@@ -263,7 +263,7 @@ impl DivAssign for Fp12 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crypto_bigint::{U256,rand_core::OsRng};        
+    use crypto_bigint::{rand_core::OsRng, U256};
 
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
@@ -316,51 +316,59 @@ mod tests {
     }
     mod multiplication_tests {
         use super::*;
-        
+
         #[test]
         fn test_multiplication_closure() {
             let a = Fp12::rand(&mut OsRng);
             let b = Fp12::rand(&mut OsRng);
             let _ = a * b;
         }
-        
+
         #[test]
-        fn test_multiplication_associativity_commutativity_distributivity(){
+        fn test_multiplication_associativity_commutativity_distributivity() {
             let a = Fp12::rand(&mut OsRng);
             let b = Fp12::rand(&mut OsRng);
             let c = Fp12::rand(&mut OsRng);
-            
+
             assert_eq!(a * b, b * a, "Multiplication is not commutative");
-            
-            assert_eq!((a * b) * c, a * (b * c), "Multiplication is not associative");
-            
-            assert_eq!(a * (b + c), a * b + a * c, "Multiplication is not distributive");
+
+            assert_eq!(
+                (a * b) * c,
+                a * (b * c),
+                "Multiplication is not associative"
+            );
+
+            assert_eq!(
+                a * (b + c),
+                a * b + a * c,
+                "Multiplication is not distributive"
+            );
         }
     }
     mod division_tests {
         use super::*;
-        
+
         #[test]
-        fn test_division_closure(){
+        fn test_division_closure() {
             let a = Fp12::rand(&mut OsRng);
             let b = Fp12::rand(&mut OsRng);
             let _ = a / b;
         }
 
         #[test]
-        fn test_division_cases(){
+        fn test_division_cases() {
             let a = Fp12::rand(&mut OsRng);
             let b = Fp12::rand(&mut OsRng);
             let one = Fp12::one();
-            
+
             assert_eq!(a / a, one, "Division by self failed");
-            
+
             assert_eq!(a / one, a, "Division by one failed");
             assert_eq!((a / b) * b, a, "Division-Mult composition failed");
         }
         #[test]
         #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
-        fn test_divide_by_zero(){
+        fn test_divide_by_zero() {
             let a = Fp12::rand(&mut OsRng);
             let b = Fp12::zero();
             let _ = a / b;

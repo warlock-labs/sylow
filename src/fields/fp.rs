@@ -81,7 +81,6 @@ where
     fn new_from_u64(value: u64) -> Self;
     #[allow(dead_code)]
     fn value(&self) -> UintType;
-    fn exponentiate(&self, exponent: &UintType) -> Self;
     fn characteristic() -> UintType;
 }
 
@@ -113,9 +112,6 @@ macro_rules! define_finite_prime_field {
             // take the element and convert it to "normal" form from montgomery form
             fn value(&self) -> $uint_type {
                 self.1.retrieve()
-            }
-            fn exponentiate(&self, exponent: &$uint_type) -> Self {
-                Self::new(self.1.pow(exponent).retrieve())
             }
             fn characteristic() -> $uint_type {
                 <$uint_type>::from(ModulusStruct::MODULUS.as_nz_ref().get())
@@ -254,8 +250,7 @@ macro_rules! define_finite_prime_field {
         impl Pow<U256> for $wrapper_name {
             type Output = Self;
             fn pow(self, rhs: U256) -> Self::Output {
-                // self.pow(rhs)
-                self.exponentiate(&rhs)
+                Self::new(self.1.pow(&rhs).retrieve())
             }
         }
         /// For reasons similar to `inv()` above, the following operations, which
