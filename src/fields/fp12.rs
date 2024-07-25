@@ -263,7 +263,8 @@ impl DivAssign for Fp12 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crypto_bigint::U256;
+    use crypto_bigint::{U256,rand_core::OsRng};        
+
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
     }
@@ -282,29 +283,58 @@ mod tests {
         ])
     }
     mod addition_tests {
-        use crypto_bigint::rand_core::RngCore;
-        use rand_chacha::rand_core::SeedableRng;
         use super::*;
-
         #[test]
         fn test_addition_closure() {
-            let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(1);
-
-            let a = create_field_extension([
-                [0, 1, 2, 3],
-                [4, 5, 6, 7],
-                [8, 9, 10, 11],
-                [12, 13, 14, 15],
-                [15, 14, 13, 12],
-                [11, 10, 9, 8],
-                [7, 6, 5, 4],
-                [3, 2, 1, 0],
-                [0, 0, 0, 0],
-                [1, 1, 1, 1],
-                [2, 2, 2, 2],
-                [3, 3, 3, 3],
-            ]);
-            let b = Fp12::rand(&mut rng);
+            let a = Fp12::rand(&mut OsRng);
+            let b = Fp12::rand(&mut OsRng);
+            // let a = create_field_extension([
+            //     [0, 1, 2, 3],
+            //     [4, 5, 6, 7],
+            //     [8, 9, 10, 11],
+            //     [12, 13, 14, 15],
+            //     [15, 14, 13, 12],
+            //     [11, 10, 9, 8],
+            //     [7, 6, 5, 4],
+            //     [3, 2, 1, 0],
+            //     [0, 0, 0, 0],
+            //     [1, 1, 1, 1],
+            //     [2, 2, 2, 2],
+            //     [3, 3, 3, 3],
+            // ]);
+            let _ = a + b;
+        }
+    }
+    mod subtraction_tests {
+        use super::*;
+        #[test]
+        fn test_subtraction_closure() {
+            let a = Fp12::rand(&mut OsRng);
+            let b = Fp12::rand(&mut OsRng);
+            let _ = a - b;
+        }
+    }
+    mod multiplication_tests {
+        use super::*;
+        
+        #[test]
+        fn test_multiplication_closure() {
+            let a = Fp12::rand(&mut OsRng);
+            let b = Fp12::rand(&mut OsRng);
+            let _ = a * b;
+        }
+        
+        #[test]
+        fn test_multiplication_associativity_commutativity_distributivity(){
+            let a = Fp12::rand(&mut OsRng);
+            let b = Fp12::rand(&mut OsRng);
+            let c = Fp12::rand(&mut OsRng);
+            
+            assert_eq!(a * b, b * a, "Multiplication is not commutative");
+            
+            assert_eq!((a * b) * c, a * (b * c), "Multiplication is not associative");
+            
+            assert_eq!(a * (b + c), a * b + a * c, "Multiplication is not distributive");
         }
     }
 }
