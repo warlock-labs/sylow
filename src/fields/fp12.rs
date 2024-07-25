@@ -337,4 +337,33 @@ mod tests {
             assert_eq!(a * (b + c), a * b + a * c, "Multiplication is not distributive");
         }
     }
+    mod division_tests {
+        use super::*;
+        
+        #[test]
+        fn test_division_closure(){
+            let a = Fp12::rand(&mut OsRng);
+            let b = Fp12::rand(&mut OsRng);
+            let _ = a / b;
+        }
+
+        #[test]
+        fn test_division_cases(){
+            let a = Fp12::rand(&mut OsRng);
+            let b = Fp12::rand(&mut OsRng);
+            let one = Fp12::one();
+            
+            assert_eq!(a / a, one, "Division by self failed");
+            
+            assert_eq!(a / one, a, "Division by one failed");
+            assert_eq!((a / b) * b, a, "Division-Mult composition failed");
+        }
+        #[test]
+        #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
+        fn test_divide_by_zero(){
+            let a = Fp12::rand(&mut OsRng);
+            let b = Fp12::zero();
+            let _ = a / b;
+        }
+    }
 }
