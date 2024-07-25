@@ -35,7 +35,8 @@
 
 use crypto_bigint::subtle::ConstantTimeEq;
 #[allow(unused_imports)]
-use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, Uint, U256};
+use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, Uint, U256, 
+                    rand_core::CryptoRngCore, RandomMod};
 use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
