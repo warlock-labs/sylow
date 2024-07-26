@@ -9,10 +9,12 @@ type G1Projective = GroupProjective<1, 1, Fp>;
 
 #[inline(always)]
 fn _g1affine_is_on_curve(x: &Fp, y: &Fp, z: &Choice) -> Choice {
-    (<Fp as FieldExtensionTrait<1, 1>>::square(y)
-        - (<Fp as FieldExtensionTrait<1, 1>>::square(x) * (*x)))
-        .ct_eq(&Fp::new_from_u64(3u64))
-        | *z
+    let y2 = <Fp as FieldExtensionTrait<1, 1>>::square(y);
+    let x2 = <Fp as FieldExtensionTrait<1, 1>>::square(x);
+    let lhs = y2 - (x2 * (*x));
+    let rhs = Fp::new_from_u64(3u64);
+    // println!("{:?}, {:?}", lhs.value(), rhs.value());
+    lhs.ct_eq(&rhs) | *z
 }
 
 #[inline(always)]
@@ -22,10 +24,13 @@ fn _g1affine_is_torsion_free(_x: &Fp, _y: &Fp, _z: &Choice) -> Choice {
 }
 #[inline(always)]
 fn _g1projective_is_on_curve(x: &Fp, y: &Fp, z: &Fp) -> Choice {
-    (<Fp as FieldExtensionTrait<1, 1>>::square(y) * (*z)).ct_eq(
-        &(<Fp as FieldExtensionTrait<1, 1>>::square(x) * (*x)
-            + <Fp as FieldExtensionTrait<1, 1>>::square(z) * (*z) * Fp::new_from_u64(3u64)),
-    ) | Choice::from(z.is_zero() as u8)
+    let y2 = <Fp as FieldExtensionTrait<1, 1>>::square(y);
+    let x2 = <Fp as FieldExtensionTrait<1, 1>>::square(x);
+    let z2 = <Fp as FieldExtensionTrait<1, 1>>::square(z);
+    let lhs = y2 * (*z);
+    let rhs = x2 * (*x) + z2 * (*z) * Fp::new_from_u64(3u64);
+    // println!("{:?}, {:?}", lhs.value(), rhs.value());
+    lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
 }
 #[inline(always)]
 fn _g1projective_is_torsion_free(_x: &Fp, _y: &Fp, _z: &Fp) -> Choice {
@@ -36,6 +41,7 @@ impl G1Affine {
         let is_on_curve: Choice = _g1affine_is_on_curve(&v[0], &v[1], &Choice::from(0u8));
         match bool::from(is_on_curve) {
             true => {
+                // println!("Is on curve!");
                 let is_in_torsion: Choice =
                     _g1affine_is_torsion_free(&v[0], &v[1], &Choice::from(0u8));
                 match bool::from(is_in_torsion) {
@@ -83,6 +89,7 @@ impl G1Projective {
         let is_on_curve: Choice = _g1projective_is_on_curve(&v[0], &v[1], &v[2]);
         match bool::from(is_on_curve) {
             true => {
+                // println!("Is on curve!");
                 let is_in_torsion: Choice = _g1projective_is_torsion_free(&v[0], &v[1], &v[2]);
                 match bool::from(is_in_torsion) {
                     true => Ok(Self {
@@ -120,5 +127,96 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
     }
     fn is_one(&self) -> bool {
         self.z.is_zero()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_g1() {
+        use super::*;
+        use serde::{Deserialize, Serialize};
+        use std::fs;
+
+        #[derive(Serialize, Deserialize)]
+        struct _G1Affine {
+            x: String,
+            y: String,
+        }
+
+        #[derive(Serialize, Deserialize)]
+        struct _G2AffineCoordinate {
+            c0: String,
+            c1: String,
+        }
+
+        #[derive(Serialize, Deserialize)]
+        struct _G2Affine {
+            x: _G2AffineCoordinate,
+            y: _G2AffineCoordinate,
+        }
+
+        #[derive(Serialize, Deserialize)]
+        struct _SVDW {
+            i: String,
+            x: String,
+            y: String,
+        }
+
+        #[derive(Serialize, Deserialize)]
+        struct ReferenceData {
+            G1_signatures: Vec<_G1Affine>,
+            G2_public_keys: Vec<_G2Affine>,
+            bad_G2_public_keys: Vec<_G2Affine>,
+            svdw: Vec<_SVDW>,
+        }
+        fn from_str(s: &str) -> Option<Fp> {
+            let ints: Vec<_> = {
+                let mut acc = Fp::zero();
+                (0..11)
+                    .map(|_| {
+                        let tmp = acc;
+                        acc += Fp::one();
+                        tmp
+                    })
+                    .collect()
+            };
+            let mut res = Fp::zero();
+            for c in s.chars() {
+                match c.to_digit(10) {
+                    Some(d) => {
+                        res *= ints[10];
+                        res += ints[d as usize]
+                    }
+                    None => {
+                        return None;
+                    }
+                }
+            }
+            Some(res)
+        }
+        fn convert_g1_point(point: &_G1Affine) -> G1Projective {
+            G1Projective::new([
+                from_str(point.x.as_str()).expect("failed to convert x coord in g1"),
+                from_str(point.y.as_str()).expect("failed to convert y coord in g1"),
+                Fp::one()
+            ])
+            .expect("g1 failed")
+        }
+        let file_content = fs::read_to_string(
+            "/home/trbritt/Desktop/warlock/solbls/test/sage_reference/bn254_reference.json",
+        )
+        .expect(
+            "Failed to read \
+    file",
+        );
+        let reference_data: ReferenceData =
+            serde_json::from_str(&file_content).expect("Failed to parse JSON");
+        let g1_points: Vec<G1Projective> = reference_data
+            .G1_signatures
+            .iter()
+            .map(convert_g1_point)
+            .collect();
+        println!("{:?}", g1_points);
     }
 }
