@@ -188,9 +188,9 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
         Self::new(&[
             <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[0], exponent),
             <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[1], exponent)
-                * frobenius_coeff_fp6_c1[exponent],
+                * frobenius_coeff_fp6_c1[exponent % 6],
             <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[2], exponent)
-                * frobenius_coeff_fp6_c2[exponent],
+                * frobenius_coeff_fp6_c2[exponent % 6],
         ])
     }
 
@@ -553,6 +553,56 @@ mod tests {
                 ],
             );
             assert_eq!(d * d, e, "Multiplication around modulus failed")
+        }
+        #[test]
+        fn test_frobenius() {
+            let a = create_field_extension(
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+            );
+
+            assert_eq!(
+                a,
+                <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                        &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&a, 2),
+                        2
+                    ),
+                    2
+                ),
+                "Frobenius failed at cycle order 3"
+            );
+            assert_eq!(
+                a,
+                <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius( &a, 3),
+                3),
+                "Frobenius failed at cycle order 3"
+            );
+            assert_eq!(
+                a,
+                <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                        &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                            &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                                &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&a, 1),
+                                    1
+                                ),
+                                1
+                            ),
+                            1
+                        ),
+                        1
+                    ),
+                    1
+                ),
+                "Frobenius failed at cycle order 6"
+            );
         }
     }
     mod division_tests {

@@ -184,8 +184,8 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
         ];
         // TODO: integrate generic D into struct to not hardcode degrees
         Self::new(&[
-            <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&self.0[0], exponent % 6),
-            <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&self.0[1], exponent % 6)
+            <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&self.0[0], exponent),
+            <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&self.0[1], exponent)
                 .scale(frobenius_coeff_fp12_c1[exponent % 12]),
         ])
     }
@@ -363,11 +363,9 @@ mod tests {
             ]);
             assert_eq!(a.square(), a * a, "Squaring and mul failed");
             assert_eq!(b.square(), b * b, "Squaring and mul failed");
-            
-           
         }
         #[test]
-        fn test_frobenius(){
+        fn test_frobenius() {
             let a = create_field_extension([
                 [1, 0, 0, 0],
                 [0, 2, 0, 0],
@@ -410,15 +408,12 @@ mod tests {
             );
             assert_eq!(
                 a,
-                a.frobenius(4)
-                    .frobenius(4)
-                    .frobenius(4),
+                a.frobenius(4).frobenius(4).frobenius(4),
                 "Frobenius failed at cycle order 3"
             );
             assert_eq!(
                 a,
-                a.frobenius(6)
-                    .frobenius(6),
+                a.frobenius(6).frobenius(6),
                 "Frobenius failed at cycle order 2"
             );
         }
