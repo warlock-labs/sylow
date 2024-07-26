@@ -3,13 +3,19 @@ use std::ops::Neg;
 
 use crate::fields::fp::FieldExtensionTrait;
 
+#[derive(Debug)]
+pub enum Error {
+    NotOnCurve,
+    NotInSubgroup,
+}
+
 pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D,N>>:
 Sized
 + Copy
 + Clone
 + std::fmt::Debug
-// + Default cannot be implemented without one
-// + One cannot be implemented without addition, which is very specific to the choice of affine,
+// + Default // cannot be implemented without one
+// + One //cannot be implemented without addition, which is very specific to the choice of affine,
 //projective, or mixed addition, and therefore cannot be defined for all instances satisfying 
 //a group trait
 + Neg
@@ -21,35 +27,16 @@ Sized
     fn is_torsion_free(&self) -> Choice;
     fn generator() -> Self;
     fn endomorphism(&self) -> Self;
+    fn one() -> Self;
+    fn is_one(&self) -> bool;
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct GroupAffine<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     pub(crate) x: F,
     pub(crate) y: F,
-    infinity: Choice,
+    pub(crate) infinity: Choice,
 }
-
-// impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Default for GroupAffine<D, N,
-//     F> {
-//     fn default() -> Self {
-//         Self::one()
-//     }
-// }
-
-// impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> One for GroupAffine<D, N, F> {
-//     fn one() -> Self {
-//         Self {
-//             x: F::zero(),
-//             y: F::one(),
-//             infinity: Choice::from(1u8)
-//         }
-//     }
-//     fn is_one(&self) -> bool
-//     {
-//         bool::from(self.infinity)
-//     }
-// }
 
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg for GroupAffine<D, N, F> {
     type Output = Self;
@@ -96,52 +83,13 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
     }
 }
 
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupTrait<D, N, F>
-    for GroupAffine<D, N, F>
-{
-    fn is_on_curve(&self) -> Choice {
-        todo!()
-    }
-
-    fn is_torsion_free(&self) -> Choice {
-        todo!()
-    }
-
-    fn generator() -> Self {
-        todo!()
-    }
-
-    fn endomorphism(&self) -> Self {
-        todo!()
-    }
-}
-
 #[derive(Copy, Clone, Debug)]
 pub struct GroupProjective<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     pub(crate) x: F,
     pub(crate) y: F,
     pub(crate) z: F,
 }
-// impl<const D: usize, const N: usize, F: FieldExtensionTrait<D,N>> Default for GroupProjective<D,N,F>
-// {
-//     fn default() -> Self {
-//         Self::one()
-//     }
-// }
-// impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> One for GroupProjective<D,N,F>
-// {
-//     fn one() -> Self {
-//         Self {
-//             x: F::zero(),
-//             y: F::one(),
-//             z: F::zero()
-//         }
-//     }
-//     fn is_one(&self) -> bool
-//     {
-//         self.z.is_zero()
-//     }
-// }
+
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg
     for GroupProjective<D, N, F>
 {
@@ -191,22 +139,5 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
 {
     fn eq(&self, other: &Self) -> bool {
         bool::from(self.ct_eq(other))
-    }
-}
-
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupTrait<D, N, F>
-    for GroupProjective<D, N, F>
-{
-    fn is_on_curve(&self) -> Choice {
-        todo!()
-    }
-    fn is_torsion_free(&self) -> Choice {
-        todo!()
-    }
-    fn generator() -> Self {
-        todo!()
-    }
-    fn endomorphism(&self) -> Self {
-        todo!()
     }
 }
