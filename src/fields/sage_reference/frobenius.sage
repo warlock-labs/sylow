@@ -11,7 +11,7 @@ fp6_frob_coeffs = [
     [fp2_non_residue ^ ((p ^ i - 1) / 3) for i in range(6)],
     [fp2_non_residue ^ ((2 * p ^ i - 2) / 3) for i in range(6)],
 ]
-
+fp12_frob_coeffs = [fp2_non_residue ^ ((p ^ i - 1) / 6) for i in range(12)]
 
 def print_quadratic_non_residues():
     l = [fp_non_residue, fp2_non_residue, fp6_non_residue]
@@ -24,10 +24,10 @@ def print_quadratic_non_residues():
 
 
 def print_frobenius_coeffs():
-    l = [fp_frob_coeffs, fp2_frob_coeffs, fp6_frob_coeffs]
+    l = [fp_frob_coeffs, fp2_frob_coeffs, fp6_frob_coeffs, fp12_frob_coeffs]
     logging.info("*" * 20 + "Frobenius coeffs" + "*" * 20)
     for item in l:
         ret = []
         for h in recursive_flatten(item):
-            ret.append(u256_to_u64_list_hex(int(h)))
-        logging.info(ret)
+            ret.append(str(u256_to_u64_list_hex(int(h))))
+        logging.info("\n".join(ret))

@@ -6,7 +6,7 @@ use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::fp2::Fp2;
 use crate::fields::utils::u256_to_u2048;
-use crypto_bigint::{U2048, U256};
+use crypto_bigint::{rand_core::CryptoRngCore, U2048, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 
@@ -188,9 +188,9 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
         Self::new(&[
             <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[0], exponent),
             <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[1], exponent)
-                * frobenius_coeff_fp6_c1[exponent],
+                * frobenius_coeff_fp6_c1[exponent % 6],
             <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[2], exponent)
-                * frobenius_coeff_fp6_c2[exponent],
+                * frobenius_coeff_fp6_c2[exponent % 6],
         ])
     }
 
@@ -217,6 +217,13 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
             t0 + s3.residue_mul(),
             t1 + s4.residue_mul(),
             t1 + t2 + s3 - t0 - s4,
+        ])
+    }
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        Self([
+            <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
+            <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
+            <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
         ])
     }
 }
@@ -291,6 +298,9 @@ impl FieldExtensionTrait<12, 2> for Fp6 {
     }
     fn square(&self) -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::square(self)
+    }
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng)
     }
 }
 
@@ -543,6 +553,57 @@ mod tests {
                 ],
             );
             assert_eq!(d * d, e, "Multiplication around modulus failed")
+        }
+        #[test]
+        fn test_frobenius() {
+            let a = create_field_extension(
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+            );
+
+            assert_eq!(
+                a,
+                <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                        &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&a, 2),
+                        2
+                    ),
+                    2
+                ),
+                "Frobenius failed at cycle order 3"
+            );
+            assert_eq!(
+                a,
+                <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&a, 3),
+                    3
+                ),
+                "Frobenius failed at cycle order 3"
+            );
+            assert_eq!(
+                a,
+                <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                        &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                            &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                                &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
+                                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&a, 1),
+                                    1
+                                ),
+                                1
+                            ),
+                            1
+                        ),
+                        1
+                    ),
+                    1
+                ),
+                "Frobenius failed at cycle order 6"
+            );
         }
     }
     mod division_tests {

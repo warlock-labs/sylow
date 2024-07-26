@@ -35,7 +35,10 @@
 
 use crypto_bigint::subtle::ConstantTimeEq;
 #[allow(unused_imports)]
-use crypto_bigint::{impl_modulus, modular::ConstMontyParams, ConcatMixed, NonZero, Uint, U256};
+use crypto_bigint::{
+    impl_modulus, modular::ConstMontyParams, rand_core::CryptoRngCore, ConcatMixed, NonZero,
+    RandomMod, Uint, U256,
+};
 use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 
@@ -74,6 +77,9 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     #[allow(dead_code)]
     fn sqrt(&self) -> Self;
     fn square(&self) -> Self;
+
+    #[allow(dead_code)]
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
 }
 pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256>
@@ -137,6 +143,12 @@ macro_rules! define_finite_prime_field {
             }
             fn square(&self) -> Self {
                 (*self) * (*self)
+            }
+            fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+                Self::new(<$uint_type>::random_mod(
+                    rng,
+                    ModulusStruct::MODULUS.as_nz_ref(),
+                ))
             }
         }
         /// We now implement binary operations on the base field. This more or less
@@ -325,6 +337,9 @@ impl FieldExtensionTrait<2, 2> for Fp {
     }
     fn square(&self) -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::square(self)
+    }
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
     }
 }
 
