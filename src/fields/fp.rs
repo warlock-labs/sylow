@@ -33,7 +33,7 @@
 //! The unused imports just let the CI pipeline pass, but the crates themselves are actually
 //! used by the code :)
 
-use crypto_bigint::subtle::ConstantTimeEq;
+use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 #[allow(unused_imports)]
 use crypto_bigint::{
     impl_modulus, modular::ConstMontyParams, rand_core::CryptoRngCore, ConcatMixed, NonZero,
@@ -62,6 +62,8 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     + DivAssign
     + Neg<Output = Self>
     + PartialEq
+    + ConstantTimeEq
+    + ConditionallySelectable
     + Zero
     + One
     + Inv<Output = Self>
@@ -201,12 +203,25 @@ macro_rules! define_finite_prime_field {
         /// Choice(1u8) if self.0 == other.0
         /// Choice(0u8) if self.0 != other.0
         /// We unwrap and match the choice
+
+        impl ConstantTimeEq for $wrapper_name {
+            fn ct_eq(&self, other: &Self) -> Choice {
+                self.1.ct_eq(&other.1)
+            }
+        }
         impl PartialEq for $wrapper_name {
+            #[inline]
             fn eq(&self, other: &Self) -> bool {
-                match self.1.ct_eq(&other.1).unwrap_u8() {
-                    1u8 => true,
-                    _ => false,
-                }
+                bool::from(self.ct_eq(other))
+            }
+        }
+        impl ConditionallySelectable for $wrapper_name {
+            fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
+                Self::new(<$uint_type>::conditional_select(
+                    &a.value(),
+                    &b.value(),
+                    choice,
+                ))
             }
         }
         impl Mul for $wrapper_name {
