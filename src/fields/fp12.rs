@@ -363,6 +363,23 @@ mod tests {
             ]);
             assert_eq!(a.square(), a * a, "Squaring and mul failed");
             assert_eq!(b.square(), b * b, "Squaring and mul failed");
+            
+            assert_eq!(
+                a,
+                a.frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1),
+                "Frobenius failed"
+            );
         }
     }
     mod division_tests {
