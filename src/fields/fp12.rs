@@ -15,7 +15,7 @@ use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::fp2::Fp2;
 use crate::fields::fp6::Fp6;
 use crate::fields::utils::u256_to_u4096;
-use crypto_bigint::{rand_core::CryptoRngCore, U256, U4096, subtle::ConditionallySelectable};
+use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256, U4096};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::Choice;
@@ -265,7 +265,7 @@ impl ConditionallySelectable for Fp12 {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         Self::new(&[
             Fp6::conditional_select(&a.0[0], &b.0[0], choice),
-            Fp6::conditional_select(&a.0[1], &b.0[1], choice)
+            Fp6::conditional_select(&a.0[1], &b.0[1], choice),
         ])
     }
 }
