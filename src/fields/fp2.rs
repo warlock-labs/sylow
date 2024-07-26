@@ -170,6 +170,7 @@ impl DivAssign for Fp2 {
 }
 
 impl ConditionallySelectable for Fp2 {
+    #[inline(always)]
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         Self::new(&[
             Fp::conditional_select(&a.0[0], &b.0[0], choice),

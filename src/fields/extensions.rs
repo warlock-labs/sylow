@@ -39,6 +39,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtensio
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> ConstantTimeEq
     for FieldExtension<D, N, F>
 {
+    #[inline(always)]
     fn ct_eq(&self, other: &Self) -> Choice {
         let mut retval = Choice::from(1u8);
         let mut i = 0;
@@ -97,6 +98,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Default
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
     for FieldExtension<D, N, F>
 {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         bool::from(self.ct_eq(other))
     }
