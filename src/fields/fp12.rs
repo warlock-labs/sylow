@@ -39,9 +39,9 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
     }
     fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp12_c1: &[Fp2; 12] = &[
-            //Fp2::quadratic_non_residue().pow( ( p^0 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^0 - 1) / 6)
             Fp2::new(&[Fp::one(), Fp::zero()]),
-            //Fp2::quadratic_non_residue().pow( ( p^1 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^1 - 1) / 6)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0xd60b35dadcc9e470,
@@ -56,7 +56,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
                     0x246996f3b4fae7e6,
                 ])),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^2 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^2 - 1) / 6)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0xe4bd44e5607cfd49,
@@ -66,7 +66,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
                 ])),
                 Fp::zero(),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^3 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^3 - 1) / 6)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0xe86f7d391ed4a67f,
@@ -81,7 +81,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
                     0xabf8b60be77d73,
                 ])),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^4 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^4 - 1) / 6)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0xe4bd44e5607cfd48,
@@ -91,7 +91,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
                 ])),
                 Fp::zero(),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^5 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^5 - 1) / 6)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0x1264475e420ac20f,
@@ -106,7 +106,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
                     0xca6b035381e35b6,
                 ])),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^6 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^6 - 1) / 6)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0x3c208c16d87cfd46,
@@ -116,7 +116,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
                 ])),
                 Fp::zero(),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^7 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^7 - 1) / 6)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0x6615563bfbb318d7,
@@ -131,7 +131,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
                     0xbfab77f2c36b843,
                 ])),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^8 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^8 - 1) / 6)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0x5763473177fffffe,
@@ -141,7 +141,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
                 ])),
                 Fp::zero(),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^9 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^9 - 1) / 6)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0x53b10eddb9a856c8,
@@ -156,7 +156,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
                     0x2fb855bcd54a22b6,
                 ])),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^10 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^10 - 1) / 6)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0x5763473177ffffff,
@@ -166,7 +166,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
                 ])),
                 Fp::zero(),
             ]),
-            //Fp2::quadratic_non_residue().pow( ( p^11 - 1) / 6)
+            // Fp2::quadratic_non_residue().pow( ( p^11 - 1) / 6)
             Fp2::new(&[
                 Fp::new(U256::from_words([
                     0x29bc44b896723b38,
@@ -288,20 +288,6 @@ mod tests {
         fn test_addition_closure() {
             let a = Fp12::rand(&mut OsRng);
             let b = Fp12::rand(&mut OsRng);
-            // let a = create_field_extension([
-            //     [0, 1, 2, 3],
-            //     [4, 5, 6, 7],
-            //     [8, 9, 10, 11],
-            //     [12, 13, 14, 15],
-            //     [15, 14, 13, 12],
-            //     [11, 10, 9, 8],
-            //     [7, 6, 5, 4],
-            //     [3, 2, 1, 0],
-            //     [0, 0, 0, 0],
-            //     [1, 1, 1, 1],
-            //     [2, 2, 2, 2],
-            //     [3, 3, 3, 3],
-            // ]);
             let _ = a + b;
         }
     }
@@ -343,6 +329,40 @@ mod tests {
                 a * b + a * c,
                 "Multiplication is not distributive"
             );
+        }
+        
+        #[test]
+        fn test_multiplication_cases(){
+            let a = create_field_extension([
+                [1, 0, 0, 0], 
+                [0, 2, 0, 0],
+                [0, 0, 3, 0], 
+                [0, 0, 0, 4],
+                [5, 0, 0, 0], 
+                [0, 6, 0, 0],
+                [1, 0, 0, 0], 
+                [0, 2, 0, 0],
+                [0, 0, 3, 0], 
+                [0, 0, 0, 4],
+                [5, 0, 0, 0], 
+                [0, 6, 0, 0]
+            ]);
+            let b = create_field_extension([
+                [0, 6, 0, 0], 
+                [5, 0, 0, 0],
+                [0, 0, 0, 4], 
+                [0, 0, 3, 0],
+                [0, 2, 0, 0], 
+                [1, 0, 0, 0],
+                [0, 6, 0, 0], 
+                [5, 0, 0, 0],
+                [0, 0, 0, 4], 
+                [0, 0, 3, 0],
+                [0, 2, 0, 0], 
+                [1, 0, 0, 0],
+            ]);
+            assert_eq!(a.square(), a * a, "Squaring and mul failed");
+            assert_eq!(b.square(), b * b, "Squaring and mul failed");
         }
     }
     mod division_tests {
