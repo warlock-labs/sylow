@@ -579,8 +579,9 @@ mod tests {
             assert_eq!(
                 a,
                 <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
-                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius( &a, 3),
-                3),
+                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&a, 3),
+                    3
+                ),
                 "Frobenius failed at cycle order 3"
             );
             assert_eq!(
