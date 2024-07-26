@@ -1,5 +1,5 @@
 mod extensions;
-mod fp;
+pub(crate) mod fp;
 mod fp12;
 mod fp2;
 mod fp6;
