@@ -78,6 +78,7 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     fn sqrt(&self) -> Self;
     fn square(&self) -> Self;
 
+    #[allow(dead_code)]
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
 }
 pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
