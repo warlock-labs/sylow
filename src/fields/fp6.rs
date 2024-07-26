@@ -6,9 +6,10 @@ use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::fp2::Fp2;
 use crate::fields::utils::u256_to_u2048;
-use crypto_bigint::{rand_core::CryptoRngCore, U2048, U256};
+use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U2048, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
+use subtle::Choice;
 
 pub(crate) type Fp6 = FieldExtension<6, 3, Fp2>;
 
@@ -282,6 +283,17 @@ impl Div for Fp6 {
 impl DivAssign for Fp6 {
     fn div_assign(&mut self, other: Self) {
         *self = *self / other;
+    }
+}
+
+impl ConditionallySelectable for Fp6 {
+    #[inline(always)]
+    fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
+        Self::new(&[
+            Fp2::conditional_select(&a.0[0], &b.0[0], choice),
+            Fp2::conditional_select(&a.0[1], &b.0[1], choice),
+            Fp2::conditional_select(&a.0[2], &b.0[2], choice),
+        ])
     }
 }
 

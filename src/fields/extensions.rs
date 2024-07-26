@@ -9,6 +9,7 @@
 //! Other specifics must be dealt with on a case-by-case basis.
 
 use crate::fields::fp::FieldExtensionTrait;
+use crypto_bigint::subtle::{Choice, ConstantTimeEq};
 use num_traits::Zero;
 use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 
@@ -33,6 +34,20 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtensio
             i += 1;
         }
         Self::new(&retval)
+    }
+}
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> ConstantTimeEq
+    for FieldExtension<D, N, F>
+{
+    #[inline(always)]
+    fn ct_eq(&self, other: &Self) -> Choice {
+        let mut retval = Choice::from(1u8);
+        let mut i = 0;
+        while i < N {
+            retval &= self.0[i].ct_eq(&other.0[i]);
+            i += 1;
+        }
+        retval
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add for FieldExtension<D, N, F> {
@@ -83,14 +98,9 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Default
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
     for FieldExtension<D, N, F>
 {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
-        let mut i = 0;
-        let mut retval = true;
-        while i < N {
-            retval &= self.0[i] == other.0[i];
-            i += 1;
-        }
-        retval
+        bool::from(self.ct_eq(other))
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg for FieldExtension<D, N, F> {

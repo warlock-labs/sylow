@@ -5,9 +5,10 @@
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::utils::u256_to_u512;
-use crypto_bigint::{rand_core::CryptoRngCore, U512};
+use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U512};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
+use subtle::Choice;
 
 pub(crate) type Fp2 = FieldExtension<2, 2, Fp>;
 
@@ -167,6 +168,17 @@ impl DivAssign for Fp2 {
         *self = *self / other;
     }
 }
+
+impl ConditionallySelectable for Fp2 {
+    #[inline(always)]
+    fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
+        Self::new(&[
+            Fp::conditional_select(&a.0[0], &b.0[0], choice),
+            Fp::conditional_select(&a.0[1], &b.0[1], choice),
+        ])
+    }
+}
+
 // the below is again to make the quadratic extension visible to
 // higher order sextic extension
 impl FieldExtensionTrait<6, 3> for Fp2 {
