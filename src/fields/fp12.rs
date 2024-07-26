@@ -364,6 +364,24 @@ mod tests {
             assert_eq!(a.square(), a * a, "Squaring and mul failed");
             assert_eq!(b.square(), b * b, "Squaring and mul failed");
             
+           
+        }
+        #[test]
+        fn test_frobenius(){
+            let a = create_field_extension([
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+            ]);
             assert_eq!(
                 a,
                 a.frobenius(1)
@@ -378,7 +396,30 @@ mod tests {
                     .frobenius(1)
                     .frobenius(1)
                     .frobenius(1),
-                "Frobenius failed"
+                "Frobenius failed at cycle order 12"
+            );
+            assert_eq!(
+                a,
+                a.frobenius(2)
+                    .frobenius(2)
+                    .frobenius(2)
+                    .frobenius(2)
+                    .frobenius(2)
+                    .frobenius(2),
+                "Frobenius failed at cycle order 6"
+            );
+            assert_eq!(
+                a,
+                a.frobenius(4)
+                    .frobenius(4)
+                    .frobenius(4),
+                "Frobenius failed at cycle order 3"
+            );
+            assert_eq!(
+                a,
+                a.frobenius(6)
+                    .frobenius(6),
+                "Frobenius failed at cycle order 2"
             );
         }
     }
