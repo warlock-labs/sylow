@@ -4,10 +4,7 @@ use std::ops::Neg;
 use crate::fields::fp::FieldExtensionTrait;
 
 #[derive(Debug)]
-pub enum Error {
-    NotOnCurve,
-    NotInSubgroup,
-}
+pub enum Error { NotOnCurve, NotInSubgroup, }
 
 pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D,N>>:
 Sized

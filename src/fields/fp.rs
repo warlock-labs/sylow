@@ -90,6 +90,7 @@ where
 {
     fn new(value: UintType) -> Self;
     fn new_from_u64(value: u64) -> Self;
+    fn new_from_str(value: &str) -> Option<Self>;
     #[allow(dead_code)]
     fn value(&self) -> UintType;
     fn characteristic() -> UintType;
@@ -119,6 +120,31 @@ macro_rules! define_finite_prime_field {
             }
             fn new_from_u64(value: u64) -> Self {
                 Self(ModulusStruct, Output::new(&<$uint_type>::from_u64(value)))
+            }
+            fn new_from_str(value: &str) -> Option<Self> {
+                let ints: Vec<_> = {
+                    let mut acc = Self::zero();
+                    (0..11)
+                    .map(|_| {
+                        let tmp = acc;
+                        acc += Self::one();
+                        tmp
+                    })
+                    .collect()
+                };
+                let mut res = Self::zero();
+                for c in value.chars() {
+                    match c.to_digit(10) {
+                        Some(d) => {
+                            res *= ints[10];
+                            res += ints[d as usize]
+                        }
+                        None => {
+                            return None
+                        }
+                    }
+                }
+                Some(res)
             }
             // take the element and convert it to "normal" form from montgomery form
             fn value(&self) -> $uint_type {

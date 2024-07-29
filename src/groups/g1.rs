@@ -170,35 +170,11 @@ mod tests {
             bad_G2_public_keys: Vec<_G2Affine>,
             svdw: Vec<_SVDW>,
         }
-        fn from_str(s: &str) -> Option<Fp> {
-            let ints: Vec<_> = {
-                let mut acc = Fp::zero();
-                (0..11)
-                    .map(|_| {
-                        let tmp = acc;
-                        acc += Fp::one();
-                        tmp
-                    })
-                    .collect()
-            };
-            let mut res = Fp::zero();
-            for c in s.chars() {
-                match c.to_digit(10) {
-                    Some(d) => {
-                        res *= ints[10];
-                        res += ints[d as usize]
-                    }
-                    None => {
-                        return None;
-                    }
-                }
-            }
-            Some(res)
-        }
+        
         fn convert_g1_point(point: &_G1Affine) -> G1Projective {
             G1Projective::new([
-                from_str(point.x.as_str()).expect("failed to convert x coord in g1"),
-                from_str(point.y.as_str()).expect("failed to convert y coord in g1"),
+                Fp::new_from_str(point.x.as_str()).expect("failed to convert x coord in g1"),
+                Fp::new_from_str(point.y.as_str()).expect("failed to convert y coord in g1"),
                 Fp::one()
             ])
             .expect("g1 failed")
