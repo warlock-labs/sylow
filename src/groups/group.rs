@@ -1,10 +1,13 @@
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
-use std::ops::Neg;
+use std::ops::{Add, Neg, Sub};
 
 use crate::fields::fp::FieldExtensionTrait;
 
 #[derive(Debug)]
-pub enum Error { NotOnCurve, NotInSubgroup, }
+pub enum Error {
+    NotOnCurve,
+    NotInSubgroup,
+}
 
 pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D,N>>:
 Sized
@@ -20,30 +23,49 @@ Sized
 + ConditionallySelectable
 + PartialEq
 {
-    fn is_on_curve(&self) -> Choice;
-    fn is_torsion_free(&self) -> Choice;
     fn generator() -> Self;
     fn endomorphism(&self) -> Self;
-    fn one() -> Self;
-    fn is_one(&self) -> bool;
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct GroupAffine<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
+pub(crate) struct GroupAffine<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     pub(crate) x: F,
     pub(crate) y: F,
     pub(crate) infinity: Choice,
 }
+/// this is the beginning of Rust lifetime magic. The issue is that when we implement
+/// the arithmetic, we need to explicitly state the lifetime of each operand
+/// so that they can be dropped immediately after they're not needed for security,
+/// to prevent rogue curve attacks. This subtle point requires that binary operations
+/// be defined for specific lifetimes, and then we must specialize them for typical
+/// usage with the symbolic operators (+, -, etc.).
+///
+/// One other final note is that we do all required curve and subgroup checks with the usage
+///  of the `new` builder. In this case, the code will throw an error and the time of
+/// instantiation if the inputs do not satisfy the curve equation or r-torsion subgroup check.
+/// Therefore, negation, conditional selection, and equality defined below don't need to use the
+/// `new` builder, because in order to do these arithmetics on points, they must first exist, and
+/// we design it so that they cannot exist strictly unless they are valid points.
+///
+/// When we define addition, subtraction, multiplication, etc., we use the `new` construct
+/// to robustly enforce that the result of arithmetic stays on the curve, and in the r-torsion.
+impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg
+    for &'a GroupAffine<D, N, F>
+{
+    type Output = GroupAffine<D, N, F>;
 
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg for GroupAffine<D, N, F> {
-    type Output = Self;
-
-    fn neg(self) -> Self {
-        Self {
+    fn neg(self) -> Self::Output {
+        Self::Output {
             x: self.x,
             y: F::conditional_select(&-self.y, &F::one(), self.infinity),
             infinity: self.infinity,
         }
+    }
+}
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg for GroupAffine<D, N, F> {
+    type Output = GroupAffine<D, N, F>;
+    fn neg(self) -> Self::Output {
+        -&self
     }
 }
 
@@ -79,27 +101,126 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
         bool::from(self.ct_eq(other))
     }
 }
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D, N, F>
+{
+    // this needs to be defined in order to have user interaction, but currently
+    // is only visible in tests, and therefore is seen by the linter as unused
+    #[allow(dead_code)]
+    pub fn new(v: [F; 2]) -> Result<Self, Error> {
+        let _g1affine_is_on_curve = |x: &F, y: &F, z: &Choice| -> Choice {
+            let y2 = F::square(y);
+            let x2 = F::square(x);
+            let lhs = y2 - (x2 * (*x));
+            let rhs = F::from(3u64);
+            // println!("{:?}, {:?}", lhs, rhs);
+            lhs.ct_eq(&rhs) | *z
+        };
 
+        let _g1affine_is_torsion_free = |_x: &F, _y: &F, _z: &Choice| -> Choice {
+            // every point in G1 on the curve is in the r-torsion of BN254
+            Choice::from(1u8)
+        };
+        let is_on_curve: Choice = _g1affine_is_on_curve(&v[0], &v[1], &Choice::from(0u8));
+        match bool::from(is_on_curve) {
+            true => {
+                // println!("Is on curve!");
+                let is_in_torsion: Choice = _g1affine_is_torsion_free(&v[0], &v[1], &Choice::from
+                    (0u8));
+                match bool::from(is_in_torsion) {
+                    true => Ok(Self {
+                        x: v[0],
+                        y: v[1],
+                        infinity: Choice::from(0u8),
+                    }),
+                    _ => Err(Error::NotInSubgroup),
+                }
+            }
+            false => Err(Error::NotOnCurve),
+        }
+    }
+    pub(crate) fn one() -> Self {
+        Self {
+            x: F::zero(),
+            y: F::one(),
+            infinity: Choice::from(1u8)
+        }
+    }
+    pub(crate) fn is_one(&self) -> bool {
+        bool::from(self.infinity)
+    }
+}
 #[derive(Copy, Clone, Debug)]
-pub struct GroupProjective<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
+pub(crate) struct GroupProjective<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     pub(crate) x: F,
     pub(crate) y: F,
     pub(crate) z: F,
 }
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjective<D, N, F> {
+    pub fn new(v: [F; 3]) -> Result<Self, Error> {
+        let _g1projective_is_on_curve = |x: &F, y: &F, z: &F| -> Choice {
+            let y2 = F::square(y);
+            let x2 = F::square(x);
+            let z2 = F::square(z);
+            let lhs = y2 * (*z);
+            let rhs = x2 * (*x) + z2 * (*z) * F::from(3u64);
+            // println!("{:?}, {:?}", lhs.value(), rhs.value());
+            lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
+        };
+        let  _g1projective_is_torsion_free = |_x: &F, _y: &F, _z: &F| -> Choice {
+            Choice::from(1u8)
+        };
+        let is_on_curve: Choice = _g1projective_is_on_curve(&v[0], &v[1], &v[2]);
+        match bool::from(is_on_curve) {
+            true => {
+                // println!("Is on curve!");
+                let is_in_torsion: Choice = _g1projective_is_torsion_free(&v[0], &v[1], &v[2]);
+                match bool::from(is_in_torsion) {
+                    true => Ok(Self {
+                        x: v[0],
+                        y: v[1],
+                        z: v[2],
+                    }),
+                    false => Err(Error::NotOnCurve),
+                }
+            }
+            false => Err(Error::NotOnCurve),
+        }
+    }
+    // this is the point at infinity!
+    pub(crate) fn one() -> Self {
+        Self {
+            x: F::zero(),
+            y: F::one(),
+            z: F::zero(),
+        }
+    }
+    pub(crate) fn is_one(&self) -> bool {
+        self.z.is_zero()
+    }
+}
 
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg
-    for GroupProjective<D, N, F>
+impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg
+    for &'a GroupProjective<D, N, F>
 {
-    type Output = Self;
+    type Output = GroupProjective<D, N, F>;
 
     fn neg(self) -> Self::Output {
-        Self {
+        Self::Output {
             x: self.x,
             y: -self.y,
             z: self.z,
         }
     }
 }
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg
+    for GroupProjective<D, N, F>
+{
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        -&self
+    }
+}
+
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> ConstantTimeEq
     for GroupProjective<D, N, F>
 {
@@ -136,5 +257,202 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
 {
     fn eq(&self, other: &Self) -> bool {
         bool::from(self.ct_eq(other))
+    }
+}
+/// Allow for conversion between the forms. This will only be used for user interaction and
+/// debugging.
+
+impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D,N>> From<&'a GroupProjective<D,
+N, F>> for GroupAffine<D, N, F>
+{
+    fn from(arg: &'a GroupProjective<D, N, F>) -> Self {
+        let inverse = arg.z.inv(); // this is either a good value or zero, see `inv` in `fp.rs`
+        let x = arg.x * inverse;
+        let y = arg.y * inverse;
+
+        GroupAffine::conditional_select(
+            &GroupAffine::new([x, y]).expect("Conversion to affine coordinates failed"), 
+            &GroupAffine::one(), Choice::from
+                (inverse.is_zero() as u8)
+        )
+    }
+}
+impl<const D: usize, const N: usize, F> From<GroupProjective<D, N, F>> 
+for GroupAffine<D, N, F>
+where
+    F: FieldExtensionTrait<D, N>
+{
+    fn from(value: GroupProjective<D, N, F>) -> GroupAffine<D, N, F> {
+        GroupAffine::from(&value)
+    }
+}
+
+impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D,N>> From<&'a GroupAffine<D, N, 
+    F>> for GroupProjective<D, N, F>{
+    fn from(value: &'a GroupAffine<D, N, F>) -> Self {
+        Self::new([
+            value.x, value.y, F::conditional_select(&F::one(), &F::zero(), value.infinity)
+        ]).expect("Conversion to projective coordinates failed")
+    }
+}
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<GroupAffine<D, N, F>> for
+GroupProjective<D, N, F>
+{
+    fn from(value: GroupAffine<D, N, F>) -> Self {
+        GroupProjective::from(&value)
+    }
+}
+/// Implementing addition and multiplication requires some thought. There are three ways that we
+/// could in theory do it: (i) have both points in affine coords, (ii) have both points in
+/// projective coords, or (iii) have mixed representations. For security, we do not want to have
+/// point arithmetic done in affine coordinates, because an arbitrary sequence of binary operations
+/// is able to generate the point at infinity, which has no uniquely defined representation in
+/// affine coordinates, and opens up our implementation to attack vectors, that could be easily
+/// avoided with arithmetic in projective coordinates, where affine points are identified
+/// with `z=1`, and points at infinity have `z=0`. The uniqueness of the representation of the
+/// z coordinate is what provides security. We therefor opt to have all arithmetic done
+/// in projective coordinates, and use the appropriate mixture formulae.
+///
+/// An excellent reference for these formulae lies in (1).
+///
+/// (1): <https://eprint.iacr.org/2015/1060.pdf>.
+///
+
+/// we first define addition / subtraction when coords are both projective.
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
+    Add<&'b GroupProjective<D, N, F>> for &'a GroupProjective<D, N, F>
+{
+    type Output = GroupProjective<D, N, F>;
+    fn add(self, other: &'b GroupProjective<D, N, F>) -> Self::Output {
+        let mul_by_3b = |x: &F| -> F {
+            let mut a = *x + *x; //2 * x
+            a += a; // 2x+2x = 4x
+            a + a + a //4x + 4x + 4x = 12x
+        };
+        // we have j invariant 0 on BN254, therefore we have a nice
+        // specialized algorithm for this. #7 in Ref (1) above.
+        let mut t0 = self.x * other.x;
+        let mut t1 = self.y * other.y;
+        let mut t2 = self.z * other.z;
+        let mut t3 = self.x + self.y;
+        let mut t4 = other.x + other.y;
+        t3 *= t4;
+        t4 = t0 + t1;
+        t3 -= t4;
+        t4 = self.y + self.z;
+        let mut x3 = other.y + other.z;
+        t4 *= x3;
+        x3 = t1 + t2;
+        t4 -= x3;
+        x3 = self.x + self.z;
+        let mut y3 = other.x + other.z;
+        x3 *= y3;
+        y3 = t0 + t2;
+        y3 = x3 - y3;
+        x3 = t0 + t0;
+        t0 += x3;
+        t2 = mul_by_3b(&t2); // Assuming b3 = 3 * b
+        let mut z3 = t1 + t2;
+        t1 -= t2;
+        y3 = mul_by_3b(&y3); // b3 * Y3
+        x3 = t4 * y3;
+        t2 = t3 * t1;
+        x3 = t2 - x3;
+        y3 *= t0;
+        t1 *= z3;
+        y3 += t1;
+        t0 *= t3;
+        z3 *= t4;
+        z3 += t0;
+
+        Self::Output::new([x3, y3, z3]).expect("Addition failed.")
+    }
+}
+
+#[allow(clippy::suspicious_arithmetic_impl)]
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
+    Sub<&'b GroupProjective<D, N, F>> for &'a GroupProjective<D, N, F>
+{
+    type Output = GroupProjective<D, N, F>;
+    fn sub(self, other: &'b GroupProjective<D, N, F>) -> Self::Output {
+        self + &(-other)
+    }
+}
+
+/// then we defined mixture algorithms for addition / subtraction
+/// Inspired by #8 in Ref (1) above
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjective<D, N, F> {
+    fn mixed_add(&self, other: &GroupAffine<D, N, F>) -> Self {
+        let mul_by_3b = |x: &F| -> F {
+            let mut a = *x + *x; //2 * x
+            a += a; // 2x+2x = 4x
+            a + a + a //4x + 4x + 4x = 12x
+        };
+        let mut t0 = self.x * other.x;
+        let mut t1 = self.y * other.y;
+        let mut t3 = other.x + other.y;
+        let mut t4 = self.x + self.y;
+        t3 *= t4;
+        t4 = t0 + t1;
+        t3 -= t4;
+        t4 = other.y * self.z;
+        t4 += self.y;
+        let mut y3 = other.x * self.z;
+        y3 += self.x;
+        let mut x3 = t0 + t0;
+        t0 += x3;
+        let mut t2 = mul_by_3b(&self.z);
+        let mut z3 = t1 + t2;
+        t1 -= t2;
+        y3 = mul_by_3b(&y3);
+        x3 = t4 * y3;
+        t2 = t3 * t1;
+        x3 = t2 - x3;
+        y3 *= t0;
+        t1 *= z3;
+        y3 += t1;
+        t0 *= t3;
+        z3 *= t4;
+        z3 += t0;
+
+        Self::new([x3, y3, z3]).expect("Mixed addition failed")
+    }
+}
+
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
+    Add<&'b GroupProjective<D, N, F>> for &'a GroupAffine<D, N, F>
+{
+    type Output = GroupProjective<D, N, F>;
+    fn add(self, other: &'b GroupProjective<D, N, F>) -> Self::Output {
+        other.mixed_add(self)
+    }
+}
+
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
+    Add<&'b GroupAffine<D, N, F>> for &'a GroupProjective<D, N, F>
+{
+    type Output = GroupProjective<D, N, F>;
+    fn add(self, other: &'b GroupAffine<D, N, F>) -> Self::Output {
+        self.mixed_add(other)
+    }
+}
+
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
+    Sub<&'b GroupProjective<D, N, F>> for &'a GroupAffine<D, N, F>
+{
+    type Output = GroupProjective<D, N, F>;
+
+    fn sub(self, rhs: &'b GroupProjective<D, N, F>) -> GroupProjective<D, N, F> {
+        self + &(-rhs)
+    }
+}
+
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
+    Sub<&'b GroupAffine<D, N, F>> for &'a GroupProjective<D, N, F>
+{
+    type Output = GroupProjective<D, N, F>;
+
+    fn sub(self, rhs: &'b GroupAffine<D, N, F>) -> GroupProjective<D, N, F> {
+        self + &(-rhs)
     }
 }
