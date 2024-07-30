@@ -39,6 +39,7 @@ mod tests {
     use super::*;
     use crate::fields::fp::FinitePrimeField;
     use serde::{Deserialize, Serialize};
+    #[allow(unused_imports)]
     use std::{fs, path::Path};
 
     #[derive(Serialize, Deserialize)]
