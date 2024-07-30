@@ -1,3 +1,25 @@
+//! This module implements the basic building blocks of the groups on elliptic curves.
+//! The group operation are the tangent and chord rules, see Ref 1. To be consistent
+//! with the generic trait usage done in the construction of an element of the underlying base
+//! field, we implement as much of the functionality that is common among all groups, all
+//! representations, and all base fields into a trait here. Inclusion of underlying guarantees
+//! of scalar multiplication, etc., defined are inherited directly from the `FieldExtensionTrait`.
+//! The implementation we consider here uses algorithms for the underlying point arithmetic that
+//! are modified / optimized for stronger guarantees of constant time execution, and are "complete"
+//! algorithms. Here, "complete" refers to the fact that the algorithms themselves have
+//! absolutely no exceptions in them, caused by, for example, a value being the point at infinity.
+//! In this way, they do not have any internal branches, improving execution performance.
+//!
+//! The algorithms are further specialise for BN254, in the sense that BN254 is a j-invariant 0
+//! curve, and as such we can reduce the computational overhead of doubling and addition (and
+//! therefore multiplication). The interested reader is invited to peruse Refs 2-3 for more details.
+//!
+//! References
+//! ----------
+//! 1. <https://github.com/LeastAuthority/moonmath-manual/releases/latest/download/main-moonmath.pdf>
+//! 2. <https://eprint.iacr.org/2015/1060.pdf>.
+//! 3. <https://marcjoye.github.io/papers/BJ02espa.pdf>
+
 use crate::fields::fp::FieldExtensionTrait;
 use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
@@ -5,10 +27,15 @@ use std::ops::{Add, Mul, Neg, Sub};
 
 #[derive(Debug)]
 pub enum Error {
+    /// This is a simple error struct that specifies the two errors
+    /// that are expected for the generation of a point on the curve.
+    /// Either, the coordinates given are not even on the curve,
+    /// or they are not in the correct subgroup, aka the r-torsion.
     NotOnCurve,
     NotInSubgroup,
 }
 
+/// This trait implements the basic requirements of an element to be a group element.
 pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D,N>>:
 Sized
 + Copy
@@ -23,26 +50,34 @@ Sized
 + ConditionallySelectable
 + PartialEq
 {
+    /// this is how we'll make more elements of the field from a scalar value
     fn generator() -> Self;
+    /// required for subgroup checks
     fn endomorphism(&self) -> Self;
+    /// generate a random point on the curve
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
 }
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct GroupAffine<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
+    /// this is the implementation of a point on the curve in affine coordinates. It is not possible
+    /// to directly input a pair of x, y such that infinity is True, since the point at infinity
+    /// has no unique representation in this form. Generation of the point at infinity is accomplished
+    /// either by calling the `zero` method, or by applying binary operations to 'normal' points to
+    /// reach the point at infinity with arithmetic.
     pub(crate) x: F,
     pub(crate) y: F,
     pub(crate) infinity: Choice,
 }
 /// this is the beginning of Rust lifetime magic. The issue is that when we implement
 /// the arithmetic, we need to explicitly state the lifetime of each operand
-/// so that they can be dropped immediately after they're not needed for security,
-/// to prevent rogue curve attacks. This subtle point requires that binary operations
+/// so that they can be dropped immediately after they're not needed for security.
+/// This subtle point requires that binary operations
 /// be defined for specific lifetimes, and then we must specialize them for typical
 /// usage with the symbolic operators (+, -, etc.).
 ///
 /// One other final note is that we do all required curve and subgroup checks with the usage
-///  of the `new` builder. In this case, the code will throw an error and the time of
+///  of the `new` builder. In this case, the code will throw an error at the time of
 /// instantiation if the inputs do not satisfy the curve equation or r-torsion subgroup check.
 /// Therefore, negation, conditional selection, and equality defined below don't need to use the
 /// `new` builder, because in order to do these arithmetics on points, they must first exist, and
@@ -103,8 +138,8 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D, N, F> {
-    // this needs to be defined in order to have user interaction, but currently
-    // is only visible in tests, and therefore is seen by the linter as unused
+    /// this needs to be defined in order to have user interaction, but currently
+    /// is only visible in tests, and therefore is seen by the linter as unused
     #[allow(dead_code)]
     pub fn new(v: [F; 2]) -> Result<Self, Error> {
         let _g1affine_is_on_curve = |x: &F, y: &F, z: &Choice| -> Choice {
@@ -152,6 +187,16 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D
 }
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct GroupProjective<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
+    /// We now define the projective representation of a point on the curve. Here, the point(s) at
+    /// infinity is (are) indicated by `z=0`. This allows the user to therefore directly generate
+    /// such a point with the associated `new` method. Affine coordinates are those indicated by `z=1`.
+    /// Therefore, the user could input a `Z>1`, but this would fail the curve check, and therefore
+    /// make the code panic.
+    /// Implementing addition and multiplication requires some thought. There are three ways that we
+    /// could in theory do it: (i) have both points in affine coords, (ii) have both points in
+    /// projective coords, or (iii) have mixed representations. For security, due to the uniqueness of
+    /// the representation of the point at infinity, we therefore opt to have
+    /// all arithmetic done in projective coordinates.
     pub(crate) x: F,
     pub(crate) y: F,
     pub(crate) z: F,
@@ -198,6 +243,13 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
     pub(crate) fn is_zero(&self) -> bool {
         self.z.is_zero()
     }
+
+    /// We implement algorithm 9 from Ref (1) above, since BN254 has j-invariant 0,
+    /// so we can use some nice simplifications to the arithmetic.
+    ///
+    /// Complexity:
+    ///        `6M`(ultiplications) + `2S`(quarings)
+    ///      + `1m`(ultiplication by scalar) + `9A`(dditions)
     pub(crate) fn double(&self) -> Self {
         let t0 = self.y * self.y;
         let z3 = t0 + t0;
@@ -332,29 +384,16 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<GroupAff
         GroupProjective::from(&value)
     }
 }
-/// Implementing addition and multiplication requires some thought. There are three ways that we
-/// could in theory do it: (i) have both points in affine coords, (ii) have both points in
-/// projective coords, or (iii) have mixed representations. For security, we do not want to have
-/// point arithmetic done in affine coordinates, because an arbitrary sequence of binary operations
-/// is able to generate the point at infinity, which has no uniquely defined representation in
-/// affine coordinates, and opens up our implementation to attack vectors, that could be easily
-/// avoided with arithmetic in projective coordinates, where affine points are identified
-/// with `z=1`, and points at infinity have `z=0`. The uniqueness of the representation of the
-/// z coordinate is what provides security. We therefor opt to have all arithmetic done
-/// in projective coordinates. All arithmetic is defined only on projective coordinates for
-/// security.
-///
-/// An excellent reference for these formulae lies in (1).
-///
-/// (1): <https://eprint.iacr.org/2015/1060.pdf>.
-///
 
-/// we first define addition / subtraction when coords are both projective.
 impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     Add<&'b GroupProjective<D, N, F>> for &'a GroupProjective<D, N, F>
 {
     type Output = GroupProjective<D, N, F>;
-    #[allow(clippy::collapsible_else_if)]
+
+    /// We implement algorithm 7 from Ref (1) above.
+    ///
+    /// Complexity:
+    ///        `12M` + `2m` + `19A`
     fn add(self, other: &'b GroupProjective<D, N, F>) -> Self::Output {
         let t0 = self.x * other.x;
         let t1 = self.y * other.y;
@@ -413,11 +452,15 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
 }
 
 #[allow(clippy::suspicious_arithmetic_impl)]
-impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&'b [u8]>
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&'b [u8; 32]>
     for &'a GroupProjective<D, N, F>
 {
+    /// This is simply the `double-and-add` algorithm for multiplication, which is the ECC
+    /// equivalent of the `square-and-multiply` algorithm used in modular exponentiation.
+    ///
+    /// <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
     type Output = GroupProjective<D, N, F>;
-    fn mul(self, other: &'b [u8]) -> Self::Output {
+    fn mul(self, other: &'b [u8; 32]) -> Self::Output {
         let mut res = Self::Output::zero();
         for bit in other.iter().rev() {
             for i in (0..8).rev() {

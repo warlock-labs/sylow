@@ -1,3 +1,15 @@
+//! This creates the specific instance of G1 for BN254. Namely,
+//! $\mathbb{G}_1=[r]E(\mathbb{F}_p)=E(\mathbb{F}_p)$, where we take advantage of the fact that
+//! for BN254's G1, the r-torsion in the base field is the entire curve itself. There are
+//! therefore no subgroup checks needed for membership in G1 other than the point being on the
+//! curve itself.
+//!
+//! The curve also has a generator (1,2), which is used to create points on the curve from a scalar
+//! value.
+//!
+//! Notice that there is not much here left to specialise to G1 on BN254! This abstraction should
+//! make the implementation of the more complicated G2 easier to handle.
+
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::groups::group::{GroupAffine, GroupProjective, GroupTrait};
 use crypto_bigint::rand_core::CryptoRngCore;
@@ -11,6 +23,8 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
         Self::new([Fp::one(), Fp::from(2)]).expect("Generator failed")
     }
 
+    /// the endomorphism is used in subgroup checks, but since we don't use this for G1, it
+    /// doesn't actually matter what this is set to.
     fn endomorphism(&self) -> Self {
         Self::generator()
     }
@@ -33,7 +47,18 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
                 .to_le_bytes()
     }
 }
-
+/// This test suite takes time, the biggest culprit of which is the multiplication. Really the
+/// biggest bottleneck is assuredly the loading of the reference data from disk. The
+/// multiplication just takes time due to the debugging symbols created by default when invoking
+/// all the machinery required for multiplication of elements in the group. However, compiling
+/// the code in release mode (without debug symbols + optimizations) gives the desired performance
+/// of all arithmetic operations.
+///
+/// For instance, `cargo test --lib groups::g1::tests` takes ~22 seconds, while
+/// `cargo test --release --lib groups::g1::tests` takes ~1 second. Keeping in mind that this
+/// includes doing reference comparisons to sane values for 1000 values for multiple tests and
+/// loads the data and processes it from disk at each test,
+/// this means each group operation takes sub millisecond time, which is nice.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -87,6 +112,11 @@ mod tests {
         Fp::new_from_str(r).expect("failed to convert r to Fp")
     }
     const FNAME: &str = "./src/sage_reference/bn254_reference.json";
+
+    /// Loading from disk is not a const operation (so we therefore cannot just run this code
+    /// once in the beginning of the `tests` module definition, so we roll the loading
+    /// and processing into a macro so that it can be performed at the beginning of each test as
+    /// needed.
     macro_rules! load_reference_data {
         ($wrapper_name:ident) => {
             let path = Path::new(FNAME);
@@ -149,6 +179,31 @@ mod tests {
                 x *= Fp::from(2);
                 let _ = G1Projective::new([x, y, z]).expect("Conversion to projective failed");
             }
+        }
+    }
+    mod special_point_tests {
+        use super::*;
+        #[test]
+        fn infinity() {
+            let a = &G1Projective::zero();
+            let b = &G1Projective::zero();
+            let c = a + b;
+            assert!(
+                c.is_zero(),
+                "Identities don't add to yield another point at infinity"
+            );
+        }
+        #[test]
+        fn generator() {
+            let g = &G1Projective::generator().double().double(); //4
+            let h = &G1Projective::generator().double(); //2
+            let j = g + h;
+
+            let mut d = G1Projective::generator();
+            for _ in 0..5 {
+                d = &d + &G1Projective::generator();
+            }
+            assert_eq!(j, d, "Generator multiplication not valid");
         }
     }
     mod addition_tests {
