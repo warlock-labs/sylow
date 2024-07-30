@@ -199,14 +199,29 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         self.z.is_zero()
     }
     pub(crate) fn double(&self) -> Self {
-        let w = F::from(3) * self.x * self.x;
-        let s = self.y * self.z;
-        let b = self.x * self.y * s;
-        let h = w * w - F::from(8) * b;
-        let s2 = s * s;
-        let x3 = F::from(2) * h * s;
-        let y3 = w * (F::from(4) * b - h) - F::from(8) * self.y * self.y * s2;
-        let z3 = F::from(8) * s * s2;
+        let t0 = self.y *self.y;
+        let z3 = t0 + t0 ;
+        let z3 = z3 + z3;
+        
+        let z3 = z3 + z3 ;
+        let t1 = self.y * self.z ;
+        let t2 = self.z*self.z;
+        
+        let t2 = F::from(9) * t2 ;
+        let x3 = t2 * z3 ;
+        let y3 = t0 + t2 ;
+        
+        let z3 = t1 * z3 ;
+        let t1 = t2 + t2 ;
+        let t2 = t1 + t2 ;
+        
+        let t0 = t0 - t2 ;
+        let y3 = t0 * y3 ;
+        let y3 = x3 + y3 ;
+        
+        let t1 = self.x * self.y ;
+        let x3 = t0 * t1 ;
+        let x3 = x3 + x3 ;
         Self::new([x3, y3, z3]).expect("Doubling failed")
     }
 }
@@ -341,30 +356,49 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     type Output = GroupProjective<D, N, F>;
     #[allow(clippy::collapsible_else_if)]
     fn add(self, other: &'b GroupProjective<D, N, F>) -> Self::Output {
-        let one = F::one();
-        let zero = F::zero();
-        if self.z.is_zero() || other.z.is_zero() {
-            return if other.z.is_zero() { *self } else { *other };
-        }
-        let u1 = other.y * self.z;
-        let u2 = self.y * other.z;
-        let v1 = other.x * self.z;
-        let v2 = self.x * other.z;
-        if v1 == v2 && u1 == u2 {
-            return self.double();
-        } else if v1 == v2 {
-            return Self::Output::new([one, one, zero]).expect("");
-        }
-        let u = u1 - u2;
-        let v = v1 - v2;
-        let v_squared = v * v;
-        let v_squared_times_v2 = v_squared * v2;
-        let v_cubed = v * v_squared;
-        let w = self.z * other.z;
-        let a = u * u * w - v_cubed - F::from(2) * v_squared_times_v2;
-        let x3 = v * a;
-        let y3 = u * (v_squared_times_v2 - a) - v_cubed * u2;
-        let z3 = v_cubed * w;
+        let t0 = self.x * other.x ;
+        let t1 = self.y * other.y ;
+        let t2 = self.z * other.z ;
+        
+        let t3 = self.x + self.y ;
+        let t4 = other.x + other.y ;
+        let t3 = t3 * t4 ;
+        
+        let t4 = t0 + t1 ;
+        let t3 = t3 - t4 ;
+        let t4 = self.y + self.z ;
+        
+        let x3 = other.y + other.z ;
+        let t4 = t4 * x3 ;
+        let x3 = t1 + t2 ;
+        
+        let t4 = t4 - x3 ;
+        let x3 = self.x + self.z ;
+        let y3 = other.x + other.z ;
+        
+        let x3 = x3 * y3 ;
+        let y3 = t0 + t2 ;
+        let y3 = x3 - y3 ;
+        
+        let x3 = t0 + t0 ;
+        let t0 = x3 + t0 ;
+        let t2 = F::from(9) * t2 ;
+        
+        let z3 = t1 + t2 ;
+        let t1 = t1 - t2 ;
+        let y3 = F::from(9) * y3 ;
+        
+        let x3 = t4 * y3 ;
+        let t2 = t3 * t1 ;
+        let x3 = t2 - x3 ;
+        
+        let y3 = y3 * t0 ;
+        let t1 = t1 * z3 ;
+        let y3 = t1 + y3 ;
+        
+        let t0 = t0 * t3 ;
+        let z3 = z3 * t4 ;
+        let z3 = z3 + t0 ;
         Self::Output::new([x3, y3, z3]).expect("Addition failed")
     }
 }
