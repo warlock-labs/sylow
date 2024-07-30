@@ -91,6 +91,7 @@ where
     UintType: ConcatMixed<MixedOutput = Uint<DLIMBS>>,
 {
     fn new(value: UintType) -> Self;
+    #[allow(dead_code)]
     fn new_from_str(value: &str) -> Option<Self>;
     #[allow(dead_code)]
     fn value(&self) -> UintType;

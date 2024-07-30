@@ -1,5 +1,5 @@
 //! This creates the specific instance of G1 for BN254. Namely,
-//! $\mathbb{G}_1=[r]E(\mathbb{F}_p)=E(\mathbb{F}_p)$, where we take advantage of the fact that
+//! $\mathbb{G}_1=(r)E(\mathbb{F}_p)=E(\mathbb{F}_p)$, where we take advantage of the fact that
 //! for BN254's G1, the r-torsion in the base field is the entire curve itself. There are
 //! therefore no subgroup checks needed for membership in G1 other than the point being on the
 //! curve itself.
@@ -15,7 +15,9 @@ use crate::groups::group::{GroupAffine, GroupProjective, GroupTrait};
 use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::One;
 
+#[allow(dead_code)]
 type G1Affine = GroupAffine<1, 1, Fp>;
+#[allow(dead_code)]
 type G1Projective = GroupProjective<1, 1, Fp>;
 
 impl GroupTrait<1, 1, Fp> for G1Affine {

@@ -36,6 +36,7 @@ pub enum Error {
 }
 
 /// This trait implements the basic requirements of an element to be a group element.
+#[allow(dead_code)]
 pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D,N>>:
 Sized
 + Copy
