@@ -1,7 +1,6 @@
-use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
-use std::ops::{Add, Neg, Sub};
-
 use crate::fields::fp::FieldExtensionTrait;
+use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
+use std::ops::{Add, Mul, Neg, Sub};
 
 #[derive(Debug)]
 pub enum Error {
@@ -101,8 +100,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
         bool::from(self.ct_eq(other))
     }
 }
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D, N, F>
-{
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D, N, F> {
     // this needs to be defined in order to have user interaction, but currently
     // is only visible in tests, and therefore is seen by the linter as unused
     #[allow(dead_code)]
@@ -124,8 +122,8 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D
         match bool::from(is_on_curve) {
             true => {
                 // println!("Is on curve!");
-                let is_in_torsion: Choice = _g1affine_is_torsion_free(&v[0], &v[1], &Choice::from
-                    (0u8));
+                let is_in_torsion: Choice =
+                    _g1affine_is_torsion_free(&v[0], &v[1], &Choice::from(0u8));
                 match bool::from(is_in_torsion) {
                     true => Ok(Self {
                         x: v[0],
@@ -138,14 +136,15 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D
             false => Err(Error::NotOnCurve),
         }
     }
-    pub(crate) fn one() -> Self {
+    pub(crate) fn zero() -> Self {
         Self {
             x: F::zero(),
             y: F::one(),
-            infinity: Choice::from(1u8)
+            infinity: Choice::from(1u8),
         }
     }
-    pub(crate) fn is_one(&self) -> bool {
+    #[allow(dead_code)]
+    pub(crate) fn is_zero(&self) -> bool {
         bool::from(self.infinity)
     }
 }
@@ -166,9 +165,8 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
             // println!("{:?}, {:?}", lhs.value(), rhs.value());
             lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
         };
-        let  _g1projective_is_torsion_free = |_x: &F, _y: &F, _z: &F| -> Choice {
-            Choice::from(1u8)
-        };
+        let _g1projective_is_torsion_free =
+            |_x: &F, _y: &F, _z: &F| -> Choice { Choice::from(1u8) };
         let is_on_curve: Choice = _g1projective_is_on_curve(&v[0], &v[1], &v[2]);
         match bool::from(is_on_curve) {
             true => {
@@ -187,15 +185,27 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         }
     }
     // this is the point at infinity!
-    pub(crate) fn one() -> Self {
+    pub(crate) fn zero() -> Self {
         Self {
             x: F::zero(),
             y: F::one(),
             z: F::zero(),
         }
     }
-    pub(crate) fn is_one(&self) -> bool {
+    #[allow(dead_code)]
+    pub(crate) fn is_zero(&self) -> bool {
         self.z.is_zero()
+    }
+    pub(crate) fn double(&self) -> Self {
+        let w = F::from(3) * self.x * self.x;
+        let s = self.y * self.z;
+        let b = self.x * self.y * s;
+        let h = w * w - F::from(8) * b;
+        let s2 = s * s;
+        let x3 = F::from(2) * h * s;
+        let y3 = w * (F::from(4) * b - h) - F::from(8) * self.y * self.y * s2;
+        let z3 = F::from(8) * s * s2;
+        Self::new([x3, y3, z3]).expect("Doubling failed")
     }
 }
 
@@ -262,8 +272,8 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
 /// Allow for conversion between the forms. This will only be used for user interaction and
 /// debugging.
 
-impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D,N>> From<&'a GroupProjective<D,
-N, F>> for GroupAffine<D, N, F>
+impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
+    From<&'a GroupProjective<D, N, F>> for GroupAffine<D, N, F>
 {
     fn from(arg: &'a GroupProjective<D, N, F>) -> Self {
         let inverse = arg.z.inv(); // this is either a good value or zero, see `inv` in `fp.rs`
@@ -271,32 +281,35 @@ N, F>> for GroupAffine<D, N, F>
         let y = arg.y * inverse;
 
         GroupAffine::conditional_select(
-            &GroupAffine::new([x, y]).expect("Conversion to affine coordinates failed"), 
-            &GroupAffine::one(), Choice::from
-                (inverse.is_zero() as u8)
+            &GroupAffine::new([x, y]).expect("Conversion to affine coordinates failed"),
+            &GroupAffine::zero(),
+            Choice::from(inverse.is_zero() as u8),
         )
     }
 }
-impl<const D: usize, const N: usize, F> From<GroupProjective<D, N, F>> 
-for GroupAffine<D, N, F>
+impl<const D: usize, const N: usize, F> From<GroupProjective<D, N, F>> for GroupAffine<D, N, F>
 where
-    F: FieldExtensionTrait<D, N>
+    F: FieldExtensionTrait<D, N>,
 {
     fn from(value: GroupProjective<D, N, F>) -> GroupAffine<D, N, F> {
         GroupAffine::from(&value)
     }
 }
 
-impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D,N>> From<&'a GroupAffine<D, N, 
-    F>> for GroupProjective<D, N, F>{
+impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
+    From<&'a GroupAffine<D, N, F>> for GroupProjective<D, N, F>
+{
     fn from(value: &'a GroupAffine<D, N, F>) -> Self {
         Self::new([
-            value.x, value.y, F::conditional_select(&F::one(), &F::zero(), value.infinity)
-        ]).expect("Conversion to projective coordinates failed")
+            value.x,
+            value.y,
+            F::conditional_select(&F::one(), &F::zero(), value.infinity),
+        ])
+        .expect("Conversion to projective coordinates failed")
     }
 }
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<GroupAffine<D, N, F>> for
-GroupProjective<D, N, F>
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<GroupAffine<D, N, F>>
+    for GroupProjective<D, N, F>
 {
     fn from(value: GroupAffine<D, N, F>) -> Self {
         GroupProjective::from(&value)
@@ -311,7 +324,8 @@ GroupProjective<D, N, F>
 /// avoided with arithmetic in projective coordinates, where affine points are identified
 /// with `z=1`, and points at infinity have `z=0`. The uniqueness of the representation of the
 /// z coordinate is what provides security. We therefor opt to have all arithmetic done
-/// in projective coordinates, and use the appropriate mixture formulae.
+/// in projective coordinates. All arithmetic is defined only on projective coordinates for
+/// security.
 ///
 /// An excellent reference for these formulae lies in (1).
 ///
@@ -323,52 +337,35 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     Add<&'b GroupProjective<D, N, F>> for &'a GroupProjective<D, N, F>
 {
     type Output = GroupProjective<D, N, F>;
+    #[allow(clippy::collapsible_else_if)]
     fn add(self, other: &'b GroupProjective<D, N, F>) -> Self::Output {
-        let mul_by_3b = |x: &F| -> F {
-            let mut a = *x + *x; //2 * x
-            a += a; // 2x+2x = 4x
-            a + a + a //4x + 4x + 4x = 12x
-        };
-        // we have j invariant 0 on BN254, therefore we have a nice
-        // specialized algorithm for this. #7 in Ref (1) above.
-        let mut t0 = self.x * other.x;
-        let mut t1 = self.y * other.y;
-        let mut t2 = self.z * other.z;
-        let mut t3 = self.x + self.y;
-        let mut t4 = other.x + other.y;
-        t3 *= t4;
-        t4 = t0 + t1;
-        t3 -= t4;
-        t4 = self.y + self.z;
-        let mut x3 = other.y + other.z;
-        t4 *= x3;
-        x3 = t1 + t2;
-        t4 -= x3;
-        x3 = self.x + self.z;
-        let mut y3 = other.x + other.z;
-        x3 *= y3;
-        y3 = t0 + t2;
-        y3 = x3 - y3;
-        x3 = t0 + t0;
-        t0 += x3;
-        t2 = mul_by_3b(&t2); // Assuming b3 = 3 * b
-        let mut z3 = t1 + t2;
-        t1 -= t2;
-        y3 = mul_by_3b(&y3); // b3 * Y3
-        x3 = t4 * y3;
-        t2 = t3 * t1;
-        x3 = t2 - x3;
-        y3 *= t0;
-        t1 *= z3;
-        y3 += t1;
-        t0 *= t3;
-        z3 *= t4;
-        z3 += t0;
-
-        Self::Output::new([x3, y3, z3]).expect("Addition failed.")
+        let one = F::one();
+        let zero = F::zero();
+        if self.z.is_zero() || other.z.is_zero() {
+            return if other.z.is_zero() { *self } else { *other };
+        }
+        let u1 = other.y * self.z;
+        let u2 = self.y * other.z;
+        let v1 = other.x * self.z;
+        let v2 = self.x * other.z;
+        if v1 == v2 && u1 == u2 {
+            return self.double();
+        } else if v1 == v2 {
+            return Self::Output::new([one, one, zero]).expect("");
+        }
+        let u = u1 - u2;
+        let v = v1 - v2;
+        let v_squared = v * v;
+        let v_squared_times_v2 = v_squared * v2;
+        let v_cubed = v * v_squared;
+        let w = self.z * other.z;
+        let a = u * u * w - v_cubed - F::from(2) * v_squared_times_v2;
+        let x3 = v * a;
+        let y3 = u * (v_squared_times_v2 - a) - v_cubed * u2;
+        let z3 = v_cubed * w;
+        Self::Output::new([x3, y3, z3]).expect("Addition failed")
     }
 }
-
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     Sub<&'b GroupProjective<D, N, F>> for &'a GroupProjective<D, N, F>
@@ -379,80 +376,21 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     }
 }
 
-/// then we defined mixture algorithms for addition / subtraction
-/// Inspired by #8 in Ref (1) above
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjective<D, N, F> {
-    fn mixed_add(&self, other: &GroupAffine<D, N, F>) -> Self {
-        let mul_by_3b = |x: &F| -> F {
-            let mut a = *x + *x; //2 * x
-            a += a; // 2x+2x = 4x
-            a + a + a //4x + 4x + 4x = 12x
-        };
-        let mut t0 = self.x * other.x;
-        let mut t1 = self.y * other.y;
-        let mut t3 = other.x + other.y;
-        let mut t4 = self.x + self.y;
-        t3 *= t4;
-        t4 = t0 + t1;
-        t3 -= t4;
-        t4 = other.y * self.z;
-        t4 += self.y;
-        let mut y3 = other.x * self.z;
-        y3 += self.x;
-        let mut x3 = t0 + t0;
-        t0 += x3;
-        let mut t2 = mul_by_3b(&self.z);
-        let mut z3 = t1 + t2;
-        t1 -= t2;
-        y3 = mul_by_3b(&y3);
-        x3 = t4 * y3;
-        t2 = t3 * t1;
-        x3 = t2 - x3;
-        y3 *= t0;
-        t1 *= z3;
-        y3 += t1;
-        t0 *= t3;
-        z3 *= t4;
-        z3 += t0;
-
-        Self::new([x3, y3, z3]).expect("Mixed addition failed")
-    }
-}
-
-impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
-    Add<&'b GroupProjective<D, N, F>> for &'a GroupAffine<D, N, F>
+#[allow(clippy::suspicious_arithmetic_impl)]
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&'b [u8]>
+    for &'a GroupProjective<D, N, F>
 {
     type Output = GroupProjective<D, N, F>;
-    fn add(self, other: &'b GroupProjective<D, N, F>) -> Self::Output {
-        other.mixed_add(self)
-    }
-}
-
-impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
-    Add<&'b GroupAffine<D, N, F>> for &'a GroupProjective<D, N, F>
-{
-    type Output = GroupProjective<D, N, F>;
-    fn add(self, other: &'b GroupAffine<D, N, F>) -> Self::Output {
-        self.mixed_add(other)
-    }
-}
-
-impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
-    Sub<&'b GroupProjective<D, N, F>> for &'a GroupAffine<D, N, F>
-{
-    type Output = GroupProjective<D, N, F>;
-
-    fn sub(self, rhs: &'b GroupProjective<D, N, F>) -> GroupProjective<D, N, F> {
-        self + &(-rhs)
-    }
-}
-
-impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
-    Sub<&'b GroupAffine<D, N, F>> for &'a GroupProjective<D, N, F>
-{
-    type Output = GroupProjective<D, N, F>;
-
-    fn sub(self, rhs: &'b GroupAffine<D, N, F>) -> GroupProjective<D, N, F> {
-        self + &(-rhs)
+    fn mul(self, other: &'b [u8]) -> Self::Output {
+        let mut res = Self::Output::zero();
+        for bit in other.iter().rev() {
+            for i in (0..8).rev() {
+                res = res.double();
+                if (bit & (1 << i)) != 0 {
+                    res = &res + self;
+                }
+            }
+        }
+        res
     }
 }
