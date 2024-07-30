@@ -41,13 +41,11 @@ mod tests {
     use serde::{Deserialize, Serialize};
     use std::{fs, path::Path};
 
-    
-
     #[derive(Serialize, Deserialize)]
     struct _G1Projective {
         x: String,
         y: String,
-        z: String
+        z: String,
     }
     #[derive(Serialize, Deserialize)]
     struct _G1 {
@@ -56,22 +54,37 @@ mod tests {
         r: Vec<String>,
         add: Vec<_G1Projective>,
         dbl: Vec<_G1Projective>,
-        mul: Vec<_G1Projective>
+        mul: Vec<_G1Projective>,
     }
     #[derive(Serialize, Deserialize)]
     struct ReferenceData {
-        g1: _G1
+        g1: _G1,
     }
-    
+
+    struct G1ReferenceData {
+        a: Vec<G1Projective>,
+        b: Vec<G1Projective>,
+        r: Vec<Fp>,
+        add: Vec<G1Projective>,
+        dbl: Vec<G1Projective>,
+        mul: Vec<G1Projective>,
+    }
+
     fn convert_to_g1projective(point: &_G1Projective) -> G1Projective {
         G1Projective::new([
-            Fp::new_from_str(point.x.as_str()).expect("failed to convert x coord in g1"),
+            Fp::new_from_str(point.x.as_str()).expect(
+                "failed to convert x coord in \
+            g1",
+            ),
             Fp::new_from_str(point.y.as_str()).expect("failed to convert y coord in g1"),
-            Fp::new_from_str(point.z.as_str()).expect("failed to convert z coord in g1")
+            Fp::new_from_str(point.z.as_str()).expect("failed to convert z coord in g1"),
         ])
         .expect("g1 failed")
     }
-
+    #[allow(clippy::ptr_arg)]
+    fn convert_to_fp(r: &String) -> Fp {
+        Fp::new_from_str(r).expect("failed to convert r to Fp")
+    }
     const FNAME: &str = "./src/sage_reference/bn254_reference.json";
     macro_rules! load_reference_data {
         ($wrapper_name:ident) => {
@@ -79,11 +92,39 @@ mod tests {
             let file_content = fs::read_to_string(path).expect("Failed to read file");
             let reference_data: ReferenceData =
                 serde_json::from_str(&file_content).expect("Failed to parse JSON");
-            let $wrapper_name: Vec<G1Projective> = reference_data
-                .g1.a
-                .iter()
-                .map(convert_to_g1projective)
-                .collect();
+            let $wrapper_name: G1ReferenceData = G1ReferenceData {
+                a: reference_data
+                    .g1
+                    .a
+                    .iter()
+                    .map(convert_to_g1projective)
+                    .collect(),
+                b: reference_data
+                    .g1
+                    .b
+                    .iter()
+                    .map(convert_to_g1projective)
+                    .collect(),
+                r: reference_data.g1.r.iter().map(convert_to_fp).collect(),
+                add: reference_data
+                    .g1
+                    .add
+                    .iter()
+                    .map(convert_to_g1projective)
+                    .collect(),
+                dbl: reference_data
+                    .g1
+                    .dbl
+                    .iter()
+                    .map(convert_to_g1projective)
+                    .collect(),
+                mul: reference_data
+                    .g1
+                    .mul
+                    .iter()
+                    .map(convert_to_g1projective)
+                    .collect(),
+            };
         };
     }
     mod generation {
@@ -92,33 +133,67 @@ mod tests {
         fn test_generation_and_conversion() {
             load_reference_data!(_g1_points);
         }
+        #[test]
+        #[should_panic(expected = "Conversion to projective failed: NotOnCurve")]
+        fn test_malformed_points() {
+            load_reference_data!(g1_points);
+            for a in &g1_points.a {
+                let mut x = a.x;
+                let y = a.y;
+                let z = a.z;
+
+                // we intentionally manipulate a single coordinate to knock it
+                // off the curve, to check instantiation is not possible with
+                // a point not on the curve
+                x *= Fp::from(2);
+                let _ = G1Projective::new([x, y, z]).expect("Conversion to projective failed");
+            }
+        }
     }
     mod addition_tests {
         use super::*;
         #[test]
         fn test_addition_closure() {
             load_reference_data!(g1_points);
-            for i in &g1_points[1..] {
-                let _ = i + &g1_points[0];
+            for i in &g1_points.a[1..] {
+                let _ = i + &g1_points.a[0];
             }
         }
 
         #[test]
         fn test_addition_associativity_commutativity() {
             load_reference_data!(g1_points);
-            if let [a, b, c] = &g1_points[0..3] {
+            if let [a, b, c] = &g1_points.a[0..3] {
                 assert_eq!(&(a + b) + c, a + &(b + c), "Addition is not associative");
                 assert_eq!(a + b, b + a, "Addition is not commutative");
             }
         }
+        #[test]
+        fn test_addition_cases() {
+            load_reference_data!(g1_points);
+            let expected = g1_points.add;
+            for (i, (a, b)) in g1_points.a.iter().zip(&g1_points.b).enumerate() {
+                let result = a + b;
+                assert_eq!(result, expected[i], "Simple addition failed");
+            }
+        }
+        #[test]
+        fn test_addition_edge_cases() {
+            use crypto_bigint::rand_core::OsRng;
+            let r = G1Projective::rand(&mut OsRng);
+            let zero = &G1Projective::zero();
+            assert_eq!(zero + &r, r, "Adding zero failed");
+        }
     }
     mod subtraction_tests {
         use super::*;
+        // the test below for additive identity is sufficient, in conjunction with a
+        // successful addition test case run, to verify the accuracy of subtraction
         #[test]
         fn test_subtraction_closure() {
             load_reference_data!(g1_points);
-            let a = &g1_points[0];
-            for i in &g1_points {
+            let a = &g1_points.a[0];
+            for i in &g1_points.a {
                 let _ = i - a;
                 let b = i - i;
                 assert_eq!(b, G1Projective::zero(), "Additive identity failed");
@@ -127,7 +202,7 @@ mod tests {
         #[test]
         fn test_subtraction_associativity() {
             load_reference_data!(g1_points);
-            if let [a, b, c] = &g1_points[0..3] {
+            if let [a, b, c] = &g1_points.a[0..3] {
                 assert_eq!(a - &(b - c), &(a - b) + c, "Subtraction is not associative");
             }
         }
@@ -138,7 +213,7 @@ mod tests {
         #[test]
         fn test_doubling() {
             load_reference_data!(g1_points);
-            for i in &g1_points {
+            for i in &g1_points.a {
                 assert_eq!(i.double(), i + i, "Doubling failed");
             }
         }
@@ -147,7 +222,7 @@ mod tests {
         fn test_scalar_mul() {
             load_reference_data!(g1_points);
             let three = Fp::from(3);
-            for i in &g1_points {
+            for i in &g1_points.a {
                 assert_eq!(
                     i + &(i + i),
                     i * &three.value().to_le_bytes(),
@@ -155,13 +230,26 @@ mod tests {
                 );
             }
         }
-
         #[test]
         fn test_random() {
             use crypto_bigint::rand_core::OsRng;
             for _ in 0..100 {
                 let p = G1Projective::rand(&mut OsRng);
                 let _ = G1Projective::new([p.x, p.y, p.z]).expect("Random point not on curve");
+            }
+        }
+        #[test]
+        fn test_multiplication_cases() {
+            load_reference_data!(g1_points);
+            let expected = g1_points.mul;
+            for (i, (a, r)) in g1_points.a.iter().zip(&g1_points.r).enumerate() {
+                let result = a * &r.value().to_le_bytes();
+                assert_eq!(result, expected[i], "Simple multiplication failed");
+            }
+            let expected = g1_points.dbl;
+            for (i, a) in g1_points.a.iter().enumerate() {
+                let result = a.double();
+                assert_eq!(result, expected[i], "Simple doubling failed");
             }
         }
     }

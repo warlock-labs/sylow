@@ -199,29 +199,29 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         self.z.is_zero()
     }
     pub(crate) fn double(&self) -> Self {
-        let t0 = self.y *self.y;
-        let z3 = t0 + t0 ;
+        let t0 = self.y * self.y;
+        let z3 = t0 + t0;
         let z3 = z3 + z3;
-        
-        let z3 = z3 + z3 ;
-        let t1 = self.y * self.z ;
-        let t2 = self.z*self.z;
-        
-        let t2 = F::from(9) * t2 ;
-        let x3 = t2 * z3 ;
-        let y3 = t0 + t2 ;
-        
-        let z3 = t1 * z3 ;
-        let t1 = t2 + t2 ;
-        let t2 = t1 + t2 ;
-        
-        let t0 = t0 - t2 ;
-        let y3 = t0 * y3 ;
-        let y3 = x3 + y3 ;
-        
-        let t1 = self.x * self.y ;
-        let x3 = t0 * t1 ;
-        let x3 = x3 + x3 ;
+
+        let z3 = z3 + z3;
+        let t1 = self.y * self.z;
+        let t2 = self.z * self.z;
+
+        let t2 = F::from(9) * t2;
+        let x3 = t2 * z3;
+        let y3 = t0 + t2;
+
+        let z3 = t1 * z3;
+        let t1 = t2 + t2;
+        let t2 = t1 + t2;
+
+        let t0 = t0 - t2;
+        let y3 = t0 * y3;
+        let y3 = x3 + y3;
+
+        let t1 = self.x * self.y;
+        let x3 = t0 * t1;
+        let x3 = x3 + x3;
         Self::new([x3, y3, z3]).expect("Doubling failed")
     }
 }
@@ -356,49 +356,49 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     type Output = GroupProjective<D, N, F>;
     #[allow(clippy::collapsible_else_if)]
     fn add(self, other: &'b GroupProjective<D, N, F>) -> Self::Output {
-        let t0 = self.x * other.x ;
-        let t1 = self.y * other.y ;
-        let t2 = self.z * other.z ;
-        
-        let t3 = self.x + self.y ;
-        let t4 = other.x + other.y ;
-        let t3 = t3 * t4 ;
-        
-        let t4 = t0 + t1 ;
-        let t3 = t3 - t4 ;
-        let t4 = self.y + self.z ;
-        
-        let x3 = other.y + other.z ;
-        let t4 = t4 * x3 ;
-        let x3 = t1 + t2 ;
-        
-        let t4 = t4 - x3 ;
-        let x3 = self.x + self.z ;
-        let y3 = other.x + other.z ;
-        
-        let x3 = x3 * y3 ;
-        let y3 = t0 + t2 ;
-        let y3 = x3 - y3 ;
-        
-        let x3 = t0 + t0 ;
-        let t0 = x3 + t0 ;
-        let t2 = F::from(9) * t2 ;
-        
-        let z3 = t1 + t2 ;
-        let t1 = t1 - t2 ;
-        let y3 = F::from(9) * y3 ;
-        
-        let x3 = t4 * y3 ;
-        let t2 = t3 * t1 ;
-        let x3 = t2 - x3 ;
-        
-        let y3 = y3 * t0 ;
-        let t1 = t1 * z3 ;
-        let y3 = t1 + y3 ;
-        
-        let t0 = t0 * t3 ;
-        let z3 = z3 * t4 ;
-        let z3 = z3 + t0 ;
+        let t0 = self.x * other.x;
+        let t1 = self.y * other.y;
+        let t2 = self.z * other.z;
+
+        let t3 = self.x + self.y;
+        let t4 = other.x + other.y;
+        let t3 = t3 * t4;
+
+        let t4 = t0 + t1;
+        let t3 = t3 - t4;
+        let t4 = self.y + self.z;
+
+        let x3 = other.y + other.z;
+        let t4 = t4 * x3;
+        let x3 = t1 + t2;
+
+        let t4 = t4 - x3;
+        let x3 = self.x + self.z;
+        let y3 = other.x + other.z;
+
+        let x3 = x3 * y3;
+        let y3 = t0 + t2;
+        let y3 = x3 - y3;
+
+        let x3 = t0 + t0;
+        let t0 = x3 + t0;
+        let t2 = F::from(9) * t2;
+
+        let z3 = t1 + t2;
+        let t1 = t1 - t2;
+        let y3 = F::from(9) * y3;
+
+        let x3 = t4 * y3;
+        let t2 = t3 * t1;
+        let x3 = t2 - x3;
+
+        let y3 = y3 * t0;
+        let t1 = t1 * z3;
+        let y3 = t1 + y3;
+
+        let t0 = t0 * t3;
+        let z3 = z3 * t4;
+        let z3 = z3 + t0;
         Self::Output::new([x3, y3, z3]).expect("Addition failed")
     }
 }
