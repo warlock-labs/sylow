@@ -1,4 +1,5 @@
 use crate::fields::fp::FieldExtensionTrait;
+use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use std::ops::{Add, Mul, Neg, Sub};
 
@@ -24,6 +25,7 @@ Sized
 {
     fn generator() -> Self;
     fn endomorphism(&self) -> Self;
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
 }
 
 #[derive(Copy, Clone, Debug)]

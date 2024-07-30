@@ -1,5 +1,6 @@
-use crate::fields::fp::Fp;
+use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::groups::group::{GroupAffine, GroupProjective, GroupTrait};
+use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::One;
 
 type G1Affine = GroupAffine<1, 1, Fp>;
@@ -13,6 +14,9 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
     fn endomorphism(&self) -> Self {
         Self::generator()
     }
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        Self::from(G1Projective::rand(rng))
+    }
 }
 // impl Default for
 impl GroupTrait<1, 1, Fp> for G1Projective {
@@ -21,6 +25,12 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
     }
     fn endomorphism(&self) -> Self {
         Self::generator()
+    }
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        &Self::generator()
+            * &<Fp as FieldExtensionTrait<1, 1>>::rand(rng)
+                .value()
+                .to_le_bytes()
     }
 }
 
@@ -155,6 +165,15 @@ mod tests {
                     i * &three.value().to_le_bytes(),
                     "Multiplication failed"
                 );
+            }
+        }
+
+        #[test]
+        fn test_random() {
+            use crypto_bigint::rand_core::OsRng;
+            for _ in 0..100 {
+                let p = G1Projective::rand(&mut OsRng);
+                let _ = G1Projective::new([p.x, p.y, p.z]).expect("Random point not on curve");
             }
         }
     }
