@@ -21,9 +21,9 @@ pub struct FieldExtension<const D: usize, const N: usize, F: FieldExtensionTrait
     pub(crate) [F; N],
 );
 
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<u64> for 
-FieldExtension<D, N,
-F>{
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<u64>
+    for FieldExtension<D, N, F>
+{
     fn from(value: u64) -> Self {
         let mut retval = [F::zero(); N];
         retval[0] = F::from(value);
