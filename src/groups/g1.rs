@@ -39,63 +39,51 @@ mod tests {
     use super::*;
     use crate::fields::fp::FinitePrimeField;
     use serde::{Deserialize, Serialize};
-    use std::fs;
+    use std::{fs, path::Path};
+
+    
 
     #[derive(Serialize, Deserialize)]
-    struct _G1Affine {
+    struct _G1Projective {
         x: String,
         y: String,
+        z: String
     }
-
     #[derive(Serialize, Deserialize)]
-    struct _G2AffineCoordinate {
-        c0: String,
-        c1: String,
+    struct _G1 {
+        a: Vec<_G1Projective>,
+        b: Vec<_G1Projective>,
+        r: Vec<String>,
+        add: Vec<_G1Projective>,
+        dbl: Vec<_G1Projective>,
+        mul: Vec<_G1Projective>
     }
-
-    #[derive(Serialize, Deserialize)]
-    struct _G2Affine {
-        x: _G2AffineCoordinate,
-        y: _G2AffineCoordinate,
-    }
-
-    #[derive(Serialize, Deserialize)]
-    struct _SVDW {
-        i: String,
-        x: String,
-        y: String,
-    }
-    #[allow(non_snake_case)]
     #[derive(Serialize, Deserialize)]
     struct ReferenceData {
-        G1_signatures: Vec<_G1Affine>,
-        G2_public_keys: Vec<_G2Affine>,
-        bad_G2_public_keys: Vec<_G2Affine>,
-        svdw: Vec<_SVDW>,
+        g1: _G1
     }
-
-    fn convert_to_g1affine(point: &_G1Affine) -> G1Affine {
-        G1Affine::new([
+    
+    fn convert_to_g1projective(point: &_G1Projective) -> G1Projective {
+        G1Projective::new([
             Fp::new_from_str(point.x.as_str()).expect("failed to convert x coord in g1"),
             Fp::new_from_str(point.y.as_str()).expect("failed to convert y coord in g1"),
+            Fp::new_from_str(point.z.as_str()).expect("failed to convert z coord in g1")
         ])
         .expect("g1 failed")
     }
 
-    const FNAME: &str = "/home/trbritt/Desktop/warlock/solbls/test/sage_reference\
-    /bn254_reference.json";
+    const FNAME: &str = "./src/sage_reference/bn254_reference.json";
     macro_rules! load_reference_data {
         ($wrapper_name:ident) => {
-            let file_content = fs::read_to_string(FNAME).expect("Failed to read file");
+            let path = Path::new(FNAME);
+            let file_content = fs::read_to_string(path).expect("Failed to read file");
             let reference_data: ReferenceData =
                 serde_json::from_str(&file_content).expect("Failed to parse JSON");
-            let _affine: Vec<G1Affine> = reference_data
-                .G1_signatures
+            let $wrapper_name: Vec<G1Projective> = reference_data
+                .g1.a
                 .iter()
-                .map(convert_to_g1affine)
+                .map(convert_to_g1projective)
                 .collect();
-            let $wrapper_name: Vec<G1Projective> =
-                _affine.iter().map(|&i| G1Projective::from(i)).collect();
         };
     }
     mod generation {
