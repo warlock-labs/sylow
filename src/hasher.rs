@@ -37,9 +37,6 @@ trait Expander {
     const OVERSIZE_DST_PREFIX: &'static [u8] = b"H2C-OVERSIZE-DST-";
 
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError>;
-    fn name(&self) -> &str;
-    fn dst(&self) -> &[u8];
-    fn security_param(&self) -> u64;
 }
 
 struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
@@ -124,18 +121,6 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
 
         Ok(b_vals.into_iter().flatten().take(len_in_bytes).collect())
     }
-
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn dst(&self) -> &[u8] {
-        &self.dst
-    }
-
-    fn security_param(&self) -> u64 {
-        self.security_param
-    }
 }
 
 struct XOFExpander<D: Default + ExtendableOutput> {
@@ -185,18 +170,6 @@ impl<D: Default + ExtendableOutput> Expander for XOFExpander<D> {
         let mut hasher = D::default();
         hasher.update(&msg_prime);
         Ok(hasher.finalize_boxed(len_in_bytes).to_vec())
-    }
-
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn dst(&self) -> &[u8] {
-        &self.dst
-    }
-
-    fn security_param(&self) -> u64 {
-        self.security_param
     }
 }
 
