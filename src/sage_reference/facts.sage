@@ -17,4 +17,6 @@ Fp6.<v> = Fp2.extension(v^3 - (9+u))
 # Fp12.<w> = Fp6.extension(w^2-v)
 # Fp2.<u> = GF(p^2, modulus=x^2+1)
 
+E1 = EllipticCurve(Fp,[0,3])
+
 logging.info(f"Running with modulus: {p}")

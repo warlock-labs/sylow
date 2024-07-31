@@ -450,7 +450,7 @@ mod tests {
             assert_eq!((a / b) * b, a, "Division-Mult composition failed");
         }
         #[test]
-        #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
+        // #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
         fn test_divide_by_zero() {
             let a = Fp12::rand(&mut OsRng);
             let b = Fp12::zero();

@@ -41,6 +41,7 @@ use crypto_bigint::{
 };
 use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
+use subtle::CtOption;
 
 /// This defines the key properties of a field extension. Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
@@ -67,6 +68,7 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     + Zero
     + One
     + Inv<Output = Self>
+    + From<u64>
 {
     // multiplication in a field extension is dictated
     // heavily such a value below
@@ -84,12 +86,13 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
 }
 pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
-    FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256>
+    FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
 where
     UintType: ConcatMixed<MixedOutput = Uint<DLIMBS>>,
 {
     fn new(value: UintType) -> Self;
-    fn new_from_u64(value: u64) -> Self;
+    #[allow(dead_code)]
+    fn new_from_str(value: &str) -> Option<Self>;
     #[allow(dead_code)]
     fn value(&self) -> UintType;
     fn characteristic() -> UintType;
@@ -117,8 +120,28 @@ macro_rules! define_finite_prime_field {
             fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
             }
-            fn new_from_u64(value: u64) -> Self {
-                Self(ModulusStruct, Output::new(&<$uint_type>::from_u64(value)))
+            fn new_from_str(value: &str) -> Option<Self> {
+                let ints: Vec<_> = {
+                    let mut acc = Self::zero();
+                    (0..11)
+                        .map(|_| {
+                            let tmp = acc;
+                            acc += Self::one();
+                            tmp
+                        })
+                        .collect()
+                };
+                let mut res = Self::zero();
+                for c in value.chars() {
+                    match c.to_digit(10) {
+                        Some(d) => {
+                            res *= ints[10];
+                            res += ints[d as usize]
+                        }
+                        None => return None,
+                    }
+                }
+                Some(res)
             }
             // take the element and convert it to "normal" form from montgomery form
             fn value(&self) -> $uint_type {
@@ -135,7 +158,7 @@ macro_rules! define_finite_prime_field {
             fn quadratic_non_residue() -> Self {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
                 // = -1
-                Self::new((-Self::new_from_u64(1u64)).1.retrieve())
+                Self::new((-Self::from(1u64)).1.retrieve())
             }
             fn frobenius(&self, _exponent: usize) -> Self {
                 Self::zero()
@@ -151,6 +174,11 @@ macro_rules! define_finite_prime_field {
                     rng,
                     ModulusStruct::MODULUS.as_nz_ref(),
                 ))
+            }
+        }
+        impl From<u64> for $wrapper_name {
+            fn from(value: u64) -> Self {
+                Self(ModulusStruct, Output::new(&<$uint_type>::from_u64(value)))
             }
         }
         /// We now implement binary operations on the base field. This more or less
@@ -169,7 +197,7 @@ macro_rules! define_finite_prime_field {
         }
         impl Zero for $wrapper_name {
             fn zero() -> Self {
-                Self::new_from_u64(0u64)
+                Self::from(0u64)
             }
             fn is_zero(&self) -> bool {
                 self.1.is_zero()
@@ -177,12 +205,12 @@ macro_rules! define_finite_prime_field {
         }
         impl One for $wrapper_name {
             fn one() -> Self {
-                Self::new_from_u64(1u64)
+                Self::from(1u64)
             }
         }
         impl Default for $wrapper_name {
             fn default() -> Self {
-                Self::new_from_u64(0u64)
+                Self::from(0u64)
             }
         }
         impl Sub for $wrapper_name {
@@ -250,7 +278,7 @@ macro_rules! define_finite_prime_field {
         impl Inv for $wrapper_name {
             type Output = Self;
             fn inv(self) -> Self {
-                Self::new((self.1.inv().unwrap()).retrieve())
+                Self::new((CtOption::from(self.1.inv()).unwrap_or(Self::from(0u64).1)).retrieve())
             }
         }
         #[allow(clippy::suspicious_arithmetic_impl)]
@@ -297,7 +325,7 @@ macro_rules! define_finite_prime_field {
         impl Euclid for $wrapper_name {
             fn div_euclid(&self, other: &Self) -> Self {
                 if other.is_zero() {
-                    return Self::new_from_u64(0u64);
+                    return Self::from(0u64);
                 }
                 let (mut _q, mut _r) = self
                     .1
@@ -312,7 +340,7 @@ macro_rules! define_finite_prime_field {
             }
             fn rem_euclid(&self, other: &Self) -> Self {
                 if other.is_zero() {
-                    return Self::new_from_u64(0u64);
+                    return Self::from(0u64);
                 }
                 let (mut _q, mut _r) = self
                     .1
@@ -675,7 +703,7 @@ mod tests {
         }
 
         #[test]
-        #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
+        // #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
         fn test_division_by_zero() {
             let a = create_field([1, 2, 3, 4]);
             let zero = create_field([0, 0, 0, 0]);

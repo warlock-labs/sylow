@@ -706,7 +706,7 @@ mod tests {
             assert_eq!(a / b, c, "Simple division failed");
         }
         #[test]
-        #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
+        // #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
         fn test_divide_by_zero() {
             let a = Fp6::one();
             let b = Fp6::zero();
