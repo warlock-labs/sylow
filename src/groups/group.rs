@@ -36,20 +36,13 @@ pub enum Error {
 }
 
 /// This trait implements the basic requirements of an element to be a group element.
+/// Unfortunately, `Default` cannot be implemented without `One`, which cannot be implemented
+/// without addition, which is very specific to the choice of affine,
+// projective, or mixed addition, and therefore cannot be defined for all instances satisfying
+// a group trait
 #[allow(dead_code)]
-pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D,N>>:
-Sized
-+ Copy
-+ Clone
-+ std::fmt::Debug
-// + Default // cannot be implemented without one
-// + One //cannot be implemented without addition, which is very specific to the choice of affine,
-//projective, or mixed addition, and therefore cannot be defined for all instances satisfying 
-//a group trait
-+ Neg
-+ ConstantTimeEq
-+ ConditionallySelectable
-+ PartialEq
+pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
+    Sized + Copy + Clone + std::fmt::Debug + Neg + ConstantTimeEq + ConditionallySelectable + PartialEq
 {
     /// this is how we'll make more elements of the field from a scalar value
     fn generator() -> Self;
@@ -232,7 +225,10 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
             false => Err(Error::NotOnCurve),
         }
     }
-    // this is the point at infinity!
+    /// This is the point at infinity! This object really is the additive identity of the group,
+    /// when the group law is addition, which it is here. It satisfies the properties that
+    /// $zero+a=a$ for some $a$ in the group, as well as $a+(-a)=zero$, which means that the
+    /// convention zero makes the most sense to me here.
     pub(crate) fn zero() -> Self {
         Self {
             x: F::zero(),
@@ -275,7 +271,11 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         let t1 = self.x * self.y;
         let x3 = t0 * t1;
         let x3 = x3 + x3;
-        Self::new([x3, y3, z3]).expect("Doubling failed")
+        Self {
+            x: x3,
+            y: y3,
+            z: z3,
+        }
     }
 }
 

@@ -14,6 +14,7 @@ use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::groups::group::{GroupAffine, GroupProjective, GroupTrait};
 use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::One;
+use subtle::Choice;
 
 #[allow(dead_code)]
 type G1Affine = GroupAffine<1, 1, Fp>;
@@ -22,7 +23,11 @@ type G1Projective = GroupProjective<1, 1, Fp>;
 
 impl GroupTrait<1, 1, Fp> for G1Affine {
     fn generator() -> Self {
-        Self::new([Fp::one(), Fp::from(2)]).expect("Generator failed")
+        Self {
+            x: Fp::one(),
+            y: Fp::from(2),
+            infinity: Choice::from(0u8),
+        }
     }
 
     /// the endomorphism is used in subgroup checks, but since we don't use this for G1, it
@@ -34,7 +39,6 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
         Self::from(G1Projective::rand(rng))
     }
 }
-// impl Default for
 impl GroupTrait<1, 1, Fp> for G1Projective {
     fn generator() -> Self {
         Self::from(G1Affine::generator())
