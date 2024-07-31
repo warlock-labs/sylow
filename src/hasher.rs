@@ -44,8 +44,6 @@ struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
     /// byte string using a hash function that outputs b bits.
     /// Usage of this function is recommended only with Sha2 and Sha3 hashes.
     /// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message_xmd>
-    name: String,
-    dst: Vec<u8>,
     dst_prime: Vec<u8>,
     hash_fn: std::marker::PhantomData<D>,
     security_param: u64,
@@ -64,8 +62,6 @@ impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
         };
 
         XMDExpander {
-            name: "expand_message_xmd".to_string(),
-            dst: dst.to_vec(),
             dst_prime,
             hash_fn: std::marker::PhantomData,
             security_param,
@@ -128,11 +124,8 @@ struct XOFExpander<D: Default + ExtendableOutput> {
     /// byte string using an extendable output function (XOF) H. In this instance,
     /// the Shake XOF family are the only recommended choices.
     /// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message_xof>
-    name: String,
-    dst: Vec<u8>,
     dst_prime: Vec<u8>,
     hash_fn: std::marker::PhantomData<D>,
-    security_param: u64,
 }
 
 impl<D: Default + ExtendableOutput> XOFExpander<D> {
@@ -149,11 +142,8 @@ impl<D: Default + ExtendableOutput> XOFExpander<D> {
         };
 
         XOFExpander {
-            name: "expand_message_xof".to_string(),
-            dst: dst.to_vec(),
             dst_prime,
             hash_fn: std::marker::PhantomData,
-            security_param,
         }
     }
 }
