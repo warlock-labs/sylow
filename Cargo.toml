@@ -18,6 +18,7 @@ hex-literal = "0.4.1"
 num-traits = "0.2.19"
 subtle = "2.6.1"
 crypto-bigint = { git = "https://github.com/RustCrypto/crypto-bigint.git", features = ["rand_core"]}
+sha3 = "0.11.0-pre.4"
 
 [lib]
 proc-macro = true

@@ -14,3 +14,4 @@
 
 mod fields;
 mod groups;
+mod hasher;
