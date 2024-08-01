@@ -208,6 +208,12 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
             <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng),
         ])
     }
+    fn lexographically_largest(&self) -> Choice {
+        unimplemented!()
+    }
+    fn is_square(&self) -> Choice {
+        unimplemented!()
+    }
 }
 
 impl Mul for Fp12 {

@@ -84,6 +84,9 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
 
     #[allow(dead_code)]
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
+
+    fn lexographically_largest(&self) -> Choice;
+    fn is_square(&self) -> Choice;
 }
 pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
@@ -174,6 +177,15 @@ macro_rules! define_finite_prime_field {
                     rng,
                     ModulusStruct::MODULUS.as_nz_ref(),
                 ))
+            }
+            fn lexographically_largest(&self) -> Choice {
+                let p_minus_1_div_2 = ((Fp::new(Fp::characteristic()) - Fp::one()) / Fp::from(2u64)).value();
+                Choice::from((self.value() > p_minus_1_div_2) as u8)
+            }
+            fn is_square(&self) -> Choice {
+                let p_minus_1_div_2 = ((Self::new(Self::characteristic())-Self::from(1))/Self::from(2)).value();
+                let retval = self.pow(p_minus_1_div_2);
+                Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
             }
         }
         impl From<u64> for $wrapper_name {
@@ -383,6 +395,13 @@ impl FieldExtensionTrait<2, 2> for Fp {
     }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
+    }
+
+    fn lexographically_largest(&self) -> Choice {
+        <Fp as FieldExtensionTrait<1,1>>::lexographically_largest(self)
+    }
+    fn is_square(&self) -> Choice {
+        <Fp as FieldExtensionTrait<1,1>>::is_square(self)
     }
 }
 
@@ -847,6 +866,38 @@ mod tests {
             let k = create_field([5, 0, 0, 0]);
 
             assert_eq!(k * (a + b), k * a + k * b, "Linearity of addition failed");
+        }
+    }
+
+    mod square_tests {
+        use super::*;
+
+        #[test]
+        fn test_square(){
+            use crypto_bigint::rand_core::OsRng;
+
+            for _ in 0..100 {
+                let a = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng);
+                let b = <Fp as FieldExtensionTrait<1,1>>::square(&a);
+                assert!(bool::from(<Fp as FieldExtensionTrait<1, 1>>::is_square(&b)), "Is square failed");
+            }
+        }
+    }
+
+    mod lexography_tests {
+        use super::*;
+
+        #[test]
+        fn test_largest(){
+            let p_minus_1_div_2 = ((Fp::new(Fp::characteristic()) - Fp::one()) / Fp::from(2u64)).value();
+
+            assert!(!bool::from(<Fp as FieldExtensionTrait<1,1>>::lexographically_largest(&Fp::zero())), "Zero failed lexography tests");
+
+            assert!(!bool::from(<Fp as FieldExtensionTrait<1,1>>::lexographically_largest(&Fp::one())), "One failed lexography tests");
+
+            assert!(!bool::from(<Fp as FieldExtensionTrait<1,1>>::lexographically_largest(&Fp::new(p_minus_1_div_2))), "Mid point failed lexography tests");
+
+            assert!(bool::from(<Fp as FieldExtensionTrait<1,1>>::lexographically_largest(&(Fp::new(p_minus_1_div_2)+Fp::one()))), "Mid point plus one failed lexography tests");
         }
     }
 }

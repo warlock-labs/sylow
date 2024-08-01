@@ -5,7 +5,7 @@
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::utils::u256_to_u512;
-use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U512};
+use crypto_bigint::{NonZero, rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256, U512};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::Choice;
@@ -104,6 +104,24 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
             <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
         ])
     }
+    fn lexographically_largest(&self) -> Choice {
+        let sgn0 = <Fp as FieldExtensionTrait<1,1>>::lexographically_largest(&self.0[0]);
+        let zero0 = self.0[0].is_zero();
+        let sgn1 = <Fp as FieldExtensionTrait<1,1>>::lexographically_largest(&self.0[1]);
+        sgn0 | (Choice::from(zero0 as u8) & sgn1)
+    }
+    fn is_square(&self) -> Choice {
+        let a_square = <Fp as FieldExtensionTrait<1,1>>::is_square(&self.0[0]);
+        let neg_a_square = <Fp as FieldExtensionTrait<1,1>>::is_square(&(-self.0[0]));
+
+        let a_plus_b = self.0[0] + self.0[1];
+        let a_min_b = self.0[0] - self.0[1];
+
+        let sum_square = <Fp as FieldExtensionTrait<1,1>>::is_square(&a_plus_b);
+        let diff_square = <Fp as FieldExtensionTrait<1,1>>::is_square(&a_min_b);
+
+        (a_square & sum_square & diff_square) | (neg_a_square & !sum_square & !diff_square)
+    }
 }
 
 impl Mul for Fp2 {
@@ -194,6 +212,12 @@ impl FieldExtensionTrait<6, 3> for Fp2 {
     }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng)
+    }
+    fn lexographically_largest(&self) -> Choice {
+        <Fp2 as FieldExtensionTrait<2,2>>::lexographically_largest(self)
+    }
+    fn is_square(&self) -> Choice {
+        <Fp2 as FieldExtensionTrait<2,2>>::is_square(self)
     }
 }
 // Tests of associativity, commutativity, etc., follow directly from
@@ -440,6 +464,20 @@ mod tests {
             let zero = Fp2::zero();
 
             let _ = a / zero;
+        }
+    }
+    mod square_tests {
+        use super::*;
+
+        #[test]
+        fn test_square(){
+            use crypto_bigint::rand_core::OsRng;
+
+            for _ in 0..100 {
+                let a = <Fp2 as FieldExtensionTrait<2, 2>>::rand(&mut OsRng);
+                let b = <Fp2 as FieldExtensionTrait<2,2>>::square(&a);
+                assert!(bool::from(<Fp2 as FieldExtensionTrait<2, 2>>::is_square(&b)), "Is square failed");
+            }
         }
     }
 }

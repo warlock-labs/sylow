@@ -227,6 +227,12 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
             <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
         ])
     }
+    fn lexographically_largest(&self) -> Choice {
+        unimplemented!()
+    }
+    fn is_square(&self) -> Choice {
+        unimplemented!()
+    }
 }
 impl Mul for Fp6 {
     type Output = Self;
@@ -313,6 +319,12 @@ impl FieldExtensionTrait<12, 2> for Fp6 {
     }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng)
+    }
+    fn lexographically_largest(&self) -> Choice {
+        <Fp6 as FieldExtensionTrait<6, 3>>::lexographically_largest(self)
+    }
+    fn is_square(&self) -> Choice {
+        <Fp6 as FieldExtensionTrait<6,3>>::is_square(self)
     }
 }
 

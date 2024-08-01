@@ -39,7 +39,7 @@ trait Expander {
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError>;
 }
 
-struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
+pub(crate) struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
     /// This implements the XMD function, which produces a uniformly random
     /// byte string using a hash function that outputs b bits.
     /// Usage of this function is recommended only with Sha2 and Sha3 hashes.
@@ -51,7 +51,7 @@ struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
 
 impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
     #[allow(dead_code)]
-    fn new(dst: &[u8], security_param: u64) -> Self {
+    pub(crate) fn new(dst: &[u8], security_param: u64) -> Self {
         let dst_prime = if dst.len() > 255 {
             let mut hasher = D::default();
             hasher.update(Self::OVERSIZE_DST_PREFIX);
@@ -164,7 +164,7 @@ impl<D: Default + ExtendableOutput> Expander for XOFExpander<D> {
 }
 
 #[allow(dead_code)]
-fn hash_to_field<E: Expander>(msg: &[u8], expander: &E) -> Result<[Fp; 2], HashError> {
+pub(crate) fn hash_to_field<E: Expander>(msg: &[u8], expander: &E) -> Result<[Fp; 2], HashError> {
     const COUNT: usize = 2;
     const L: usize = 48;
     const LEN_IN_BYTES: usize = COUNT * L;
