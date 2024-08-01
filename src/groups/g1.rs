@@ -11,7 +11,9 @@
 //! make the implementation of the more complicated G2 easier to handle.
 
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
-use crate::groups::group::{GroupAffine, GroupProjective, GroupTrait};
+use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
+use crate::hasher::Expander;
+use crate::svdw::{SvdW, SvdWTrait};
 use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::One;
 use subtle::Choice;
@@ -38,6 +40,18 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self::from(G1Projective::rand(rng))
     }
+    fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError> {
+        match G1Projective::hash_to_curve(exp, msg) {
+            Ok(d) => Ok(Self::from(d)),
+            Err(e) => Err(e),
+        }
+    }
+    fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: Fp) -> Result<Self, GroupError> {
+        match G1Projective::sign_message(exp, msg, private_key) {
+            Ok(d) => Ok(Self::from(d)),
+            Err(e) => Err(e),
+        }
+    }
 }
 impl GroupTrait<1, 1, Fp> for G1Projective {
     fn generator() -> Self {
@@ -51,6 +65,31 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
             * &<Fp as FieldExtensionTrait<1, 1>>::rand(rng)
                 .value()
                 .to_le_bytes()
+    }
+    fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError> {
+        const COUNT: usize = 2;
+        const L: usize = 48;
+        let scalars = exp
+            .hash_to_field(msg, COUNT, L)
+            .expect("Hashing to base field failed");
+        match SvdW::<1, 1, Fp>::precompute_constants(Fp::from(0), Fp::from(3)) {
+            Ok(bn254_g1_svdw) => {
+                let a = bn254_g1_svdw
+                    .map_to_point(scalars[0])
+                    .expect("Failed to hash");
+                let b = bn254_g1_svdw
+                    .map_to_point(scalars[1])
+                    .expect("Failed to hash");
+                Ok(&a + &b)
+            }
+            _ => Err(GroupError::CannotHashToGroup),
+        }
+    }
+    fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: Fp) -> Result<Self, GroupError> {
+        if let Ok(d) = Self::hash_to_curve(exp, msg) {
+            return Ok(&d * &private_key.value().to_le_bytes());
+        }
+        Err(GroupError::CannotHashToGroup)
     }
 }
 /// This test suite takes time, the biggest culprit of which is the multiplication. Really the
@@ -312,6 +351,37 @@ mod tests {
             for (i, a) in g1_points.a.iter().enumerate() {
                 let result = a.double();
                 assert_eq!(result, expected[i], "Simple doubling failed");
+            }
+        }
+    }
+    mod hash_tests {
+        use super::*;
+        use crate::hasher::XMDExpander;
+        use sha2::Sha256;
+        const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
+        const MSG: &[u8; 4] = &20_i32.to_be_bytes();
+        const K: u64 = 128;
+        #[test]
+        fn test_closure() {
+            let expander = XMDExpander::<Sha256>::new(DST, K);
+            if let Ok(d) = G1Projective::hash_to_curve(&expander, MSG) {
+                println!("{:?}", d)
+            }
+        }
+
+        #[test]
+        fn test_signature() {
+            use sha3::Keccak256;
+            use crypto_bigint::rand_core::OsRng;
+            let expander = XMDExpander::<Keccak256>::new(DST, K);
+            for _ in 0..1 {
+                let rando = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng);
+                if let Ok(d) = G1Affine::sign_message(&expander, MSG, rando) {
+                    println!("DST: {:?}", String::from_utf8_lossy(DST));
+                    println!("Message: {:?}", String::from_utf8_lossy(MSG));
+                    println!("private key: {:?}", rando.value());
+                    println!("signature: {:?}, {:?}, {:?}\n", d.x.value(), d.y.value(), d.infinity);
+                }
             }
         }
     }

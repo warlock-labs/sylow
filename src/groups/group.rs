@@ -21,18 +21,20 @@
 //! 3. <https://marcjoye.github.io/papers/BJ02espa.pdf>
 
 use crate::fields::fp::FieldExtensionTrait;
+use crate::hasher::Expander;
 use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use std::ops::{Add, Mul, Neg, Sub};
 
 #[derive(Debug)]
-pub enum Error {
+pub enum GroupError {
     /// This is a simple error struct that specifies the two errors
     /// that are expected for the generation of a point on the curve.
     /// Either, the coordinates given are not even on the curve,
     /// or they are not in the correct subgroup, aka the r-torsion.
     NotOnCurve,
     NotInSubgroup,
+    CannotHashToGroup,
 }
 
 /// This trait implements the basic requirements of an element to be a group element.
@@ -50,6 +52,8 @@ pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTra
     fn endomorphism(&self) -> Self;
     /// generate a random point on the curve
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
+    fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError>;
+    fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: F) -> Result<Self, GroupError>;
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -135,7 +139,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D
     /// this needs to be defined in order to have user interaction, but currently
     /// is only visible in tests, and therefore is seen by the linter as unused
     #[allow(dead_code)]
-    pub fn new(v: [F; 2]) -> Result<Self, Error> {
+    pub fn new(v: [F; 2]) -> Result<Self, GroupError> {
         let _g1affine_is_on_curve = |x: &F, y: &F, z: &Choice| -> Choice {
             let y2 = F::square(y);
             let x2 = F::square(x);
@@ -161,10 +165,10 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D
                         y: v[1],
                         infinity: Choice::from(0u8),
                     }),
-                    _ => Err(Error::NotInSubgroup),
+                    _ => Err(GroupError::NotInSubgroup),
                 }
             }
-            false => Err(Error::NotOnCurve),
+            false => Err(GroupError::NotOnCurve),
         }
     }
     pub(crate) fn zero() -> Self {
@@ -196,7 +200,7 @@ pub(crate) struct GroupProjective<const D: usize, const N: usize, F: FieldExtens
     pub(crate) z: F,
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjective<D, N, F> {
-    pub fn new(v: [F; 3]) -> Result<Self, Error> {
+    pub fn new(v: [F; 3]) -> Result<Self, GroupError> {
         let _g1projective_is_on_curve = |x: &F, y: &F, z: &F| -> Choice {
             let y2 = F::square(y);
             let x2 = F::square(x);
@@ -219,10 +223,10 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
                         y: v[1],
                         z: v[2],
                     }),
-                    false => Err(Error::NotOnCurve),
+                    false => Err(GroupError::NotOnCurve),
                 }
             }
-            false => Err(Error::NotOnCurve),
+            false => Err(GroupError::NotOnCurve),
         }
     }
     /// This is the point at infinity! This object really is the additive identity of the group,

@@ -1,13 +1,27 @@
+//! This module implements the ability to take a random point in the base field (scalar),
+//! and hash it to an element on the given group. The instantiation of the group element ensures
+//! that the targeted point is indeed on the curve, or the code will not instantiate the value at
+//! all. The inner workings of this use the algorithm of Shallue and van de Woestijne, found at
+//! page 510 of Ref 1 below. It is a deterministic polynomial-time algorithm that computes a
+//! nontrivial rational point on an EC over the base field, given the Weiestrass equation for the
+//! curve. In our case, we create the SvdW struct below to work for any field, and extension, and
+//! therefore any target group and curve. The code is itself capable of determining all constants
+//! needed by the algorithm. They may be instantiated with hardcoded values for performance once
+//! the target group, curve, and therefore base field are known.
+//!
+//! References
+//! ----------
+//! 1. <https://link.springer.com/chapter/10.1007/11792086_36>
 use crate::fields::fp::FieldExtensionTrait;
-use crate::groups::group::{GroupAffine, GroupProjective};
+use crate::groups::group::{GroupAffine, GroupError, GroupProjective};
 use subtle::Choice;
 
 #[derive(Debug)]
 pub enum MapError {
     SvdWError,
 }
-#[allow(dead_code)]
-pub struct SvdW<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
+#[derive(Debug)]
+pub(crate) struct SvdW<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     a: F,
     b: F,
     c1: F,
@@ -16,9 +30,78 @@ pub struct SvdW<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     c4: F,
     z: F,
 }
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> SvdW<D, N, F> {
+#[allow(dead_code)]
+pub(crate) trait SvdWTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
+    Sized
+{
+    /// This is the actual struct containing the relevant information. There are a few input
+    /// constants, namely the coefficients A and B that define the curve in its short Weierstrass
+    /// representation. The constants c1-c4 and Z are determined by the algorithm.
+    #[allow(dead_code)]
+    fn find_z_svdw(a: F, b: F) -> F {
+        let g = |x: &F| -> F { (*x) * (*x) * (*x) + a * (*x) + b };
+        let h = |x: &F| -> F { -(F::from(3) * (*x) * (*x) + F::from(4) * a) / (F::from(4) * g(x)) };
+        let mut ctr = 1;
+        loop {
+            for z_cand in [F::from(ctr), -F::from(ctr)] {
+                if g(&z_cand).is_zero() {
+                    continue;
+                }
+                if h(&z_cand).is_zero() {
+                    continue;
+                }
+                if !bool::from(h(&z_cand).is_square()) {
+                    continue;
+                }
+                if bool::from(g(&z_cand).is_square())
+                    | bool::from(g(&(-z_cand / F::from(2))).is_square())
+                {
+                    return z_cand;
+                }
+            }
+            ctr += 1;
+        }
+    }
+    #[allow(dead_code)]
+    fn precompute_constants(a: F, b: F) -> Result<SvdW<D, N, F>, MapError> {
+        let g = |x: &F| -> F { (*x) * (*x) * (*x) + a * (*x) + b };
+        let z = Self::find_z_svdw(a, b);
+        let mgz = -g(&z);
+        let c1 = g(&z);
+        let c2 = -z / F::from(2);
+        let mut c3 = match (-g(&z) * (F::from(3) * z.square() + F::from(4) * a))
+            .sqrt()
+            .into_option()
+        {
+            Some(d) => d,
+            _ => return Err(MapError::SvdWError),
+        };
+        if c3.sgn0().unwrap_u8() == 1u8 {
+            c3 = -c3;
+        }
+        if c3.sgn0().unwrap_u8() != 0u8 {
+            return Err(MapError::SvdWError);
+        }
+        let c4 = F::from(4) * mgz / (F::from(3) * z * z + F::from(4) * a);
+
+        Ok(SvdW {
+            a,
+            b,
+            c1,
+            c2,
+            c3,
+            c4,
+            z,
+        })
+    }
+    fn map_to_point(&self, u: F) -> Result<GroupProjective<D, N, F>, MapError>;
+}
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> SvdWTrait<D, N, F>
+    for SvdW<D, N, F>
+{
     #[allow(dead_code)]
     fn map_to_point(&self, u: F) -> Result<GroupProjective<D, N, F>, MapError> {
+        // Implements the SvdW algorithm for a single scalar point
         let cmov = |x: &F, y: &F, b: &Choice| -> F {
             F::from(!bool::from(*b) as u64) * (*x) + F::from(bool::from(*b) as u64) * (*y)
         };
@@ -61,62 +144,8 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> SvdW<D, N, F>
         let e3 = Choice::from((bool::from(u.sgn0()) == bool::from(y.sgn0())) as u8);
         let y = cmov(&(-y), &y, &e3); // Select correct sign of y;
 
-        let aff = GroupAffine::new([x, y]).expect("Point not on curve"); //.map_err(|_e: Error| MapError::SvdWError)?;
+        let aff = GroupAffine::new([x, y]).map_err(|_e: GroupError| MapError::SvdWError)?;
         Ok(GroupProjective::from(aff))
-    }
-    fn find_z_svdw(a: F, b: F) -> F {
-        let g = |x: &F| -> F { (*x) * (*x) * (*x) + a * (*x) + b };
-        let h = |x: &F| -> F { -(F::from(3) * (*x) * (*x) + F::from(4) * a) / (F::from(4) * g(x)) };
-        let mut ctr = 1;
-        loop {
-            for z_cand in [F::from(ctr), -F::from(ctr)] {
-                if g(&z_cand).is_zero() {
-                    continue;
-                }
-                if h(&z_cand).is_zero() {
-                    continue;
-                }
-                if !bool::from(h(&z_cand).is_square()) {
-                    continue;
-                }
-                if bool::from(g(&z_cand).is_square())
-                    | bool::from(g(&(-z_cand / F::from(2))).is_square())
-                {
-                    return z_cand;
-                }
-            }
-            ctr += 1;
-        }
-    }
-    fn precompute_constants(a: F, b: F) -> Result<Self, MapError> {
-        let g = |x: &F| -> F { (*x) * (*x) * (*x) + a * (*x) + b };
-        let z = Self::find_z_svdw(a, b);
-        let mgz = -g(&z);
-        let c1 = g(&z);
-        let c2 = -z / F::from(2);
-        let mut c3 = match (-g(&z) * (F::from(3) * z.square() + F::from(4) * a))
-            .sqrt()
-            .into_option()
-        {
-            Some(d) => d,
-            _ => return Err(MapError::SvdWError),
-        };
-        if c3.sgn0().unwrap_u8() == 1u8 {
-            c3 = -c3;
-        }
-        if c3.sgn0().unwrap_u8() != 0u8 {
-            return Err(MapError::SvdWError);
-        }
-        let c4 = F::from(4) * mgz / (F::from(3) * z * z + F::from(4) * a);
-        Ok(Self {
-            a,
-            b,
-            c1,
-            c2,
-            c3,
-            c4,
-            z,
-        })
     }
 }
 
@@ -126,9 +155,11 @@ mod tests {
     mod map_tests {
         use super::*;
         use crate::fields::fp::{FinitePrimeField, Fp};
+        use crate::hasher::Expander;
         use crypto_bigint::U256;
         use num_traits::One;
         use sha2::Sha256;
+
         #[test]
         fn test_z_svdw() {
             let z = SvdW::<1, 1, Fp>::find_z_svdw(Fp::from(0), Fp::from(3));
@@ -169,12 +200,14 @@ mod tests {
         #[test]
         fn test_svdw() {
             use crate::groups::group::GroupProjective;
-            use crate::hasher::{hash_to_field, XMDExpander};
+            use crate::hasher::XMDExpander;
             let dst = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
             let k = 128;
             let msg = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
             let expander = XMDExpander::<Sha256>::new(dst, k);
-            let scalars = hash_to_field(msg, &expander).expect("Conversion failed");
+            let scalars = expander
+                .hash_to_field(msg, 2, 48)
+                .expect("Conversion failed");
 
             let res = match SvdW::<1, 1, Fp>::precompute_constants(Fp::from(0), Fp::from(3)) {
                 Ok(bn254_svdw) => {
@@ -189,7 +222,7 @@ mod tests {
                         .fold(GroupProjective::<1, 1, Fp>::zero(), |acc, x| &acc + &x);
                     let d =
                         GroupProjective::<1, 1, Fp>::new([_d.x, _d.y, _d.z]).expect("Map failed");
-                    println!("{:?}", d);
+                    println!("{:?}, {:?}, {:?}", d.x.value(), d.y.value(), d.z.value());
                     Ok(())
                 }
                 Err(e) => {

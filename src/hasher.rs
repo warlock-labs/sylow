@@ -37,6 +37,32 @@ pub(crate) trait Expander {
     const OVERSIZE_DST_PREFIX: &'static [u8] = b"H2C-OVERSIZE-DST-";
 
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError>;
+    fn hash_to_field(&self, msg: &[u8], count: usize, size: usize) -> Result<[Fp; 2], HashError> {
+        // const COUNT: usize = 2;
+        // const L: usize = 48;
+        let len_in_bytes = count * size;
+
+        let exp_msg = self.expand_message(msg, len_in_bytes)?;
+
+        let mut retval = [Fp::zero(); 2];
+        for (i, f) in retval.iter_mut().enumerate() {
+            let elm_offset = size * i;
+            let tv = &exp_msg[elm_offset..elm_offset + size];
+            let mut bs = [0u8; 64];
+            bs[16..].copy_from_slice(tv);
+
+            let cast_value = U512::from_be_bytes(bs);
+            let modulus = NonZero::<U512>::new(u256_to_u512(&Fp::characteristic())).unwrap();
+
+            let scalar = U256::from_words(
+                (cast_value % modulus).to_words()[0..4]
+                    .try_into()
+                    .map_err(|_e: TryFromSliceError| HashError::CastToField)?,
+            );
+            *f = Fp::new(scalar);
+        }
+        Ok(retval)
+    }
 }
 
 pub(crate) struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
@@ -162,34 +188,6 @@ impl<D: Default + ExtendableOutput> Expander for XOFExpander<D> {
         Ok(hasher.finalize_boxed(len_in_bytes).to_vec())
     }
 }
-
-#[allow(dead_code)]
-pub(crate) fn hash_to_field<E: Expander>(msg: &[u8], expander: &E) -> Result<[Fp; 2], HashError> {
-    const COUNT: usize = 2;
-    const L: usize = 48;
-    const LEN_IN_BYTES: usize = COUNT * L;
-
-    let exp_msg = expander.expand_message(msg, LEN_IN_BYTES)?;
-
-    let mut retval = [Fp::zero(); 2];
-    for (i, f) in retval.iter_mut().enumerate() {
-        let elm_offset = L * i;
-        let tv = &exp_msg[elm_offset..elm_offset + L];
-        let mut bs = [0u8; 64];
-        bs[16..].copy_from_slice(tv);
-
-        let cast_value = U512::from_be_bytes(bs);
-        let modulus = NonZero::<U512>::new(u256_to_u512(&Fp::characteristic())).unwrap();
-
-        let scalar = U256::from_words(
-            (cast_value % modulus).to_words()[0..4]
-                .try_into()
-                .map_err(|_e: TryFromSliceError| HashError::CastToField)?,
-        );
-        *f = Fp::new(scalar);
-    }
-    Ok(retval)
-}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -300,7 +298,7 @@ mod tests {
                     *expected_expanded_msg,
                     "Conversion for short XMD failed"
                 );
-                let res = hash_to_field(msg.as_bytes(), &expander).expect(
+                let res = expander.hash_to_field(msg.as_bytes(), 2, 48).expect(
                     "Short XMD failed to \
                 cast to field",
                 );

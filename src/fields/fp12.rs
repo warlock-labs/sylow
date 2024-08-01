@@ -208,10 +208,10 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
             <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng),
         ])
     }
-    fn sgn0(&self) -> Choice {
+    fn is_square(&self) -> Choice {
         unimplemented!()
     }
-    fn is_square(&self) -> Choice {
+    fn sgn0(&self) -> Choice {
         unimplemented!()
     }
 }
