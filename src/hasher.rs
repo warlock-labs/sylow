@@ -33,7 +33,7 @@ fn i2osp(val: u64, length: usize) -> Result<Vec<u8>, HashError> {
     }
     Ok(val.to_be_bytes()[8 - length..].to_vec())
 }
-trait Expander {
+pub(crate) trait Expander {
     const OVERSIZE_DST_PREFIX: &'static [u8] = b"H2C-OVERSIZE-DST-";
 
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError>;

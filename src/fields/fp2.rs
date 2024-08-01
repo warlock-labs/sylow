@@ -5,10 +5,8 @@
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::utils::u256_to_u512;
-use crypto_bigint::{
-    rand_core::CryptoRngCore, subtle::ConditionallySelectable, NonZero, U256, U512,
-};
-use num_traits::{Inv, One, Zero};
+use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U512};
+use num_traits::{Inv, One, Pow, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::{Choice, ConstantTimeEq, CtOption};
 
@@ -82,7 +80,7 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
             return CtOption::new(Fp2::zero(), Choice::from(0u8));
         }
 
-        return if alpha == -Fp2::one() {
+        if alpha == -Fp2::one() {
             let i = Fp2::new(&[Fp::zero(), Fp::one()]);
             let sqrt = i * a1 * (*self);
             CtOption::new(
@@ -96,7 +94,7 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
                 sqrt,
                 <Fp2 as FieldExtensionTrait<2, 2>>::square(&sqrt).ct_eq(self),
             )
-        };
+        }
     }
     fn square(&self) -> Self {
         let t0 = self.0[0] * self.0[1];
@@ -115,16 +113,22 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
         ])
     }
     fn is_square(&self) -> Choice {
-        let a_square = <Fp as FieldExtensionTrait<1, 1>>::is_square(&self.0[0]);
-        let neg_a_square = <Fp as FieldExtensionTrait<1, 1>>::is_square(&(-self.0[0]));
+        let legendre = |x: &Fp| -> i32 {
+            let exp = ((Fp::new(Fp::characteristic()) - Fp::one()) / Fp::from(2)).value();
+            let res = x.pow(exp);
 
-        let a_plus_b = self.0[0] + self.0[1];
-        let a_min_b = self.0[0] - self.0[1];
-
-        let sum_square = <Fp as FieldExtensionTrait<1, 1>>::is_square(&a_plus_b);
-        let diff_square = <Fp as FieldExtensionTrait<1, 1>>::is_square(&a_min_b);
-
-        (a_square & sum_square & diff_square) | (neg_a_square & !sum_square & !diff_square)
+            if res.is_one() {
+                1
+            } else if res.is_zero() {
+                0
+            } else {
+                -1
+            }
+        };
+        let sum = <Fp as FieldExtensionTrait<1, 1>>::square(&self.0[0])
+            + <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()
+                * <Fp as FieldExtensionTrait<1, 1>>::square(&(-self.0[0]));
+        Choice::from((legendre(&sum) != -1) as u8)
     }
     fn sgn0(&self) -> Choice {
         let sign_0 = <Fp as FieldExtensionTrait<1, 1>>::sgn0(&self.0[0]);
