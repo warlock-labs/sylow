@@ -127,9 +127,21 @@ mod tests {
         dbl: Vec<_G1Projective>,
         mul: Vec<_G1Projective>,
     }
+    #[derive(Serialize, Deserialize, Clone)]
+    struct _SVDW {
+        i: String,
+        x: String,
+        y: String,
+        z: String,
+    }
+    struct Svdw {
+        i: Fp,
+        p: G1Projective,
+    }
     #[derive(Serialize, Deserialize)]
     struct ReferenceData {
         g1: _G1,
+        svdw: Vec<_SVDW>,
     }
 
     struct G1ReferenceData {
@@ -141,6 +153,15 @@ mod tests {
         mul: Vec<G1Projective>,
     }
 
+    fn convert_to_svdw(svdw: &_SVDW) -> Svdw {
+        let i = convert_to_fp(&svdw.i);
+        let p = convert_to_g1projective(&_G1Projective {
+            x: svdw.clone().x,
+            y: svdw.clone().y,
+            z: svdw.clone().z,
+        });
+        Svdw { i, p }
+    }
     fn convert_to_g1projective(point: &_G1Projective) -> G1Projective {
         G1Projective::new([
             Fp::new_from_str(point.x.as_str()).expect(
@@ -371,8 +392,8 @@ mod tests {
 
         #[test]
         fn test_signature() {
-            use sha3::Keccak256;
             use crypto_bigint::rand_core::OsRng;
+            use sha3::Keccak256;
             let expander = XMDExpander::<Keccak256>::new(DST, K);
             for _ in 0..1 {
                 let rando = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng);
@@ -380,7 +401,30 @@ mod tests {
                     println!("DST: {:?}", String::from_utf8_lossy(DST));
                     println!("Message: {:?}", String::from_utf8_lossy(MSG));
                     println!("private key: {:?}", rando.value());
-                    println!("signature: {:?}, {:?}, {:?}\n", d.x.value(), d.y.value(), d.infinity);
+                    println!(
+                        "signature: {:?}, {:?}, {:?}\n",
+                        d.x.value(),
+                        d.y.value(),
+                        d.infinity
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn test_svdw() {
+            let path = Path::new(FNAME);
+            let file_content = fs::read_to_string(path).expect("Failed to read file");
+            let reference_data: ReferenceData =
+                serde_json::from_str(&file_content).expect("Failed to parse JSON");
+            let svdw_vecs: Vec<Svdw> = reference_data.svdw.iter().map(convert_to_svdw).collect();
+
+            if let Ok(d) = SvdW::<1, 1, Fp>::precompute_constants(Fp::from(0), Fp::from(3)) {
+                for s in svdw_vecs.iter() {
+                    let r = s.i;
+                    let p = s.p;
+                    let determined = d.map_to_point(r).expect("SVDW failed to map to point");
+                    assert_eq!(p, determined, "SVDW failed reference check");
                 }
             }
         }
