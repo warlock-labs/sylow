@@ -9,7 +9,7 @@ use crate::fields::utils::u256_to_u2048;
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U2048, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
-use subtle::Choice;
+use subtle::{Choice, CtOption};
 
 pub(crate) type Fp6 = FieldExtension<6, 3, Fp2>;
 
@@ -195,7 +195,7 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
         ])
     }
 
-    fn sqrt(&self) -> Self {
+    fn sqrt(&self) -> CtOption<Self> {
         todo!()
     }
 
@@ -227,7 +227,7 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
             <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
         ])
     }
-    fn lexographically_largest(&self) -> Choice {
+    fn sgn0(&self) -> Choice {
         unimplemented!()
     }
     fn is_square(&self) -> Choice {
@@ -311,7 +311,7 @@ impl FieldExtensionTrait<12, 2> for Fp6 {
     fn frobenius(&self, exponent: usize) -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(self, exponent)
     }
-    fn sqrt(&self) -> Self {
+    fn sqrt(&self) -> CtOption<Self> {
         <Fp6 as FieldExtensionTrait<6, 3>>::sqrt(self)
     }
     fn square(&self) -> Self {
@@ -320,11 +320,11 @@ impl FieldExtensionTrait<12, 2> for Fp6 {
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng)
     }
-    fn lexographically_largest(&self) -> Choice {
-        <Fp6 as FieldExtensionTrait<6, 3>>::lexographically_largest(self)
-    }
     fn is_square(&self) -> Choice {
-        <Fp6 as FieldExtensionTrait<6,3>>::is_square(self)
+        <Fp6 as FieldExtensionTrait<6, 3>>::is_square(self)
+    }
+    fn sgn0(&self) -> Choice {
+        <Fp6 as FieldExtensionTrait<6, 3>>::sgn0(self)
     }
 }
 
