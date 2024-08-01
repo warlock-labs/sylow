@@ -196,7 +196,7 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
     }
 
     fn sqrt(&self) -> CtOption<Self> {
-        todo!()
+        unimplemented!()
     }
 
     // this is simply the same as the multiplication below
@@ -227,10 +227,10 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
             <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
         ])
     }
-    fn sgn0(&self) -> Choice {
+    fn is_square(&self) -> Choice {
         unimplemented!()
     }
-    fn is_square(&self) -> Choice {
+    fn sgn0(&self) -> Choice {
         unimplemented!()
     }
 }

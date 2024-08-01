@@ -191,7 +191,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
         ])
     }
     fn sqrt(&self) -> CtOption<Self> {
-        todo!()
+        unimplemented!()
     }
     fn square(&self) -> Self {
         let tmp = self.0[0] * self.0[1];
