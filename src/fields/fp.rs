@@ -168,6 +168,14 @@ macro_rules! define_finite_prime_field {
                 Self::zero()
             }
             fn sqrt(&self) -> CtOption<Self> {
+                // This is an instantiation of Shank's algorithm, which solves congruences of
+                // the form $r^2\equiv n \mod p$, namely the sqrt of n. It does not work for
+                // composite moduli (aka nonprime p), since that is the integer factorization
+                // problem. The full algorithm is not necessary here, and has the additional
+                // simpication that we can exploit in our case. Namely, the BN254 curve has a
+                // prime that is congruent to 3 mod 4. In this case, the sqrt only has the
+                // possible solution of $\pm pow(n, \frac{p+1}{4})$, which is where this magic
+                // number below comes from ;)
                 let arg =
                     ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
                 let sqrt = self.pow(arg);

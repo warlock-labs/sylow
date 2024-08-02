@@ -28,7 +28,7 @@ use std::ops::{Add, Mul, Neg, Sub};
 
 #[derive(Debug)]
 pub enum GroupError {
-    /// This is a simple error struct that specifies the two errors
+    /// This is a simple error struct that specifies the three errors
     /// that are expected for the generation of a point on the curve.
     /// Either, the coordinates given are not even on the curve,
     /// or they are not in the correct subgroup, aka the r-torsion.
