@@ -18,7 +18,7 @@ use crate::fields::utils::u256_to_u4096;
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256, U4096};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
-use subtle::Choice;
+use subtle::{Choice, CtOption};
 
 pub(crate) type Fp12 = FieldExtension<12, 2, Fp6>;
 
@@ -190,8 +190,8 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
                 .scale(frobenius_coeff_fp12_c1[exponent % 12]),
         ])
     }
-    fn sqrt(&self) -> Self {
-        todo!()
+    fn sqrt(&self) -> CtOption<Self> {
+        unimplemented!()
     }
     fn square(&self) -> Self {
         let tmp = self.0[0] * self.0[1];
@@ -207,6 +207,12 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
             <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng),
             <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng),
         ])
+    }
+    fn is_square(&self) -> Choice {
+        unimplemented!()
+    }
+    fn sgn0(&self) -> Choice {
+        unimplemented!()
     }
 }
 

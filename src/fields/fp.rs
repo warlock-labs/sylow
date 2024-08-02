@@ -79,11 +79,15 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     // specialized algorithms exist in each extension
     // for sqrt and square, simply helper functions really
     #[allow(dead_code)]
-    fn sqrt(&self) -> Self;
+    fn sqrt(&self) -> CtOption<Self>;
     fn square(&self) -> Self;
 
     #[allow(dead_code)]
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
+
+    fn is_square(&self) -> Choice;
+
+    fn sgn0(&self) -> Choice;
 }
 pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
@@ -163,8 +167,22 @@ macro_rules! define_finite_prime_field {
             fn frobenius(&self, _exponent: usize) -> Self {
                 Self::zero()
             }
-            fn sqrt(&self) -> Self {
-                Self::new(self.value().sqrt())
+            fn sqrt(&self) -> CtOption<Self> {
+                // This is an instantiation of Shank's algorithm, which solves congruences of
+                // the form $r^2\equiv n \mod p$, namely the sqrt of n. It does not work for
+                // composite moduli (aka nonprime p), since that is the integer factorization
+                // problem. The full algorithm is not necessary here, and has the additional
+                // simpication that we can exploit in our case. Namely, the BN254 curve has a
+                // prime that is congruent to 3 mod 4. In this case, the sqrt only has the
+                // possible solution of $\pm pow(n, \frac{p+1}{4})$, which is where this magic
+                // number below comes from ;)
+                let arg =
+                    ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
+                let sqrt = self.pow(arg);
+                CtOption::new(
+                    sqrt,
+                    <Self as FieldExtensionTrait<$degree, $nreps>>::square(&sqrt).ct_eq(self),
+                )
             }
             fn square(&self) -> Self {
                 (*self) * (*self)
@@ -174,6 +192,20 @@ macro_rules! define_finite_prime_field {
                     rng,
                     ModulusStruct::MODULUS.as_nz_ref(),
                 ))
+            }
+            fn is_square(&self) -> Choice {
+                let p_minus_1_div_2 =
+                    ((Self::new(Self::characteristic()) - Self::from(1)) / Self::from(2)).value();
+                let retval = self.pow(p_minus_1_div_2);
+                Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
+            }
+            fn sgn0(&self) -> Choice {
+                let a = *self % Self::from(2u64);
+                if a.is_zero() {
+                    Choice::from(0u8)
+                } else {
+                    Choice::from(1u8)
+                }
             }
         }
         impl From<u64> for $wrapper_name {
@@ -375,7 +407,7 @@ impl FieldExtensionTrait<2, 2> for Fp {
     fn frobenius(&self, exponent: usize) -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::frobenius(self, exponent)
     }
-    fn sqrt(&self) -> Self {
+    fn sqrt(&self) -> CtOption<Self> {
         <Fp as FieldExtensionTrait<1, 1>>::sqrt(self)
     }
     fn square(&self) -> Self {
@@ -383,6 +415,13 @@ impl FieldExtensionTrait<2, 2> for Fp {
     }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
+    }
+
+    fn is_square(&self) -> Choice {
+        <Fp as FieldExtensionTrait<1, 1>>::is_square(self)
+    }
+    fn sgn0(&self) -> Choice {
+        <Fp as FieldExtensionTrait<1, 1>>::sgn0(self)
     }
 }
 
@@ -847,6 +886,36 @@ mod tests {
             let k = create_field([5, 0, 0, 0]);
 
             assert_eq!(k * (a + b), k * a + k * b, "Linearity of addition failed");
+        }
+    }
+
+    mod square_tests {
+        use super::*;
+        use crypto_bigint::rand_core::OsRng;
+
+        #[test]
+        fn test_square() {
+            for _ in 0..100 {
+                let a = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng);
+                let b = <Fp as FieldExtensionTrait<1, 1>>::square(&a);
+                assert!(
+                    bool::from(<Fp as FieldExtensionTrait<1, 1>>::is_square(&b)),
+                    "Is square failed"
+                );
+            }
+        }
+        #[test]
+        fn test_sqrt() {
+            for i in 0..100 {
+                let a = create_field([i, 2 * i, 3 * i, 4 * i]);
+                let b = <Fp as FieldExtensionTrait<1, 1>>::sqrt(&a);
+                match b.into_option() {
+                    Some(d) => {
+                        assert_eq!(d * d, a, "Sqrt failed")
+                    }
+                    _ => continue,
+                }
+            }
         }
     }
 }

@@ -1,5 +1,5 @@
 from sagelib.facts import *
-
+from sagelib.svdw import *
 def random_g1(n):
     return [E1.random_point() for _ in range(n)]
 
@@ -31,8 +31,19 @@ def generate_reference_json():
     num_points = 1000
     points = {
         "g1": {'a': [], 'b': [], 'r': [], 'add': [], 'dbl': [], 'mul': []},
+        "svdw": []
     }
     A, B, R, Add, Dbl, Mul = generate_g1_data(num_points)
+    svdw = generic_svdw(E1)
+    for _ in range(num_points):
+        u = Fp.random_element()
+        if u not in svdw.undefs:
+            x, y = svdw.map_to_point(u)
+            assert E1(x,y), f"point ({x},{y}) is not on curve for u={u}"
+            points['svdw'].append({
+                "i": str(u),
+                **point_to_json(E1(x,y))
+            })
     for a, b, r, add, dbl, mul in zip(A, B, R, Add, Dbl, Mul):
         points["g1"]['a'].append(point_to_json(a))
         points["g1"]['b'].append(point_to_json(b))

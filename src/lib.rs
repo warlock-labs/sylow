@@ -14,3 +14,5 @@
 
 mod fields;
 mod groups;
+mod hasher;
+mod svdw;

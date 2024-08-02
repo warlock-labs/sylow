@@ -1,2 +1,2 @@
 mod g1;
-mod group;
+pub(crate) mod group;

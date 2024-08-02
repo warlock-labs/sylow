@@ -6,9 +6,9 @@ use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
 use crate::fields::utils::u256_to_u512;
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U512};
-use num_traits::{Inv, One, Zero};
+use num_traits::{Inv, One, Pow, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
-use subtle::Choice;
+use subtle::{Choice, ConstantTimeEq, CtOption};
 
 pub(crate) type Fp2 = FieldExtension<2, 2, Fp>;
 
@@ -66,7 +66,7 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
             ]),
         }
     }
-    fn sqrt(&self) -> Self {
+    fn sqrt(&self) -> CtOption<Self> {
         let p_minus_3_over_4 =
             ((Fp::new(Fp::characteristic()) - Fp::from(3u64)) / Fp::from(4u64)).value();
         let p_minus_1_over_2 =
@@ -77,15 +77,23 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
         let alpha = a1 * a1 * (*self);
         let a0 = alpha.pow_vartime(&p.to_words());
         if a0 == -Fp2::one() {
-            return Fp2::zero();
+            return CtOption::new(Fp2::zero(), Choice::from(0u8));
         }
 
         if alpha == -Fp2::one() {
             let i = Fp2::new(&[Fp::zero(), Fp::one()]);
-            i * a1 * (*self)
+            let sqrt = i * a1 * (*self);
+            CtOption::new(
+                sqrt,
+                <Fp2 as FieldExtensionTrait<2, 2>>::square(&sqrt).ct_eq(self),
+            )
         } else {
             let b = (alpha + Fp2::one()).pow_vartime(&p_minus_1_over_2.to_words());
-            b * a1 * (*self)
+            let sqrt = b * a1 * (*self);
+            CtOption::new(
+                sqrt,
+                <Fp2 as FieldExtensionTrait<2, 2>>::square(&sqrt).ct_eq(self),
+            )
         }
     }
     fn square(&self) -> Self {
@@ -103,6 +111,30 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
             <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
             <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
         ])
+    }
+    fn is_square(&self) -> Choice {
+        let legendre = |x: &Fp| -> i32 {
+            let exp = ((Fp::new(Fp::characteristic()) - Fp::one()) / Fp::from(2)).value();
+            let res = x.pow(exp);
+
+            if res.is_one() {
+                1
+            } else if res.is_zero() {
+                0
+            } else {
+                -1
+            }
+        };
+        let sum = <Fp as FieldExtensionTrait<1, 1>>::square(&self.0[0])
+            + <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()
+                * <Fp as FieldExtensionTrait<1, 1>>::square(&(-self.0[0]));
+        Choice::from((legendre(&sum) != -1) as u8)
+    }
+    fn sgn0(&self) -> Choice {
+        let sign_0 = <Fp as FieldExtensionTrait<1, 1>>::sgn0(&self.0[0]);
+        let zero_0 = Choice::from(self.0[0].is_zero() as u8);
+        let sign_1 = <Fp as FieldExtensionTrait<1, 1>>::sgn0(&self.0[1]);
+        sign_0 | (zero_0 & sign_1)
     }
 }
 
@@ -186,7 +218,7 @@ impl FieldExtensionTrait<6, 3> for Fp2 {
     fn frobenius(&self, exponent: usize) -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(self, exponent)
     }
-    fn sqrt(&self) -> Self {
+    fn sqrt(&self) -> CtOption<Self> {
         <Fp2 as FieldExtensionTrait<2, 2>>::sqrt(self)
     }
     fn square(&self) -> Self {
@@ -194,6 +226,12 @@ impl FieldExtensionTrait<6, 3> for Fp2 {
     }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng)
+    }
+    fn is_square(&self) -> Choice {
+        <Fp2 as FieldExtensionTrait<2, 2>>::is_square(self)
+    }
+    fn sgn0(&self) -> Choice {
+        <Fp2 as FieldExtensionTrait<2, 2>>::sgn0(self)
     }
 }
 // Tests of associativity, commutativity, etc., follow directly from
@@ -334,7 +372,12 @@ mod tests {
             );
             for i in [a, b, c, d, e, f] {
                 let tmp = <Fp2 as FieldExtensionTrait<2, 2>>::sqrt(&i);
-                assert_eq!(tmp * tmp, i, "Sqrt failed");
+                match tmp.into_option() {
+                    Some(d) => {
+                        assert_eq!(d * d, i, "Sqrt failed");
+                    }
+                    _ => continue,
+                }
             }
         }
         #[test]
@@ -440,6 +483,23 @@ mod tests {
             let zero = Fp2::zero();
 
             let _ = a / zero;
+        }
+    }
+    mod square_tests {
+        use super::*;
+
+        #[test]
+        fn test_square() {
+            use crypto_bigint::rand_core::OsRng;
+
+            for _ in 0..100 {
+                let a = <Fp2 as FieldExtensionTrait<2, 2>>::rand(&mut OsRng);
+                let b = <Fp2 as FieldExtensionTrait<2, 2>>::square(&a);
+                assert!(
+                    bool::from(<Fp2 as FieldExtensionTrait<2, 2>>::is_square(&b)),
+                    "Is square failed"
+                );
+            }
         }
     }
 }
