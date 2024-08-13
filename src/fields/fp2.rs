@@ -136,6 +136,10 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
         let sign_1 = <Fp as FieldExtensionTrait<1, 1>>::sgn0(&self.0[1]);
         sign_0 | (zero_0 & sign_1)
     }
+    fn curve_constant() -> Self {
+        // this is the curve constant for the twist curve in Fp2
+        Self::from(3) / <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue()
+    }
 }
 
 impl Mul for Fp2 {
@@ -232,6 +236,9 @@ impl FieldExtensionTrait<6, 3> for Fp2 {
     }
     fn sgn0(&self) -> Choice {
         <Fp2 as FieldExtensionTrait<2, 2>>::sgn0(self)
+    }
+    fn curve_constant() -> Self {
+        <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant()
     }
 }
 // Tests of associativity, commutativity, etc., follow directly from

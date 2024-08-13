@@ -10,7 +10,7 @@ use sha3::digest::crypto_common::BlockSizeUser;
 use sha3::digest::{ExtendableOutput, FixedOutput};
 use std::array::TryFromSliceError;
 #[derive(Debug)]
-pub enum HashError {
+pub(crate) enum HashError {
     CastToField,
     ExpandMessage,
     ConvertInt,

@@ -233,6 +233,9 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
     fn sgn0(&self) -> Choice {
         unimplemented!()
     }
+    fn curve_constant() -> Self {
+        unimplemented!()
+    }
 }
 impl Mul for Fp6 {
     type Output = Self;
@@ -325,6 +328,9 @@ impl FieldExtensionTrait<12, 2> for Fp6 {
     }
     fn sgn0(&self) -> Choice {
         <Fp6 as FieldExtensionTrait<6, 3>>::sgn0(self)
+    }
+    fn curve_constant() -> Self {
+        <Fp6 as FieldExtensionTrait<6, 3>>::curve_constant()
     }
 }
 

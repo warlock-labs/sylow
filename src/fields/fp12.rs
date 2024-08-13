@@ -214,6 +214,9 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
     fn sgn0(&self) -> Choice {
         unimplemented!()
     }
+    fn curve_constant() -> Self {
+        unimplemented!()
+    }
 }
 
 impl Mul for Fp12 {

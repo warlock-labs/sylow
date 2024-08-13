@@ -88,6 +88,8 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     fn is_square(&self) -> Choice;
 
     fn sgn0(&self) -> Choice;
+
+    fn curve_constant() -> Self;
 }
 pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
@@ -117,7 +119,7 @@ macro_rules! define_finite_prime_field {
         type Output =
             crypto_bigint::modular::ConstMontyForm<ModulusStruct, { ModulusStruct::LIMBS }>;
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
-        pub struct $wrapper_name(ModulusStruct, Output);
+        pub(crate) struct $wrapper_name(ModulusStruct, Output);
         #[allow(dead_code)]
         impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {
             // builder structure to create elements in the base field of a given value
@@ -206,6 +208,9 @@ macro_rules! define_finite_prime_field {
                 } else {
                     Choice::from(1u8)
                 }
+            }
+            fn curve_constant() -> Self {
+                Self::from(3)
             }
         }
         impl From<u64> for $wrapper_name {
@@ -422,6 +427,9 @@ impl FieldExtensionTrait<2, 2> for Fp {
     }
     fn sgn0(&self) -> Choice {
         <Fp as FieldExtensionTrait<1, 1>>::sgn0(self)
+    }
+    fn curve_constant() -> Self {
+        <Fp as FieldExtensionTrait<1, 1>>::curve_constant()
     }
 }
 

@@ -27,7 +27,7 @@ use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use std::ops::{Add, Mul, Neg, Sub};
 
 #[derive(Debug)]
-pub enum GroupError {
+pub(crate) enum GroupError {
     /// This is a simple error struct that specifies the three errors
     /// that are expected for the generation of a point on the curve.
     /// Either, the coordinates given are not even on the curve,
@@ -136,41 +136,6 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D, N, F> {
-    /// this needs to be defined in order to have user interaction, but currently
-    /// is only visible in tests, and therefore is seen by the linter as unused
-    #[allow(dead_code)]
-    pub fn new(v: [F; 2]) -> Result<Self, GroupError> {
-        let _g1affine_is_on_curve = |x: &F, y: &F, z: &Choice| -> Choice {
-            let y2 = F::square(y);
-            let x2 = F::square(x);
-            let lhs = y2 - (x2 * (*x));
-            let rhs = F::from(3u64);
-            // println!("{:?}, {:?}", lhs, rhs);
-            lhs.ct_eq(&rhs) | *z
-        };
-
-        let _g1affine_is_torsion_free = |_x: &F, _y: &F, _z: &Choice| -> Choice {
-            // every point in G1 on the curve is in the r-torsion of BN254
-            Choice::from(1u8)
-        };
-        let is_on_curve: Choice = _g1affine_is_on_curve(&v[0], &v[1], &Choice::from(0u8));
-        match bool::from(is_on_curve) {
-            true => {
-                // println!("Is on curve!");
-                let is_in_torsion: Choice =
-                    _g1affine_is_torsion_free(&v[0], &v[1], &Choice::from(0u8));
-                match bool::from(is_in_torsion) {
-                    true => Ok(Self {
-                        x: v[0],
-                        y: v[1],
-                        infinity: Choice::from(0u8),
-                    }),
-                    _ => Err(GroupError::NotInSubgroup),
-                }
-            }
-            false => Err(GroupError::NotOnCurve),
-        }
-    }
     pub(crate) fn zero() -> Self {
         Self {
             x: F::zero(),
@@ -200,35 +165,6 @@ pub(crate) struct GroupProjective<const D: usize, const N: usize, F: FieldExtens
     pub(crate) z: F,
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjective<D, N, F> {
-    pub fn new(v: [F; 3]) -> Result<Self, GroupError> {
-        let _g1projective_is_on_curve = |x: &F, y: &F, z: &F| -> Choice {
-            let y2 = F::square(y);
-            let x2 = F::square(x);
-            let z2 = F::square(z);
-            let lhs = y2 * (*z);
-            let rhs = x2 * (*x) + z2 * (*z) * F::from(3u64);
-            // println!("{:?}, {:?}", lhs.value(), rhs.value());
-            lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
-        };
-        let _g1projective_is_torsion_free =
-            |_x: &F, _y: &F, _z: &F| -> Choice { Choice::from(1u8) };
-        let is_on_curve: Choice = _g1projective_is_on_curve(&v[0], &v[1], &v[2]);
-        match bool::from(is_on_curve) {
-            true => {
-                // println!("Is on curve!");
-                let is_in_torsion: Choice = _g1projective_is_torsion_free(&v[0], &v[1], &v[2]);
-                match bool::from(is_in_torsion) {
-                    true => Ok(Self {
-                        x: v[0],
-                        y: v[1],
-                        z: v[2],
-                    }),
-                    false => Err(GroupError::NotOnCurve),
-                }
-            }
-            false => Err(GroupError::NotOnCurve),
-        }
-    }
     /// This is the point at infinity! This object really is the additive identity of the group,
     /// when the group law is addition, which it is here. It satisfies the properties that
     /// $zero+a=a$ for some $a$ in the group, as well as $a+(-a)=zero$, which means that the
@@ -260,7 +196,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         let t1 = self.y * self.z;
         let t2 = self.z * self.z;
 
-        let t2 = F::from(9) * t2;
+        let t2 = F::from(3) * F::curve_constant() * t2;
         let x3 = t2 * z3;
         let y3 = t0 + t2;
 
@@ -275,11 +211,12 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         let t1 = self.x * self.y;
         let x3 = t0 * t1;
         let x3 = x3 + x3;
-        Self {
+        let tmp =  Self {
             x: x3,
             y: y3,
             z: z3,
-        }
+        };
+        Self::conditional_select(&tmp, &Self::zero(), Choice::from(self.is_zero() as u8))
     }
 }
 
@@ -355,7 +292,11 @@ impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         let y = arg.y * inverse;
 
         GroupAffine::conditional_select(
-            &GroupAffine::new([x, y]).expect("Conversion to affine coordinates failed"),
+            &GroupAffine {
+                x,
+                y,
+                infinity: Choice::from(0u8),
+            },
             &GroupAffine::zero(),
             Choice::from(inverse.is_zero() as u8),
         )
@@ -374,12 +315,11 @@ impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     From<&'a GroupAffine<D, N, F>> for GroupProjective<D, N, F>
 {
     fn from(value: &'a GroupAffine<D, N, F>) -> Self {
-        Self::new([
-            value.x,
-            value.y,
-            F::conditional_select(&F::one(), &F::zero(), value.infinity),
-        ])
-        .expect("Conversion to projective coordinates failed")
+        Self {
+            x: value.x,
+            y: value.y,
+            z: F::conditional_select(&F::one(), &F::zero(), value.infinity),
+        }
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<GroupAffine<D, N, F>>
@@ -426,11 +366,11 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
 
         let x3 = t0 + t0;
         let t0 = x3 + t0;
-        let t2 = F::from(9) * t2;
+        let t2 = F::from(3) * F::curve_constant() * t2;
 
         let z3 = t1 + t2;
         let t1 = t1 - t2;
-        let y3 = F::from(9) * y3;
+        let y3 = F::from(3) * F::curve_constant() * y3;
 
         let x3 = t4 * y3;
         let t2 = t3 * t1;
@@ -443,7 +383,11 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         let t0 = t0 * t3;
         let z3 = z3 * t4;
         let z3 = z3 + t0;
-        Self::Output::new([x3, y3, z3]).expect("Addition failed")
+        Self::Output {
+            x: x3,
+            y: y3,
+            z: z3,
+        }
     }
 }
 #[allow(clippy::suspicious_arithmetic_impl)]

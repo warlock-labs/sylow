@@ -15,8 +15,8 @@ use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait}
 use crate::hasher::Expander;
 use crate::svdw::{SvdW, SvdWTrait};
 use crypto_bigint::rand_core::CryptoRngCore;
-use num_traits::One;
-use subtle::Choice;
+use num_traits::{One, Zero};
+use subtle::{Choice, ConstantTimeEq};
 
 #[allow(dead_code)]
 type G1Affine = GroupAffine<1, 1, Fp>;
@@ -53,6 +53,43 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
         }
     }
 }
+#[allow(dead_code)]
+impl G1Affine {
+    /// this needs to be defined in order to have user interaction, but currently
+    /// is only visible in tests, and therefore is seen by the linter as unused
+    pub(crate) fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
+        let _g1affine_is_on_curve = |x: &Fp, y: &Fp, z: &Choice| -> Choice {
+            let y2 = <Fp as FieldExtensionTrait<1, 1>>::square(y);
+            let x2 = <Fp as FieldExtensionTrait<1, 1>>::square(x);
+            let lhs = y2 - (x2 * (*x));
+            let rhs = <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
+            // println!("{:?}, {:?}", lhs, rhs);
+            lhs.ct_eq(&rhs) | *z
+        };
+
+        let _g1affine_is_torsion_free = |_x: &Fp, _y: &Fp, _z: &Choice| -> Choice {
+            // every point in G1 on the curve is in the r-torsion of BN254
+            Choice::from(1u8)
+        };
+        let is_on_curve: Choice = _g1affine_is_on_curve(&v[0], &v[1], &Choice::from(0u8));
+        match bool::from(is_on_curve) {
+            true => {
+                // println!("Is on curve!");
+                let is_in_torsion: Choice =
+                    _g1affine_is_torsion_free(&v[0], &v[1], &Choice::from(0u8));
+                match bool::from(is_in_torsion) {
+                    true => Ok(Self {
+                        x: v[0],
+                        y: v[1],
+                        infinity: Choice::from(0u8),
+                    }),
+                    _ => Err(GroupError::NotInSubgroup),
+                }
+            }
+            false => Err(GroupError::NotOnCurve),
+        }
+    }
+}
 impl GroupTrait<1, 1, Fp> for G1Projective {
     fn generator() -> Self {
         Self::from(G1Affine::generator())
@@ -74,12 +111,16 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
             .expect("Hashing to base field failed");
         match SvdW::<1, 1, Fp>::precompute_constants(Fp::from(0), Fp::from(3)) {
             Ok(bn254_g1_svdw) => {
-                let a = bn254_g1_svdw
-                    .map_to_point(scalars[0])
-                    .expect("Failed to hash");
-                let b = bn254_g1_svdw
-                    .map_to_point(scalars[1])
-                    .expect("Failed to hash");
+                let a = G1Projective::from(
+                    bn254_g1_svdw
+                        .unchecked_map_to_point(scalars[0])
+                        .expect("Failed to hash"),
+                );
+                let b = G1Projective::from(
+                    bn254_g1_svdw
+                        .unchecked_map_to_point(scalars[1])
+                        .expect("Failed to hash"),
+                );
                 Ok(&a + &b)
             }
             _ => Err(GroupError::CannotHashToGroup),
@@ -90,6 +131,49 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
             return Ok(&d * &private_key.value().to_le_bytes());
         }
         Err(GroupError::CannotHashToGroup)
+    }
+}
+impl G1Projective {
+    pub(crate) fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
+        let _g1projective_is_on_curve = |x: &Fp, y: &Fp, z: &Fp| -> Choice {
+            let y2 = <Fp as FieldExtensionTrait<1, 1>>::square(y);
+            let x2 = <Fp as FieldExtensionTrait<1, 1>>::square(x);
+            let z2 = <Fp as FieldExtensionTrait<1, 1>>::square(z);
+            let lhs = y2 * (*z);
+            let rhs = x2 * (*x) + z2 * (*z) * <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
+            // println!("{:?}, {:?}", lhs.value(), rhs.value());
+            lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
+        };
+        let _g1projective_is_torsion_free =
+            |_x: &Fp, _y: &Fp, _z: &Fp| -> Choice { Choice::from(1u8) };
+        let is_on_curve: Choice = _g1projective_is_on_curve(&v[0], &v[1], &v[2]);
+        match bool::from(is_on_curve) {
+            true => {
+                // println!("Is on curve!");
+                let is_in_torsion: Choice = _g1projective_is_torsion_free(&v[0], &v[1], &v[2]);
+                match bool::from(is_in_torsion) {
+                    true => Ok(Self {
+                        x: v[0],
+                        y: v[1],
+                        z: v[2],
+                    }),
+                    false => Err(GroupError::NotOnCurve),
+                }
+            }
+            false => Err(GroupError::NotOnCurve),
+        }
+    }
+}
+impl<'a> From<&'a [Fp; 2]> for G1Projective {
+    fn from(value: &'a [Fp; 2]) -> Self {
+        G1Affine::new(*value)
+            .expect("Conversion to affine failed")
+            .into()
+    }
+}
+impl From<[Fp; 2]> for G1Projective {
+    fn from(value: [Fp; 2]) -> Self {
+        G1Projective::from(&value)
     }
 }
 /// This test suite takes time, the biggest culprit of which is the multiplication. Really the
@@ -180,7 +264,7 @@ mod tests {
     const FNAME: &str = "./src/sage_reference/bn254_reference.json";
 
     /// Loading from disk is not a const operation (so we therefore cannot just run this code
-    /// once in the beginning of the `tests` module definition, so we roll the loading
+    /// once in the beginning of the `tests` module definition), so we roll the loading
     /// and processing into a macro so that it can be performed at the beginning of each test as
     /// needed.
     macro_rules! load_reference_data {
@@ -423,7 +507,10 @@ mod tests {
                 for s in svdw_vecs.iter() {
                     let r = s.i;
                     let p = s.p;
-                    let determined = d.map_to_point(r).expect("SVDW failed to map to point");
+                    let determined = G1Projective::from(
+                        d.unchecked_map_to_point(r)
+                            .expect("SVDW failed to map to point"),
+                    );
                     assert_eq!(p, determined, "SVDW failed reference check");
                 }
             }
