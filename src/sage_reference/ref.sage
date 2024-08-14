@@ -9,7 +9,7 @@ def generate_reference_json():
     num_points = 1000
     points = {
         "g1": {'a': [], 'b': [], 'r': [], 'add': [], 'dbl': [], 'mul': [], 'svdw': []},
-        "g2": {'a': [], 'b': [], 'r': [], 'add': [], 'dbl': [], 'mul': [], 'svdw': [], 'invalid': []},
+        "g2": {'a': [], 'b': [], 'r': [], 'add': [], 'dbl': [], 'mul': [], 'svdw': [], 'invalid': [], 'psi': []},
     }
     for func, curve, label in zip([generate_g1_data, generate_g2_data], [E1, E2], ['g1', 'g2']):
         A, B, R, Add, Dbl, Mul = func(num_points)
@@ -30,6 +30,8 @@ def generate_reference_json():
             points[label]['add'].append(point_to_json(add))
             points[label]['dbl'].append(point_to_json(dbl))
             points[label]['mul'].append(point_to_json(mul))
+            if label=='g2':
+                points[label]['psi'].append(point_to_json(psi(a)))
     for _ in range(num_points):
         points["g2"]['invalid'].append(point_to_json(generate_non_r_torsion_point()))
 

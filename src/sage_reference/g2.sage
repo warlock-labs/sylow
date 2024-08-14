@@ -18,3 +18,4 @@ def generate_non_r_torsion_point():
     # We want P to be of order 10069
     P = 5864401 * 1875725156269 * 197620364512881247228717050342013327560683201906968909 * E1.order() * P
     return P
+    

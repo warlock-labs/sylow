@@ -61,6 +61,7 @@ mod tests {
         dbl: Vec<_G2Projective>,
         mul: Vec<_G2Projective>,
         invalid: Vec<_G2Projective>,
+        psi: Vec<_G2Projective>,
         svdw: Vec<_G2SVDW>,
     }
     #[derive(Serialize, Deserialize, Clone)]
@@ -107,6 +108,7 @@ mod tests {
         add: Vec<G2Projective>,
         dbl: Vec<G2Projective>,
         mul: Vec<G2Projective>,
+        psi: Vec<G2Projective>
         // invalid: Vec<G2Projective>,
     }
 
@@ -175,7 +177,7 @@ mod tests {
     /// once in the beginning of the `tests` module definition), so we roll the loading
     /// and processing into a macro so that it can be performed at the beginning of each test as
     /// needed.
-    /// 
+    ///
     macro_rules! load_reference_data_from_disk {
         ($wrapper_name:ident) => {
              let path = Path::new(FNAME);
@@ -263,12 +265,17 @@ mod tests {
                     .iter()
                     .map(convert_to_g2projective)
                     .collect(),
-
+                psi: reference_data
+                    .g2
+                    .psi
+                    .iter()
+                    .map(convert_to_g2projective)
+                    .collect(),
             };
             let $g2_invalids = reference_data.g2.invalid;
             };
         }
-            
+
     mod g1 {
         use super::*;
         mod generation {
@@ -631,6 +638,50 @@ mod tests {
                 for (i, a) in g2_points.a.iter().enumerate() {
                     let result = a.double();
                     assert_eq!(result, expected[i], "Simple doubling failed");
+                }
+            }
+        }
+        mod endomorphism_tests {
+            use crate::groups::g2::G2Affine;
+            use super::*;
+
+            #[test]
+            fn test_psi(){
+                fn psi(f: G2Projective) -> G2Projective {
+                    let epsExp0 = Fp2::new(&[
+                        Fp::new_from_str
+                            ("21575463638280843010398324269430826099269044274347216827212613867836435027261").expect("endo arg 0x failed"),
+                        Fp::new_from_str
+                            ("10307601595873709700152284273816112264069230130616436755625194854815875713954").expect("endo arg 0y failed")
+                    ]);
+
+                    let epsExp1 = Fp2::new(&[
+                        Fp::new_from_str
+                            ("2821565182194536844548159561693502659359617185244120367078079554186484126554").expect("endo arg 1x failed"),
+                        Fp::new_from_str
+                            ("3505843767911556378687030309984248845540243509899259641013678093033130930403").expect("endo arg 1y failed")
+                    ]);
+                    if f.is_zero() {
+                        return f;
+                    }
+                    let af = G2Affine::from(f);
+                    let x = af.x;
+                    let y = af.y;
+
+                    let x_frob = <Fp2 as FieldExtensionTrait<2,2>>::frobenius(&x,1);
+                    let y_frob = <Fp2 as FieldExtensionTrait<2,2>>::frobenius(&y,1);
+
+                    let x_endo = epsExp0 * x_frob;
+                    let y_endo = epsExp1 * y_frob;
+
+                    G2Projective::from(G2Affine::new_unchecked([x_endo, y_endo]).expect
+                    ("Conversion failed to go back to curve"))
+                }
+                load_g2_reference_data!(g2_points, _g2_invalids);
+                let expected = g2_points.psi;
+                for (i, a) in g2_points.a.iter().enumerate() {
+                    let result = psi(*a);
+                    assert_eq!(result, expected[i], "Simple multiplication failed");
                 }
             }
         }
