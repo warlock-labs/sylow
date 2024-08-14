@@ -14,15 +14,15 @@ pub(crate) type G2Projective = GroupProjective<2, 2, Fp2>;
 impl GroupTrait<2, 2, Fp2> for G2Projective {
     fn generator() -> Self {
         let x_g2 = Fp2::new(&[
-            Fp::new_from_str("1800deef121f1e76426a00665e5c4479674322d4f75edadd46debd5cd992f6ed")
+            Fp::new_from_str("10857046999023057135944570762232829481370756359578518086990519993285655852781")
                 .expect("G2_x0 failed"),
-            Fp::new_from_str("198e9393920d483a7260bfb731fb5d25f1aa493335a9e71297e485b7aef312c2")
+            Fp::new_from_str("11559732032986387107991004021392285783925812861821192530917403151452391805634")
                 .expect("G2_x1 failed"),
         ]);
         let y_g2 = Fp2::new(&[
-            Fp::new_from_str("12c85ea5db8c6deb4aab71808dcb408fe3d1e7690c43d37b4ce6cc0166fa7daa")
+            Fp::new_from_str("13392588948715843804641432497768002650278120570034223513918757245338268106653")
                 .expect("G2_y0 failed"),
-            Fp::new_from_str("090689d0585ff075ec9e99ad690c3395bc4b313370b38ef355acdadcd122975b")
+            Fp::new_from_str("17805874995975841540914202342111839520379459829704422454583296818431106115052")
                 .expect("G2_y1 failed"),
         ]);
         Self {
@@ -83,7 +83,7 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     }
 }
 impl G2Affine {
-    pub(crate) fn new(v: [Fp2; 2]) -> Result<Self, GroupError> {
+    pub(crate) fn new_unchecked(v: [Fp2; 2]) -> Result<Self, GroupError> {
         let _g2affine_is_on_curve = |x: &Fp2, y: &Fp2, z: &Choice| -> Choice {
             let y2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(y);
             let x2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(x);
@@ -91,29 +91,19 @@ impl G2Affine {
             let rhs = <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
             lhs.ct_eq(&rhs) | *z
         };
-        let _g2affine_is_torsion_free =  |_x: &Fp2, _y: &Fp2, _z: &Choice| -> Choice {
-            // every point in G1 on the curve is in the r-torsion of BN254
-            Choice::from(1u8)
-        };
         let is_on_curve = _g2affine_is_on_curve(&v[0], &v[1], &Choice::from(0u8));
         match bool::from(is_on_curve){
-            true => {
-                let is_in_torsion = _g2affine_is_torsion_free(&v[0], &v[1], &Choice::from(0u8));
-                match bool::from(is_in_torsion) {
-                    true => Ok(Self {
-                        x: v[0],
-                        y: v[1],
-                        infinity: Choice::from(0u8)
-                    }),
-                    _ => Err(GroupError::NotInSubgroup)
-                }
-            }
+            true => Ok(Self {
+                x: v[0],
+                y: v[1],
+                infinity: Choice::from(0u8)
+            }),
         false => Err(GroupError::NotOnCurve)
         }
     }
 }
 impl G2Projective {
-    pub(crate) fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
+    pub(crate) fn new_unchecked(v: [Fp2; 3]) -> Result<Self, GroupError> {
         let _g2projective_is_on_curve = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
             let y2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(y);
             let x2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(x);
@@ -123,34 +113,14 @@ impl G2Projective {
             // println!("{:?}, {:?}", lhs.value(), rhs.value());
             lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
         };
-        let _g2projective_is_torsion_free = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
-            let tmp = G2Projective{
-                x: *x, y: *y, z: *z
-            };
-            
-            let xgen = Fp::new_from_str("147946756881789318990833708069417712966").unwrap();
-            let mut a = &tmp * &xgen.value().to_le_bytes();
-            let b = G2Projective::endomorphism(&a);
-            a = &a + &tmp;
-            let mut res = G2Projective::endomorphism(&b);
-            let mut c = res;
-            c = &c + &b;
-            c = &c + &a;
-            res = G2Projective::endomorphism(&res).double();
-            res = &res - &c;
-            _g2projective_is_on_curve(&res.x, &res.y, &res.z) | Choice::from(res.z.is_zero() as u8)
-        };
+
         let is_on_curve = _g2projective_is_on_curve(&v[0], &v[1], &v[2]);
-        let is_torsion_free = _g2projective_is_torsion_free(&v[0], &v[1], &v[2]);
         match bool::from(is_on_curve) {
-            true => match bool::from(is_torsion_free) {
-                true => Ok(Self {
-                    x: v[0],
-                    y: v[1],
-                    z: v[2],
-                }),
-                false => Err(GroupError::NotInSubgroup),
-            },
+            true => Ok(Self {
+                x: v[0],
+                y: v[1],
+                z: v[2],
+            }),
             false => Err(GroupError::NotOnCurve),
         }
     }
