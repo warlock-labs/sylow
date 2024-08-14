@@ -211,7 +211,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         let t1 = self.x * self.y;
         let x3 = t0 * t1;
         let x3 = x3 + x3;
-        let tmp =  Self {
+        let tmp = Self {
             x: x3,
             y: y3,
             z: z3,

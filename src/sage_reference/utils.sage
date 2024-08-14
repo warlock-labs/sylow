@@ -175,3 +175,16 @@ def determine_uint_size(n):
         return "U4096"
     else:
         return f"Needs more than 2048 bits (actual: {bit_length} bits)"
+
+def point_to_json(P):
+    if P.is_zero():
+        return {"x": "0", "y": "0", "z": "0"}
+    x, y, z = list(P)
+    if P.curve() == E1:
+        return {"x": str(x), "y": str(y), "z": str(z)}
+    else:  # E2
+        return {
+            "x": {"c0": str(x[0]), "c1": str(x[1])},
+            "y": {"c0": str(y[0]), "c1": str(y[1])},
+            "z": {"c0": str(z[0]), "c1": str(z[1])}
+        }

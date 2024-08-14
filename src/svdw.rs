@@ -13,7 +13,6 @@
 //! ----------
 //! 1. <https://link.springer.com/chapter/10.1007/11792086_36>
 use crate::fields::fp::FieldExtensionTrait;
-use crate::groups::group::{GroupAffine, GroupError, GroupProjective};
 use subtle::Choice;
 
 #[derive(Debug)]
@@ -213,15 +212,9 @@ mod tests {
                         .iter()
                         .map(|&x| {
                             GroupProjective::<1, 1, Fp>::from(
-                                GroupAffine::<1, 1, Fp>::new(
-                                    bn254_svdw.unchecked_map_to_point(x).expect(
-                                        "SVDW \
-                            failed \
-                            to map to \
-                            point",
-                                    ),
-                                )
-                                .unwrap(),
+                                bn254_svdw
+                                    .unchecked_map_to_point(x)
+                                    .expect("SVDW failed to map to point"),
                             )
                         })
                         .fold(GroupProjective::<1, 1, Fp>::zero(), |acc, x| &acc + &x);
