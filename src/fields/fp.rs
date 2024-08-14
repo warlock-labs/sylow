@@ -209,6 +209,9 @@ macro_rules! define_finite_prime_field {
                     Choice::from(1u8)
                 }
             }
+            /// this is the constant of the j-invariant curve defined over this base field.
+            /// Namely, the short Weierstrass curve is of the form $y^2 = x^3 + b$, and the below
+            /// is the constant `b`. For BN254, this is 3.
             fn curve_constant() -> Self {
                 Self::from(3)
             }

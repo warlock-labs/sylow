@@ -70,10 +70,10 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
     /// benefits, and can be decomposed as follows:
     /// 1. twist:        this is the map u that takes (x', y') |-> (w^2,x', w^3y'), where
     ///                  $w\in\mathbb{F_{p^{12}}$ is a root of $X^6-\xi$. This is an
-    ///                  injective map (that is not surjective), that maps the r-torsion to an 
+    ///                  injective map (that is not surjective), that maps the r-torsion to an
     ///                  equivalent subgroup in the algebraic closure of the base field.
     /// 2. Frobenius:    this is the map π that is difficult to succinctly explain, but more or
-    ///                  less identifies the kernel of the twist operation, namely those points 
+    ///                  less identifies the kernel of the twist operation, namely those points
     ///                  in the algebraic closure that satisfy rQ=0.
     /// 3. untwist:      having identified the points in the closure that satisfy the r-torsion
     ///                  requirement, we map them back to the curve in Fp2.
@@ -83,6 +83,7 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
     /// to the following:
     /// (x,y) |-> (x^p * \xi^((p-1)/3), y^p*\xi^((p-1)/2))
     fn endomorphism(&self) -> Self {
+        // the first constant of the mapping, $\xi^((p-1)/3)$
         let eps_exp0 = Fp2::new(&[
             Fp::new_from_str(
                 "21575463638280843010398324269430826099269044274347216827212613867836435027261",
@@ -93,7 +94,7 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
             )
             .expect("endo arg 0y failed"),
         ]);
-
+        // the second constant of the mapping, $\xi^((p-1)/2)$
         let eps_exp1 = Fp2::new(&[
             Fp::new_from_str(
                 "2821565182194536844548159561693502659359617185244120367078079554186484126554",
@@ -159,6 +160,9 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
             "21888242871839275222246405745257275088844257914179612981679871602714643921549",
         )
         .expect("Failed to generate c2");
+        // multiplying an element of the larger base field by the cofactor of a prime-ordered
+        // subgroup will return an element in the prime-order subgroup, see
+        // <https://crypto.stackexchange.com/a/101736> for a nice little explainer
         tmp = &tmp * &c2.value().to_le_bytes(); //this is cofactor clearing
         Self::new([tmp.x, tmp.y, tmp.z]).expect("Generator failed to make new value in torsion")
     }
@@ -249,7 +253,7 @@ impl G2Projective {
             a = &a + &tmp; // (x+1)Q
             let mut rhs = b.endomorphism(); // ψ^2(xQ)
             let lhs = &rhs + &(&b + &a); // ψ^2(xQ) + ψ(xQ) + (x+1)Q
-            rhs = &rhs.endomorphism().double() - &lhs; // ψ^3(xQ) - (ψ^2(xQ) + ψ(xQ) + (x+1)Q)
+            rhs = &rhs.endomorphism().double() - &lhs; // ψ^3(2xQ) - (ψ^2(xQ) + ψ(xQ) + (x+1)Q)
 
             // we do two checks: one is to verify that the result is indeed a point at infinity,
             // but we need a second check to verify that it is OUR point at infinity, namely for

@@ -196,6 +196,8 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         let t1 = self.y * self.z;
         let t2 = self.z * self.z;
 
+        // the magic 3 below is an artifact directly from the algorithm itself,
+        // see the main text in Ref (1) Alg. (9)
         let t2 = F::from(3) * F::curve_constant() * t2;
         let x3 = t2 * z3;
         let y3 = t0 + t2;
@@ -211,12 +213,15 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         let t1 = self.x * self.y;
         let x3 = t0 * t1;
         let x3 = x3 + x3;
-        let tmp = Self {
-            x: x3,
-            y: y3,
-            z: z3,
-        };
-        Self::conditional_select(&tmp, &Self::zero(), Choice::from(self.is_zero() as u8))
+        Self::conditional_select(
+            &Self {
+                x: x3,
+                y: y3,
+                z: z3,
+            },
+            &Self::zero(),
+            Choice::from(self.is_zero() as u8),
+        )
     }
 }
 
@@ -364,6 +369,8 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         let y3 = t0 + t2;
         let y3 = x3 - y3;
 
+        // again, the magic 3 below is an artifact from the algorithm itself, 
+        // see the main text of Ref (1) Alg. (7) above
         let x3 = t0 + t0;
         let t0 = x3 + t0;
         let t2 = F::from(3) * F::curve_constant() * t2;

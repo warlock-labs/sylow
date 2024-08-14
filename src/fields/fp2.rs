@@ -137,7 +137,8 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
         sign_0 | (zero_0 & sign_1)
     }
     fn curve_constant() -> Self {
-        // this is the curve constant for the twist curve in Fp2
+        // this is the curve constant for the twist curve in Fp2. In short Weierstrass form the
+        // curve over the twist is $y'^2 = x'^3 + b$, where $b=3/(9+u)$, which is the below.
         Self::from(3) / <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue()
     }
 }
