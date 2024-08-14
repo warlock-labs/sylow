@@ -70,14 +70,11 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
     /// benefits, and can be decomposed as follows:
     /// 1. twist:        this is the map u that takes (x', y') |-> (w^2,x', w^3y'), where
     ///                  $w\in\mathbb{F_{p^{12}}$ is a root of $X^6-\xi$. This is an
-    /// injective map
-    ///                  (that is not surjective), that maps the r-torsion to an equivalent
-    /// subgroup
-    ///                  in the algebraic closure of the base field.
+    ///                  injective map (that is not surjective), that maps the r-torsion to an 
+    ///                  equivalent subgroup in the algebraic closure of the base field.
     /// 2. Frobenius:    this is the map π that is difficult to succinctly explain, but more or
-    ///                  less identifies the kernel of the twist operation, namely those
-    /// points in the
-    ///                  algebraic closure that satisfy rQ=0.
+    ///                  less identifies the kernel of the twist operation, namely those points 
+    ///                  in the algebraic closure that satisfy rQ=0.
     /// 3. untwist:      having identified the points in the closure that satisfy the r-torsion
     ///                  requirement, we map them back to the curve in Fp2.
     ///
