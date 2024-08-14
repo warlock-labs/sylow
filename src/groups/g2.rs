@@ -28,10 +28,10 @@ pub(crate) type G2Affine = GroupAffine<2, 2, Fp2>;
 pub(crate) type G2Projective = GroupProjective<2, 2, Fp2>;
 
 impl GroupTrait<2, 2, Fp2> for G2Affine {
-    // This is the generator of $E^\prime(F_{p^2})$, and NOT of the r-torsion. This is because we 
-    // need the generator for creating new elements on the curve that are not required to be in the 
-    // r-torsion. To create elements in the r-torsion, we co-factor clear with the appropriate 
-    // value, see below in `rand`. 
+    // This is the generator of $E^\prime(F_{p^2})$, and NOT of the r-torsion. This is because we
+    // need the generator for creating new elements on the curve that are not required to be in the
+    // r-torsion. To create elements in the r-torsion, we co-factor clear with the appropriate
+    // value, see below in `rand`.
     fn generator() -> Self {
         let x_g2 = Fp2::new(&[
             Fp::new_from_str(
