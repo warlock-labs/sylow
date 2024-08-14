@@ -369,7 +369,7 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         let y3 = t0 + t2;
         let y3 = x3 - y3;
 
-        // again, the magic 3 below is an artifact from the algorithm itself, 
+        // again, the magic 3 below is an artifact from the algorithm itself,
         // see the main text of Ref (1) Alg. (7) above
         let x3 = t0 + t0;
         let t0 = x3 + t0;

@@ -151,7 +151,7 @@ mod tests {
     use super::*;
     mod map_tests {
         use super::*;
-        use crate::fields::fp::{FinitePrimeField, Fp};
+        use crate::fields::fp::Fp;
         use crate::hasher::Expander;
         use crypto_bigint::U256;
         use num_traits::One;
@@ -160,7 +160,7 @@ mod tests {
         #[test]
         fn test_z_svdw() {
             let z = SvdW::<1, 1, Fp>::find_z_svdw(Fp::from(0), Fp::from(3));
-            assert_eq!(z, Fp::one(), "Finding Z failed for BN254");
+            assert_eq!(z, Fp::ONE, "Finding Z failed for BN254");
         }
         #[test]
         fn test_constants() {

@@ -10,12 +10,12 @@
 //! Notice that there is not much here left to specialise to G1 on BN254! This abstraction should
 //! make the implementation of the more complicated G2 easier to handle.
 
-use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
+use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
 use crate::svdw::{SvdW, SvdWTrait};
 use crypto_bigint::rand_core::CryptoRngCore;
-use num_traits::{One, Zero};
+use num_traits::Zero;
 use subtle::{Choice, ConstantTimeEq};
 
 #[allow(dead_code)]
@@ -26,8 +26,8 @@ pub(crate) type G1Projective = GroupProjective<1, 1, Fp>;
 impl GroupTrait<1, 1, Fp> for G1Affine {
     fn generator() -> Self {
         Self {
-            x: Fp::one(),
-            y: Fp::from(2),
+            x: Fp::ONE,
+            y: Fp::TWO,
             infinity: Choice::from(0u8),
         }
     }

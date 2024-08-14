@@ -2,10 +2,9 @@
 // //! Specifically, we take a domain separation tag (DST), and the binary string
 // //! and convert it into an element in the base field.
 
-use crate::fields::fp::{FinitePrimeField, Fp};
+use crate::fields::fp::Fp;
 use crate::fields::utils::u256_to_u512;
 use crypto_bigint::{Encoding, NonZero, U256, U512};
-use num_traits::Zero;
 use sha3::digest::crypto_common::BlockSizeUser;
 use sha3::digest::{ExtendableOutput, FixedOutput};
 use std::array::TryFromSliceError;
@@ -44,7 +43,7 @@ pub(crate) trait Expander {
 
         let exp_msg = self.expand_message(msg, len_in_bytes)?;
 
-        let mut retval = [Fp::zero(); 2];
+        let mut retval = [Fp::ZERO; 2];
         for (i, f) in retval.iter_mut().enumerate() {
             let elm_offset = size * i;
             let tv = &exp_msg[elm_offset..elm_offset + size];

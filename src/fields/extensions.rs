@@ -32,7 +32,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<u64>
 }
 #[allow(dead_code)]
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtension<D, N, F> {
-    pub(crate) fn new(c: &[F; N]) -> Self {
+    pub(crate) const fn new(c: &[F; N]) -> Self {
         Self(*c)
     }
     pub(crate) fn scale(&self, factor: F) -> Self {

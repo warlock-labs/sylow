@@ -14,14 +14,74 @@
 //! All public facing methods here implement the subgroup check to ensure that the user cannot
 //! input a value in $E^\prime(F_{p^2})$ that is not in the r-torsion.
 
-use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
+use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::fields::fp2::Fp2;
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
 use crypto_bigint::rand_core::CryptoRngCore;
+use crypto_bigint::U256;
 use num_traits::{One, Zero};
 use subtle::{Choice, ConstantTimeEq};
 
+const G2_X: Fp2 = Fp2::new(&[
+    Fp::new(U256::from_words([
+        5106727233969649389,
+        7440829307424791261,
+        4785637993704342649,
+        1729627375292849782,
+    ])),
+    Fp::new(U256::from_words([
+        10945020018377822914,
+        17413811393473931026,
+        8241798111626485029,
+        1841571559660931130,
+    ])),
+]);
+
+const G2_Y: Fp2 = Fp2::new(&[
+    Fp::new(U256::from_words([
+        17238020247068508061,
+        12947711663081912081,
+        7900672974501844941,
+        2133562512332108350,
+    ])),
+    Fp::new(U256::from_words([
+        16605811113834735084,
+        15795875818799774617,
+        14677701815642170567,
+        2836639542672469939,
+    ])),
+]);
+// the first constant of the endomorphism, $\xi^((p-1)/3)$, see below
+const EPS_EXP0: Fp2 = Fp2::new(&[
+    Fp::new(U256::from_words([
+        11088870908804158781,
+        13226160682434769676,
+        5479733118184829251,
+        3437169660107756023,
+    ])),
+    Fp::new(U256::from_words([
+        1613930359396748194,
+        3651902652079185358,
+        5450706350010664852,
+        1642095672556236320,
+    ])),
+]);
+// the second constant of the endomorphism, $\xi^((p-1)/2)$, see below
+const EPS_EXP1: Fp2 = Fp2::new(&[
+    Fp::new(U256::from_words([
+        15876315988453495642,
+        15828711151707445656,
+        15879347695360604601,
+        449501266848708060,
+    ])),
+    Fp::new(U256::from_words([
+        9427018508834943203,
+        2414067704922266578,
+        505728791003885355,
+        558513134835401882,
+    ])),
+]);
 #[allow(dead_code)]
 pub(crate) type G2Affine = GroupAffine<2, 2, Fp2>;
 #[allow(dead_code)]
@@ -33,29 +93,9 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
     // r-torsion. To create elements in the r-torsion, we co-factor clear with the appropriate
     // value, see below in `rand`.
     fn generator() -> Self {
-        let x_g2 = Fp2::new(&[
-            Fp::new_from_str(
-                "10857046999023057135944570762232829481370756359578518086990519993285655852781",
-            )
-            .expect("G2_x0 failed"),
-            Fp::new_from_str(
-                "11559732032986387107991004021392285783925812861821192530917403151452391805634",
-            )
-            .expect("G2_x1 failed"),
-        ]);
-        let y_g2 = Fp2::new(&[
-            Fp::new_from_str(
-                "13392588948715843804641432497768002650278120570034223513918757245338268106653",
-            )
-            .expect("G2_y0 failed"),
-            Fp::new_from_str(
-                "17805874995975841540914202342111839520379459829704422454583296818431106115052",
-            )
-            .expect("G2_y1 failed"),
-        ]);
         Self {
-            x: x_g2,
-            y: y_g2,
+            x: G2_X,
+            y: G2_Y,
             infinity: Choice::from(0u8),
         }
     }
@@ -83,36 +123,14 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
     /// to the following:
     /// (x,y) |-> (x^p * \xi^((p-1)/3), y^p*\xi^((p-1)/2))
     fn endomorphism(&self) -> Self {
-        // the first constant of the mapping, $\xi^((p-1)/3)$
-        let eps_exp0 = Fp2::new(&[
-            Fp::new_from_str(
-                "21575463638280843010398324269430826099269044274347216827212613867836435027261",
-            )
-            .expect("endo arg 0x failed"),
-            Fp::new_from_str(
-                "10307601595873709700152284273816112264069230130616436755625194854815875713954",
-            )
-            .expect("endo arg 0y failed"),
-        ]);
-        // the second constant of the mapping, $\xi^((p-1)/2)$
-        let eps_exp1 = Fp2::new(&[
-            Fp::new_from_str(
-                "2821565182194536844548159561693502659359617185244120367078079554186484126554",
-            )
-            .expect("endo arg 1x failed"),
-            Fp::new_from_str(
-                "3505843767911556378687030309984248845540243509899259641013678093033130930403",
-            )
-            .expect("endo arg 1y failed"),
-        ]);
         if self.is_zero() {
             return *self;
         }
         let x_frob = <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.x, 1);
         let y_frob = <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.y, 1);
 
-        let x_endo = eps_exp0 * x_frob;
-        let y_endo = eps_exp1 * y_frob;
+        let x_endo = EPS_EXP0 * x_frob;
+        let y_endo = EPS_EXP1 * y_frob;
 
         Self::new_unchecked([x_endo, y_endo]).expect("Endomorphism failed")
     }

@@ -3,12 +3,14 @@
 //! that elements of this field are represented as a_0 + a_1*X. This implements
 //! the specific behaviour for this extension, such as multiplication.
 use crate::fields::extensions::FieldExtension;
-use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
+use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::fields::utils::u256_to_u512;
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U512};
 use num_traits::{Inv, One, Pow, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::{Choice, ConstantTimeEq, CtOption};
+
+const FP2_QUADRATIC_NON_RESIDUE: Fp2 = Fp2::new(&[Fp::NINE, Fp::ONE]);
 
 pub(crate) type Fp2 = FieldExtension<2, 2, Fp>;
 
@@ -44,17 +46,17 @@ impl Fp2 {
     }
 
     pub(crate) fn residue_mul(&self) -> Self {
-        *self * <Self as FieldExtensionTrait<2, 2>>::quadratic_non_residue()
+        *self * FP2_QUADRATIC_NON_RESIDUE
     }
 }
 impl FieldExtensionTrait<2, 2> for Fp2 {
     fn quadratic_non_residue() -> Self {
-        Self::new(&[Fp::from(9u64), Fp::one()])
+        FP2_QUADRATIC_NON_RESIDUE
     }
     fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp2: &[Fp; 2] = &[
             // Fp::quadratic_non_residue()**(((p^0) - 1) / 2)
-            Fp::one(),
+            Fp::ONE,
             // Fp::quadratic_non_residue()**(((p^1) - 1) / 2)
             <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue(),
         ];
@@ -81,7 +83,7 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
         }
 
         if alpha == -Fp2::one() {
-            let i = Fp2::new(&[Fp::zero(), Fp::one()]);
+            let i = Fp2::new(&[Fp::ZERO, Fp::ONE]);
             let sqrt = i * a1 * (*self);
             CtOption::new(
                 sqrt,
@@ -114,7 +116,7 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
     }
     fn is_square(&self) -> Choice {
         let legendre = |x: &Fp| -> i32 {
-            let exp = ((Fp::new(Fp::characteristic()) - Fp::one()) / Fp::from(2)).value();
+            let exp = ((Fp::new(Fp::characteristic()) - Fp::ONE) / Fp::from(2)).value();
             let res = x.pow(exp);
 
             if res.is_one() {
@@ -139,7 +141,7 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
     fn curve_constant() -> Self {
         // this is the curve constant for the twist curve in Fp2. In short Weierstrass form the
         // curve over the twist is $y'^2 = x'^3 + b$, where $b=3/(9+u)$, which is the below.
-        Self::from(3) / <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue()
+        Self::from(3) / FP2_QUADRATIC_NON_RESIDUE
     }
 }
 
@@ -184,7 +186,7 @@ impl Inv for Fp2 {
 // in extensions.rs
 impl One for Fp2 {
     fn one() -> Self {
-        Self::new(&[Fp::one(), Fp::zero()])
+        Self::new(&[Fp::ONE, Fp::ZERO])
     }
     fn is_one(&self) -> bool {
         self.0[0].is_one() && self.0[1].is_zero()
@@ -218,7 +220,7 @@ impl ConditionallySelectable for Fp2 {
 // higher order sextic extension
 impl FieldExtensionTrait<6, 3> for Fp2 {
     fn quadratic_non_residue() -> Self {
-        <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue()
+        FP2_QUADRATIC_NON_RESIDUE
     }
     fn frobenius(&self, exponent: usize) -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(self, exponent)
@@ -416,7 +418,7 @@ mod tests {
         }
         #[test]
         fn test_frobenius() {
-            let q = <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue();
+            let q = FP2_QUADRATIC_NON_RESIDUE;
             let a1 = (Fp::new(Fp::characteristic()) - Fp::from(1)) / Fp::from(3);
 
             let c1_1 = q.pow_vartime(&a1.value().to_words());
