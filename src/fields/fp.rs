@@ -918,4 +918,70 @@ mod tests {
             }
         }
     }
+
+    mod vss_tests {
+        use super::*;
+
+        // The coefficients are [a_0,...,a_n], and so this evaluates sum(a_i x^i).
+        fn eval_polynomial(coefficients: &Vec<Fp>, x: &Fp) -> Fp {
+            let mut val = Fp::zero();
+            for (i, c) in coefficients.iter().enumerate() {
+                val += *c * x.pow(U256::from_u64(i as u64));
+            }
+            val
+        }
+
+        // This uses Lagrange interpolation to solve for a_0 given a set of t points.
+        fn get_secret_lagrange(xa: &Vec<Fp>, ya: &Vec<Fp>) -> Fp {
+            let mut val = Fp::zero();
+            for (j, xj) in xa.iter().enumerate() {
+                let mut term_j = ya[j];
+                for (k, xk) in xa.iter().enumerate() {
+                    if k != j {
+                        term_j *= *xk / (*xk - *xj);
+                    }
+                }
+                val += term_j;
+            }
+            val
+        }
+
+        fn check_commitments(commitments: &Vec<Fp>, x: &Fp) -> Fp {
+            let mut val = Fp::one();
+            for (j, cmt_j) in commitments.iter().enumerate() {
+                val *= cmt_j.pow(x.pow(U256::from_u64(j as u64)).value());
+            }
+            val
+        }
+
+        fn from_i32(n: i32) -> Fp {
+            Fp::new(U256::from_u64(n as u64))
+        }
+
+        fn from_vec_i32(v: Vec<i32>) -> Vec<Fp> {
+            v.iter().map(|n| from_i32(*n)).collect()
+        }
+
+        #[test]
+        fn test_vss() {
+            let coefficients = from_vec_i32(vec![14, 1, 2, 3, 4]);
+            let xa = from_vec_i32(vec![2, 4, 6, 8, 10]);
+            let ya: Vec<Fp> = xa.iter().map(|x| eval_polynomial(&coefficients, x)).collect();
+
+            // example Lagrange interpolation
+            assert_eq!(coefficients[0], get_secret_lagrange(&xa, &ya));
+
+            // p-1 guaranteed to be a generator of the multiplicative group Fp^*.
+            let generator: Fp = Fp::zero() - Fp::one();
+            let commitments: Vec<Fp> = coefficients.iter().map(|c| generator.pow(c.value())).collect();
+            for (i, xi) in xa.iter().enumerate() {
+                let gy = generator.pow(ya[i].value());
+                let check_x = check_commitments(&commitments, xi);
+                assert_eq!(gy, check_x);
+            }
+            // TODO: I believe the commitment check can fail if any calculated y or x^i wraps around p.
+            // This is because the multiplicative group Fp^* is of order p-1, not p.
+            // Might have to instantiate the ring Z_{p-1} to handle this.
+        }
+    }
 }
