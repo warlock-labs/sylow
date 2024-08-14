@@ -493,9 +493,9 @@ mod tests {
             #[test]
             #[should_panic(expected = "g2 failed: NotInSubgroup")]
             fn invalid_subgroup_check() {
-                load_g2_reference_data!(_g2_points, _g2_invalids);
-                let _: Vec<G2Projective> =
-                    _g2_invalids.iter().map(convert_to_g2projective).collect();
+                load_g2_reference_data!(_g2_points, g2_invalids);
+                let _p: Vec<G2Projective> =
+                    g2_invalids.iter().map(convert_to_g2projective).collect();
             }
             #[test]
             #[should_panic(expected = "Endomorphism failed: NotOnCurve")]

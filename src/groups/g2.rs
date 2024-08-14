@@ -3,15 +3,15 @@
 //! with is NOT the curve itself. This introduces many security considerations in regard to
 //! generating points on the correct subgroup for instance. This is the source of many headaches.
 //! There is an unfortunate combination of factors here to consider regarding the representation of
-//! group elements. Because, as mentioned in `group.rs`, of the fact that the point at infinity 
-//! has no unique representation in affine coordinates, all arithmetic must be performed in 
-//! projective coordinates. However, there are many formulae that we will use in the subgroup 
-//! checks that require explicit expressions in affine coordinates. Therefore, all arithmetic 
-//! will be done in projective coordinates, but there will often be translation between the 
-//! representations. The internal translation does not induce that much overhead really, but it 
-//! is something to keep in mind. 
-//! 
-//! All public facing methods here implement the subgroup check to ensure that the user cannot 
+//! group elements. Because, as mentioned in `group.rs`, of the fact that the point at infinity
+//! has no unique representation in affine coordinates, all arithmetic must be performed in
+//! projective coordinates. However, there are many formulae that we will use in the subgroup
+//! checks that require explicit expressions in affine coordinates. Therefore, all arithmetic
+//! will be done in projective coordinates, but there will often be translation between the
+//! representations. The internal translation does not induce that much overhead really, but it
+//! is something to keep in mind.
+//!
+//! All public facing methods here implement the subgroup check to ensure that the user cannot
 //! input a value in $E^\prime(F_{p^2})$ that is not in the r-torsion.
 
 use crate::fields::fp::{FieldExtensionTrait, FinitePrimeField, Fp};
@@ -59,29 +59,29 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
             infinity: Choice::from(0u8),
         }
     }
-    /// This is deceptively simple, yet was tedious to get correct. This is the 
-    /// "untwist-Frobenius-twist" endomorphism, ψ(q) = u o π o u⁻¹ where u:E'→E is the 
+    /// This is deceptively simple, yet was tedious to get correct. This is the
+    /// "untwist-Frobenius-twist" endomorphism, ψ(q) = u o π o u⁻¹ where u:E'→E is the
     /// isomorphism
-    /// from the twist to the curve E and π is the Frobenius map. This is a complicated 
-    /// topic, and a full 
-    /// description is out of scope for a code comment. Nonetheless, we require the usage of 
-    /// an endomorphism for subgroup checks in $\mathbb{G}_2$. This one offers nice 
+    /// from the twist to the curve E and π is the Frobenius map. This is a complicated
+    /// topic, and a full
+    /// description is out of scope for a code comment. Nonetheless, we require the usage of
+    /// an endomorphism for subgroup checks in $\mathbb{G}_2$. This one offers nice
     /// computational
     /// benefits, and can be decomposed as follows:
-    /// 1. twist:        this is the map u that takes (x', y') |-> (w^2,x', w^3y'), where 
-    ///                  $w\in\mathbb{F_{p^{12}}$ is a root of $X^6-\xi$. This is an 
-    /// injective map 
-    ///                  (that is not surjective), that maps the r-torsion to an equivalent 
-    /// subgroup 
+    /// 1. twist:        this is the map u that takes (x', y') |-> (w^2,x', w^3y'), where
+    ///                  $w\in\mathbb{F_{p^{12}}$ is a root of $X^6-\xi$. This is an
+    /// injective map
+    ///                  (that is not surjective), that maps the r-torsion to an equivalent
+    /// subgroup
     ///                  in the algebraic closure of the base field.
-    /// 2. Frobenius:    this is the map π that is difficult to succinctly explain, but more or 
-    ///                  less identifies the kernel of the twist operation, namely those 
-    /// points in the 
+    /// 2. Frobenius:    this is the map π that is difficult to succinctly explain, but more or
+    ///                  less identifies the kernel of the twist operation, namely those
+    /// points in the
     ///                  algebraic closure that satisfy rQ=0.
-    /// 3. untwist:      having identified the points in the closure that satisfy the r-torsion 
+    /// 3. untwist:      having identified the points in the closure that satisfy the r-torsion
     ///                  requirement, we map them back to the curve in Fp2.
     ///
-    /// This endomorphism therefore encodes the torsion of a point in a compact, 
+    /// This endomorphism therefore encodes the torsion of a point in a compact,
     /// computationally efficient way. All of this fancy stuff equates simply, and remarkably,
     /// to the following:
     /// (x,y) |-> (x^p * \xi^((p-1)/3), y^p*\xi^((p-1)/2))
@@ -147,10 +147,10 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     fn endomorphism(&self) -> Self {
         Self::from(G2Affine::from(self).endomorphism())
     }
-    /// This generates a random point in the r-torsion. We first generate a random value in the 
-    /// twist curve itself with a simple multiplication of the generator, and then co-factor 
-    /// clear this value to place it in the r-torsion. The return value of this function goes 
-    /// through the `new` constructor to ensure that the random value does indeed pass the curve 
+    /// This generates a random point in the r-torsion. We first generate a random value in the
+    /// twist curve itself with a simple multiplication of the generator, and then co-factor
+    /// clear this value to place it in the r-torsion. The return value of this function goes
+    /// through the `new` constructor to ensure that the random value does indeed pass the curve
     /// and subgroup checks
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         let rando = <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
@@ -162,7 +162,7 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
             "21888242871839275222246405745257275088844257914179612981679871602714643921549",
         )
         .expect("Failed to generate c2");
-        tmp = &tmp * &c2.value().to_le_bytes();
+        tmp = &tmp * &c2.value().to_le_bytes(); //this is cofactor clearing
         Self::new([tmp.x, tmp.y, tmp.z]).expect("Generator failed to make new value in torsion")
     }
     fn hash_to_curve<E: Expander>(_exp: &E, _msg: &[u8]) -> Result<Self, GroupError> {
@@ -177,11 +177,11 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     }
 }
 impl G2Affine {
-    /// This method is used internally for rapid, low overhead, conversion of types when there 
-    /// are formulae that don't have clean versions in projective coordinates. The 'unchecked' 
-    /// refers to the fact that these points are not subjected to a subgroup verification, and 
+    /// This method is used internally for rapid, low overhead, conversion of types when there
+    /// are formulae that don't have clean versions in projective coordinates. The 'unchecked'
+    /// refers to the fact that these points are not subjected to a subgroup verification, and
     /// therefore this method is not exposed publicly.
-    /// 
+    ///
     /// DON'T USE THIS METHOD UNLESS YOU KNOW WHAT YOU'RE DOING
     fn new_unchecked(v: [Fp2; 2]) -> Result<Self, GroupError> {
         let _g2affine_is_on_curve = |x: &Fp2, y: &Fp2, z: &Choice| -> Choice {
@@ -204,8 +204,8 @@ impl G2Affine {
     }
 }
 impl G2Projective {
-    /// The public entrypoint to making a value in $\mathbb{G}_2$. This takes the (x,y,z) values 
-    /// from the user, and passes them through a subgroup and curve check to ensure validity. 
+    /// The public entrypoint to making a value in $\mathbb{G}_2$. This takes the (x,y,z) values
+    /// from the user, and passes them through a subgroup and curve check to ensure validity.
     /// Values returned from this function are guaranteed to be on the curve and in the r-torsion.
     pub(crate) fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
         let _g2projective_is_on_curve = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
@@ -217,29 +217,47 @@ impl G2Projective {
             // println!("{:?}, {:?}", lhs.value(), rhs.value());
             lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
         };
-        // This method is where the magic happens. In a naïve approach, in order to check for 
+        // This method is where the magic happens. In a naïve approach, in order to check for
         // validity in the r-torsion, one could simply verify the r-torsion condition:
-        // $(r)Q = \mathcal{O}$. This can be prohibitively expensive because of the bit length 
-        // of $r$. We can therefore take a new approach and use the result of Ref (1) below to 
+        // $(r)Q = \mathcal{O}$. This can be prohibitively expensive because of the bit length
+        // of $r$. We can therefore take a new approach and use the result of Ref (1) below to
         // determine subgroup membership. The formalism states a point is in the subgroup iff
-        // $\psi(Q) = 6x^2Q$, where $\psi$ is the endomorphism, and $x$ is the generator of the 
+        // $\psi(Q) = 6x^2Q$, where $\psi$ is the endomorphism, and $x$ is the generator of the
         // BN curve, in this case 4965661367192848881.
-        // 
+        //             // let six = Fp::from(6);
+        //             // let z = Fp::from(4965661367192848881);
+        //             // let six_z_squared = (six * z * z).value();
+        //             // let lhs = tmp.endomorphism();
+        //             // let rhs = &tmp * &six_z_squared.to_le_bytes();
+        //             // Choice::from((&lhs - &rhs).is_zero() as u8)
+        //
+        // HOWEVER! There is an even better way. Recent work from Ref (2) below shows that
+        // subgroup membership is equivalent to the following relation:
+        // $(x+1)Q + \psi((x)Q)+\psi^2((x)Q) = \psi^3((2x)Q)$, which is basically a `u64`
+        // multiplication instead of the full multi-sized multiplication of 6*x^2. Nice.
+        //
         // References
         // ----------
         // 1. <https://eprint.iacr.org/2022/352.pdf>
+        // 2. <https://eprint.iacr.org/2022/348.pdf>
         let _g2projective_is_torsion_free = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
             let tmp = G2Projective {
                 x: *x,
                 y: *y,
                 z: *z,
             };
-            let six = Fp::from(6);
-            let z = Fp::from(4965661367192848881);
-            let six_z_squared = (six * z * z).value();
-            let lhs = tmp.endomorphism();
-            let rhs = &tmp * &six_z_squared.to_le_bytes();
-            Choice::from((&lhs - &rhs).is_zero() as u8)
+            let x = Fp::from(4965661367192848881);
+            let mut a = &tmp * &x.value().to_le_bytes(); // xQ
+            let b = a.endomorphism(); // ψ(xQ)
+            a = &a + &tmp; // (x+1)Q
+            let mut rhs = b.endomorphism(); // ψ^2(xQ)
+            let lhs = &rhs + &(&b + &a); // ψ^2(xQ) + ψ(xQ) + (x+1)Q
+            rhs = &rhs.endomorphism().double() - &lhs; // ψ^3(xQ) - (ψ^2(xQ) + ψ(xQ) + (x+1)Q)
+
+            // we do two checks: one is to verify that the result is indeed a point at infinity,
+            // but we need a second check to verify that it is OUR point at infinity, namely for
+            // the curve defined on the twist.
+            Choice::from(rhs.is_zero() as u8) & _g2projective_is_on_curve(&rhs.x, &rhs.y, &rhs.z)
         };
         let is_on_curve = _g2projective_is_on_curve(&v[0], &v[1], &v[2]);
         let is_torsion_free = _g2projective_is_torsion_free(&v[0], &v[1], &v[2]);

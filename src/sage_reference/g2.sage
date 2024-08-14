@@ -64,7 +64,5 @@ def is_in_subgroup(Q):
     """
     Check if a point is in the subgroup of order r.
     """
-    z = 4965661367192848881
-    lhs = endomorphism(Q)
-    rhs = 6*z*z*Q
-    return (lhs-rhs).is_zero()
+    # just use naive check, guaranteed to work
+    return (order_r*Q).is_zero()
