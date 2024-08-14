@@ -82,6 +82,15 @@ const EPS_EXP1: Fp2 = Fp2::new(&[
         558513134835401882,
     ])),
 ]);
+
+// the cofactor of $\mathbb{G}_2$
+const C2: Fp = Fp::new(U256::from_words([
+    17887900258952609094,
+    8020209761171036667,
+    0,
+    0,
+]));
+
 #[allow(dead_code)]
 pub(crate) type G2Affine = GroupAffine<2, 2, Fp2>;
 #[allow(dead_code)]
@@ -173,15 +182,11 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
             .value()
             .to_le_bytes();
         let mut tmp = &Self::generator() * &rando;
-        // the cofactor of $\mathbb{G}_2$
-        let c2 = Fp::new_from_str(
-            "21888242871839275222246405745257275088844257914179612981679871602714643921549",
-        )
-        .expect("Failed to generate c2");
+
         // multiplying an element of the larger base field by the cofactor of a prime-ordered
         // subgroup will return an element in the prime-order subgroup, see
         // <https://crypto.stackexchange.com/a/101736> for a nice little explainer
-        tmp = &tmp * &c2.value().to_le_bytes(); //this is cofactor clearing
+        tmp = &tmp * &C2.value().to_le_bytes(); //this is cofactor clearing
         Self::new([tmp.x, tmp.y, tmp.z]).expect("Generator failed to make new value in torsion")
     }
     fn hash_to_curve<E: Expander>(_exp: &E, _msg: &[u8]) -> Result<Self, GroupError> {

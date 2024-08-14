@@ -43,6 +43,12 @@ use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use subtle::CtOption;
 
+const FP_QUADRATIC_NON_RESIDUE: Fp = Fp::new(U256::from_words([
+    4332616871279656262,
+    10917124144477883021,
+    13281191951274694749,
+    3486998266802970665,
+]));
 /// This defines the key properties of a field extension. Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
@@ -121,6 +127,8 @@ macro_rules! define_finite_prime_field {
             pub(crate) const fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
             }
+            #[allow(dead_code)] // this is indeed used in the test cases, which are ignored by
+                                // the linter
             pub(crate) fn new_from_str(value: &str) -> Option<Self> {
                 let ints: Vec<_> = {
                     let mut acc = Self::zero();
@@ -155,6 +163,7 @@ macro_rules! define_finite_prime_field {
             pub const ONE: Self = Self::new(<$uint_type>::from_words([0x1, 0x0, 0x0, 0x0]));
             pub const TWO: Self = Self::new(<$uint_type>::from_words([0x2, 0x0, 0x0, 0x0]));
             pub const THREE: Self = Self::new(<$uint_type>::from_words([0x3, 0x0, 0x0, 0x0]));
+            pub const FOUR: Self = Self::new(<$uint_type>::from_words([0x4, 0x0, 0x0, 0x0]));
             pub const NINE: Self = Self::new(<$uint_type>::from_words([0x9, 0x0, 0x0, 0x0]));
         }
         // we make the base field an extension of the
@@ -164,7 +173,7 @@ macro_rules! define_finite_prime_field {
             fn quadratic_non_residue() -> Self {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
                 // = -1
-                Self::new((-Self::from(1u64)).1.retrieve())
+                FP_QUADRATIC_NON_RESIDUE
             }
             fn frobenius(&self, _exponent: usize) -> Self {
                 Self::zero()

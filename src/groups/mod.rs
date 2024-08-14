@@ -290,6 +290,7 @@ mod tests {
             }
         }
         mod special_point_tests {
+            use crate::fields::fp::{FieldExtensionTrait, Fp};
             use crate::groups::g1::G1Projective;
             use crate::groups::group::GroupTrait;
 
@@ -314,6 +315,8 @@ mod tests {
                     d = &d + &G1Projective::generator();
                 }
                 assert_eq!(j, d, "Generator multiplication not valid");
+                let c2 = <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue();
+                println!("{:?}", c2.value().to_words());
             }
         }
         mod addition_tests {
