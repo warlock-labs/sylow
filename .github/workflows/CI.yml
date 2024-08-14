@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         rust: [ "stable", "beta", "nightly" ] # MSRV
-        flags: [ "--no-default-features", "", "--all-features", "--release" ]
+        flags: [ "--no-default-features", "", "--all-features" ]
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
@@ -34,7 +34,7 @@ jobs:
       # Only run tests on the latest stable and above
       - name: test
         if: ${{ matrix.rust != '1.65' }} # MSRV
-        run: cargo test --workspace ${{ matrix.flags }}
+        run: cargo test --workspace ${{ matrix.flags }} --release
 
   coverage:
     name: Code Coverage

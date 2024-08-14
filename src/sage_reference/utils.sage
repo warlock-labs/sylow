@@ -177,8 +177,6 @@ def determine_uint_size(n):
         return f"Needs more than 2048 bits (actual: {bit_length} bits)"
 
 def point_to_json(P):
-#    if P.is_zero():
-#        return {"x": "0", "y": "0", "z": "0"}
     x, y, z = list(P)
     if P.curve() == E1:
         return {"x": str(x), "y": str(y), "z": str(z)}
