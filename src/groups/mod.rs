@@ -62,7 +62,6 @@ mod tests {
         mul: Vec<_G2Projective>,
         invalid: Vec<_G2Projective>,
         psi: Vec<_G2Projective>,
-        svdw: Vec<_G2SVDW>,
     }
     #[derive(Serialize, Deserialize, Clone)]
     struct _G1SVDW {
@@ -74,17 +73,6 @@ mod tests {
     struct G1Svdw {
         i: Fp,
         p: G1Projective,
-    }
-    #[derive(Serialize, Deserialize)]
-    struct _G2SVDW {
-        i: String,
-        x: _G2Coords,
-        y: _G2Coords,
-        z: _G2Coords,
-    }
-    struct G2Svdw {
-        i: Fp,
-        p: G2Projective,
     }
     #[derive(Serialize, Deserialize)]
     struct ReferenceData {
@@ -108,8 +96,7 @@ mod tests {
         add: Vec<G2Projective>,
         dbl: Vec<G2Projective>,
         mul: Vec<G2Projective>,
-        psi: Vec<G2Projective>
-        // invalid: Vec<G2Projective>,
+        psi: Vec<G2Projective>, // invalid: Vec<G2Projective>,
     }
 
     fn convert_to_g1svdw(svdw: &_G1SVDW) -> G1Svdw {
@@ -133,7 +120,7 @@ mod tests {
         .expect("g1 failed")
     }
     fn convert_to_g2projective(point: &_G2Projective) -> G2Projective {
-        G2Projective::new_unchecked([
+        G2Projective::new([
             Fp2::new(&[
                 Fp::new_from_str(point.x.c0.as_str()).expect(
                     "failed to convert x0 coord in \
@@ -180,15 +167,15 @@ mod tests {
     ///
     macro_rules! load_reference_data_from_disk {
         ($wrapper_name:ident) => {
-             let path = Path::new(FNAME);
-             let file_content = fs::read_to_string(path).expect("Failed to read file");
-             let $wrapper_name: ReferenceData =
+            let path = Path::new(FNAME);
+            let file_content = fs::read_to_string(path).expect("Failed to read file");
+            let $wrapper_name: ReferenceData =
                 serde_json::from_str(&file_content).expect("Failed to parse JSON");
         };
     }
     macro_rules! load_g1_reference_data {
         ($g1_wrapper_name:ident) => {
-           load_reference_data_from_disk!(reference_data);
+            load_reference_data_from_disk!(reference_data);
             let $g1_wrapper_name: G1ReferenceData = G1ReferenceData {
                 a: reference_data
                     .g1
@@ -228,12 +215,12 @@ mod tests {
                     .map(convert_to_g1svdw)
                     .collect(),
             };
-       };
-        }
-        macro_rules! load_g2_reference_data {
-            ($g2_wrapper_name:ident, $g2_invalids:ident) => {
-                load_reference_data_from_disk!(reference_data);
-                let $g2_wrapper_name: G2ReferenceData = G2ReferenceData {
+        };
+    }
+    macro_rules! load_g2_reference_data {
+        ($g2_wrapper_name:ident, $g2_invalids:ident) => {
+            load_reference_data_from_disk!(reference_data);
+            let $g2_wrapper_name: G2ReferenceData = G2ReferenceData {
                 a: reference_data
                     .g2
                     .a
@@ -273,8 +260,8 @@ mod tests {
                     .collect(),
             };
             let $g2_invalids = reference_data.g2.invalid;
-            };
-        }
+        };
+    }
 
     mod g1 {
         use super::*;
@@ -504,7 +491,14 @@ mod tests {
                 load_g2_reference_data!(_g2_points, _g2_invalids);
             }
             #[test]
-            #[should_panic(expected = "Conversion to projective failed: NotOnCurve")]
+            #[should_panic(expected = "g2 failed: NotInSubgroup")]
+            fn invalid_subgroup_check() {
+                load_g2_reference_data!(_g2_points, _g2_invalids);
+                let _: Vec<G2Projective> = _g2_invalids.iter().map(convert_to_g2projective)
+                    .collect();
+            }
+            #[test]
+            #[should_panic(expected = "Endomorphism failed: NotOnCurve")]
             fn test_malformed_points() {
                 load_g2_reference_data!(g2_points, _g2_invalids);
                 for a in &g2_points.a {
@@ -516,8 +510,10 @@ mod tests {
                     // off the curve, to check instantiation is not possible with
                     // a point not on the curve
                     x *= Fp2::from(2);
-                    let _ = G2Projective::new_unchecked([x, y, z]).expect("Conversion to \
-                    projective failed");
+                    let _ = G2Projective::new([x, y, z]).expect(
+                        "Conversion to \
+                    projective failed",
+                    );
                 }
             }
         }
@@ -604,6 +600,7 @@ mod tests {
             }
         }
         mod multiplication_tests {
+            use crate::groups::group::GroupTrait;
             use super::*;
 
             #[test]
@@ -640,48 +637,25 @@ mod tests {
                     assert_eq!(result, expected[i], "Simple doubling failed");
                 }
             }
+            #[test]
+            fn test_random() {
+                use crypto_bigint::rand_core::OsRng;
+                for _ in 0..100 {
+                    let p = G2Projective::rand(&mut OsRng);
+                }
+            }
         }
         mod endomorphism_tests {
-            use crate::groups::g2::G2Affine;
             use super::*;
+            use crate::groups::group::GroupTrait;
 
             #[test]
-            fn test_psi(){
-                fn psi(f: G2Projective) -> G2Projective {
-                    let epsExp0 = Fp2::new(&[
-                        Fp::new_from_str
-                            ("21575463638280843010398324269430826099269044274347216827212613867836435027261").expect("endo arg 0x failed"),
-                        Fp::new_from_str
-                            ("10307601595873709700152284273816112264069230130616436755625194854815875713954").expect("endo arg 0y failed")
-                    ]);
-
-                    let epsExp1 = Fp2::new(&[
-                        Fp::new_from_str
-                            ("2821565182194536844548159561693502659359617185244120367078079554186484126554").expect("endo arg 1x failed"),
-                        Fp::new_from_str
-                            ("3505843767911556378687030309984248845540243509899259641013678093033130930403").expect("endo arg 1y failed")
-                    ]);
-                    if f.is_zero() {
-                        return f;
-                    }
-                    let af = G2Affine::from(f);
-                    let x = af.x;
-                    let y = af.y;
-
-                    let x_frob = <Fp2 as FieldExtensionTrait<2,2>>::frobenius(&x,1);
-                    let y_frob = <Fp2 as FieldExtensionTrait<2,2>>::frobenius(&y,1);
-
-                    let x_endo = epsExp0 * x_frob;
-                    let y_endo = epsExp1 * y_frob;
-
-                    G2Projective::from(G2Affine::new_unchecked([x_endo, y_endo]).expect
-                    ("Conversion failed to go back to curve"))
-                }
+            fn test_psi() {
                 load_g2_reference_data!(g2_points, _g2_invalids);
                 let expected = g2_points.psi;
                 for (i, a) in g2_points.a.iter().enumerate() {
-                    let result = psi(*a);
-                    assert_eq!(result, expected[i], "Simple multiplication failed");
+                    let result = a.endomorphism();
+                    assert_eq!(result, expected[i], "Endomorphic mapping failed");
                 }
             }
         }
