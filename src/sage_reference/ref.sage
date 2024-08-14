@@ -6,7 +6,7 @@ from sagelib.g2 import *
 from sagelib.utils import *
 def generate_reference_json():
     import json
-    num_points = 10
+    num_points = 1000
     points = {
         "g1": {'a': [], 'b': [], 'r': [], 'add': [], 'dbl': [], 'mul': [], 'svdw': []},
         "g2": {'a': [], 'b': [], 'r': [], 'add': [], 'dbl': [], 'mul': [], 'invalid': [], 'psi': []},

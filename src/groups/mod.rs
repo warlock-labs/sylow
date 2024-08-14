@@ -494,8 +494,8 @@ mod tests {
             #[should_panic(expected = "g2 failed: NotInSubgroup")]
             fn invalid_subgroup_check() {
                 load_g2_reference_data!(_g2_points, _g2_invalids);
-                let _: Vec<G2Projective> = _g2_invalids.iter().map(convert_to_g2projective)
-                    .collect();
+                let _: Vec<G2Projective> =
+                    _g2_invalids.iter().map(convert_to_g2projective).collect();
             }
             #[test]
             #[should_panic(expected = "Endomorphism failed: NotOnCurve")]
@@ -600,8 +600,8 @@ mod tests {
             }
         }
         mod multiplication_tests {
-            use crate::groups::group::GroupTrait;
             use super::*;
+            use crate::groups::group::GroupTrait;
 
             #[test]
             fn test_doubling() {
@@ -641,7 +641,7 @@ mod tests {
             fn test_random() {
                 use crypto_bigint::rand_core::OsRng;
                 for _ in 0..100 {
-                    let p = G2Projective::rand(&mut OsRng);
+                    let _p = G2Projective::rand(&mut OsRng);
                 }
             }
         }
