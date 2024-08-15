@@ -196,8 +196,8 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
         // alg 22 from https://eprint.iacr.org/2010/354.pdf
         let c0 = self.0[0] - self.0[1];
         let c3 = self.0[0] - self.0[1].residue_mul();
-        let c2 = self.0[0]*self.0[1];
-        let c0 = c0*c3 + c2;
+        let c2 = self.0[0] * self.0[1];
+        let c0 = c0 * c3 + c2;
         let c1 = c2 + c2;
         let c2 = c2.residue_mul();
         let c0 = c0 + c2;

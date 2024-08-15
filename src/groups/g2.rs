@@ -40,16 +40,16 @@ const G2_X: Fp2 = Fp2::new(&[
 
 const G2_Y: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
-        5541340697920699818, 
-        16416156555105522555, 
-        5380518976772849807, 
-        1353435754470862315
+        5541340697920699818,
+        16416156555105522555,
+        5380518976772849807,
+        1353435754470862315,
     ])),
     Fp::new(U256::from_words([
-        6173549831154472795, 
-        13567992399387660019, 
-        17050234209342075797, 
-        650358724130500725
+        6173549831154472795,
+        13567992399387660019,
+        17050234209342075797,
+        650358724130500725,
     ])),
 ]);
 // the first constant of the endomorphism, $\xi^((p-1)/3)$, see below
@@ -194,9 +194,7 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     /// through the `new` constructor to ensure that the random value does indeed pass the curve
     /// and subgroup checks
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
-        let rando = Fr::rand(rng)
-            .value()
-            .to_le_bytes();
+        let rando = Fr::rand(rng).value().to_le_bytes();
         let mut tmp = &Self::generator() * &rando;
 
         // multiplying an element of the larger base field by the cofactor of a prime-ordered

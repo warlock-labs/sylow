@@ -106,15 +106,14 @@ where
 
 #[allow(unused_macros)]
 macro_rules! define_finite_prime_field {
-    ($wrapper_name:ident, $mod_struct:ident, $output:ident, $uint_type:ty, $limbs:expr, 
-    $modulus:expr, 
-    $degree:expr, 
+    ($wrapper_name:ident, $mod_struct:ident, $output:ident, $uint_type:ty, $limbs:expr,
+    $modulus:expr,
+    $degree:expr,
     $nreps:expr) => {
         impl_modulus!($mod_struct, $uint_type, $modulus);
 
         //special struct for const-time arithmetic on montgomery form integers mod p
-        type $output =
-            crypto_bigint::modular::ConstMontyForm<$mod_struct, { $mod_struct::LIMBS }>;
+        type $output = crypto_bigint::modular::ConstMontyForm<$mod_struct, { $mod_struct::LIMBS }>;
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
         pub(crate) struct $wrapper_name($mod_struct, $output);
         #[allow(dead_code)]
@@ -409,10 +408,28 @@ macro_rules! define_finite_prime_field {
 }
 
 const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-const BN254_SUBGROUP_MOD_STRING: &str = 
+const BN254_SUBGROUP_MOD_STRING: &str =
     "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001";
-define_finite_prime_field!(Fp, FpModStruct, FpOutputType, U256, 8, BN254_MOD_STRING, 1, 1);
-define_finite_prime_field!(Fr, FrModStruct, FrOutputType, U256, 8, BN254_SUBGROUP_MOD_STRING, 1,1);
+define_finite_prime_field!(
+    Fp,
+    FpModStruct,
+    FpOutputType,
+    U256,
+    8,
+    BN254_MOD_STRING,
+    1,
+    1
+);
+define_finite_prime_field!(
+    Fr,
+    FrModStruct,
+    FrOutputType,
+    U256,
+    8,
+    BN254_SUBGROUP_MOD_STRING,
+    1,
+    1
+);
 /// the code below makes the base field "visible" to higher
 /// order extensions. The issue is really the fact that generic
 /// traits cannot enforce arithmetic relations, such as the
