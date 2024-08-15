@@ -43,12 +43,6 @@ use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use subtle::CtOption;
 
-const FP_QUADRATIC_NON_RESIDUE: Fp = Fp::new(U256::from_words([
-    4332616871279656262,
-    10917124144477883021,
-    13281191951274694749,
-    3486998266802970665,
-]));
 /// This defines the key properties of a field extension. Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
@@ -112,20 +106,23 @@ where
 
 #[allow(unused_macros)]
 macro_rules! define_finite_prime_field {
-    ($wrapper_name:ident, $uint_type:ty, $limbs:expr, $modulus:expr, $degree:expr, $nreps:expr) => {
-        impl_modulus!(ModulusStruct, $uint_type, $modulus);
+    ($wrapper_name:ident, $mod_struct:ident, $output:ident, $uint_type:ty, $limbs:expr, 
+    $modulus:expr, 
+    $degree:expr, 
+    $nreps:expr) => {
+        impl_modulus!($mod_struct, $uint_type, $modulus);
 
         //special struct for const-time arithmetic on montgomery form integers mod p
-        type Output =
-            crypto_bigint::modular::ConstMontyForm<ModulusStruct, { ModulusStruct::LIMBS }>;
+        type $output =
+            crypto_bigint::modular::ConstMontyForm<$mod_struct, { $mod_struct::LIMBS }>;
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
-        pub(crate) struct $wrapper_name(ModulusStruct, Output);
+        pub(crate) struct $wrapper_name($mod_struct, $output);
         #[allow(dead_code)]
         impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {}
         impl $wrapper_name {
             // builder structure to create elements in the base field of a given value
             pub(crate) const fn new(value: $uint_type) -> Self {
-                Self(ModulusStruct, Output::new(&value))
+                Self($mod_struct, $output::new(&value))
             }
             #[allow(dead_code)] // this is indeed used in the test cases, which are ignored by
                                 // the linter
@@ -157,7 +154,7 @@ macro_rules! define_finite_prime_field {
                 self.1.retrieve()
             }
             pub(crate) fn characteristic() -> $uint_type {
-                <$uint_type>::from(ModulusStruct::MODULUS.as_nz_ref().get())
+                <$uint_type>::from($mod_struct::MODULUS.as_nz_ref().get())
             }
             pub const ZERO: Self = Self::new(<$uint_type>::from_words([0x0; 4]));
             pub const ONE: Self = Self::new(<$uint_type>::from_words([0x1, 0x0, 0x0, 0x0]));
@@ -173,7 +170,12 @@ macro_rules! define_finite_prime_field {
             fn quadratic_non_residue() -> Self {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
                 // = -1
-                FP_QUADRATIC_NON_RESIDUE
+                Self::new(U256::from_words([
+                    4332616871279656262,
+                    10917124144477883021,
+                    13281191951274694749,
+                    3486998266802970665,
+                ]))
             }
             fn frobenius(&self, _exponent: usize) -> Self {
                 Self::zero()
@@ -201,7 +203,7 @@ macro_rules! define_finite_prime_field {
             fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
                 Self::new(<$uint_type>::random_mod(
                     rng,
-                    ModulusStruct::MODULUS.as_nz_ref(),
+                    $mod_struct::MODULUS.as_nz_ref(),
                 ))
             }
             fn is_square(&self) -> Choice {
@@ -227,7 +229,7 @@ macro_rules! define_finite_prime_field {
         }
         impl From<u64> for $wrapper_name {
             fn from(value: u64) -> Self {
-                Self(ModulusStruct, Output::new(&<$uint_type>::from_u64(value)))
+                Self($mod_struct, $output::new(&<$uint_type>::from_u64(value)))
             }
         }
         /// We now implement binary operations on the base field. This more or less
@@ -407,7 +409,10 @@ macro_rules! define_finite_prime_field {
 }
 
 const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-define_finite_prime_field!(Fp, U256, 8, BN254_MOD_STRING, 1, 1);
+const BN254_SUBGROUP_MOD_STRING: &str = 
+    "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001";
+define_finite_prime_field!(Fp, FpModStruct, FpOutputType, U256, 8, BN254_MOD_STRING, 1, 1);
+define_finite_prime_field!(Fr, FrModStruct, FrOutputType, U256, 8, BN254_SUBGROUP_MOD_STRING, 1,1);
 /// the code below makes the base field "visible" to higher
 /// order extensions. The issue is really the fact that generic
 /// traits cannot enforce arithmetic relations, such as the

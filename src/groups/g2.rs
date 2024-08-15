@@ -40,20 +40,20 @@ const G2_X: Fp2 = Fp2::new(&[
 
 const G2_Y: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
-        17238020247068508061,
-        12947711663081912081,
-        7900672974501844941,
-        2133562512332108350,
+        5541340697920699818, 
+        16416156555105522555, 
+        5380518976772849807, 
+        1353435754470862315
     ])),
     Fp::new(U256::from_words([
-        16605811113834735084,
-        15795875818799774617,
-        14677701815642170567,
-        2836639542672469939,
+        6173549831154472795, 
+        13567992399387660019, 
+        17050234209342075797, 
+        650358724130500725
     ])),
 ]);
 // the first constant of the endomorphism, $\xi^((p-1)/3)$, see below
-const EPS_EXP0: Fp2 = Fp2::new(&[
+pub(crate) const EPS_EXP0: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
         11088870908804158781,
         13226160682434769676,
@@ -68,7 +68,7 @@ const EPS_EXP0: Fp2 = Fp2::new(&[
     ])),
 ]);
 // the second constant of the endomorphism, $\xi^((p-1)/2)$, see below
-const EPS_EXP1: Fp2 = Fp2::new(&[
+pub(crate) const EPS_EXP1: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
         15876315988453495642,
         15828711151707445656,
@@ -91,7 +91,7 @@ const C2: Fp = Fp::new(U256::from_words([
     0,
 ]));
 // the parameter that generates this member of the BN family
-const BLS_X: Fp = Fp::new(U256::from_words([4965661367192848881, 0, 0, 0]));
+pub(crate) const BLS_X: Fp = Fp::new(U256::from_words([4965661367192848881, 0, 0, 0]));
 #[allow(dead_code)]
 pub(crate) type G2Affine = GroupAffine<2, 2, Fp2>;
 #[allow(dead_code)]

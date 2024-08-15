@@ -193,13 +193,15 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
         unimplemented!()
     }
     fn square(&self) -> Self {
-        let tmp = self.0[0] * self.0[1];
-        Self::new(&[
-            (self.0[1].residue_mul() + self.0[0]) * (self.0[0] + self.0[1])
-                - tmp
-                - tmp.residue_mul(),
-            tmp + tmp,
-        ])
+        // alg 22 from https://eprint.iacr.org/2010/354.pdf
+        let c0 = self.0[0] - self.0[1];
+        let c3 = self.0[0] - self.0[1].residue_mul();
+        let c2 = self.0[0]*self.0[1];
+        let c0 = c0*c3 + c2;
+        let c1 = c2 + c2;
+        let c2 = c2.residue_mul();
+        let c0 = c0 + c2;
+        Self::new(&[c0, c1])
     }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self([

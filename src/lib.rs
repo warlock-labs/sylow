@@ -17,3 +17,4 @@ mod groups;
 mod hasher;
 mod pairing;
 mod svdw;
+mod pairing_v1;
