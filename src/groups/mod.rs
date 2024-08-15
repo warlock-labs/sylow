@@ -1,5 +1,5 @@
-mod g1;
-mod g2;
+pub(crate) mod g1;
+pub(crate) mod g2;
 pub(crate) mod group;
 
 /// This test suite takes time, the biggest culprit of which is the multiplication. Really the

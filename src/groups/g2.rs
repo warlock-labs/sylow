@@ -90,7 +90,8 @@ const C2: Fp = Fp::new(U256::from_words([
     0,
     0,
 ]));
-
+// the parameter that generates this member of the BN family
+const BLS_X: Fp = Fp::new(U256::from_words([4965661367192848881, 0, 0, 0]));
 #[allow(dead_code)]
 pub(crate) type G2Affine = GroupAffine<2, 2, Fp2>;
 #[allow(dead_code)]
@@ -159,6 +160,21 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
     ) -> Result<Self, GroupError> {
         unimplemented!()
     }
+    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
+    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
+    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
+    /// directly be instantiated as a struct
+    fn frobenius(&self, exponent: usize) -> Self {
+        let vec: Vec<Fp2> = [self.x, self.y]
+            .iter()
+            .map(|x| <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(x, exponent))
+            .collect();
+        Self {
+            x: vec[0],
+            y: vec[1],
+            infinity: self.infinity,
+        }
+    }
 }
 impl GroupTrait<2, 2, Fp2> for G2Projective {
     fn generator() -> Self {
@@ -198,6 +214,21 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
         _private_key: Fp2,
     ) -> Result<Self, GroupError> {
         unimplemented!()
+    }
+    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
+    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
+    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
+    /// directly be instantiated as a struct
+    fn frobenius(&self, exponent: usize) -> Self {
+        let vec: Vec<Fp2> = [self.x, self.y, self.z]
+            .iter()
+            .map(|x| <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(x, exponent))
+            .collect();
+        Self {
+            x: vec[0],
+            y: vec[1],
+            z: vec[2],
+        }
     }
 }
 impl G2Affine {
@@ -270,8 +301,7 @@ impl G2Projective {
                 y: *y,
                 z: *z,
             };
-            let x = Fp::from(4965661367192848881);
-            let mut a = &tmp * &x.value().to_le_bytes(); // xQ
+            let mut a = &tmp * &BLS_X.value().to_le_bytes(); // xQ
             let b = a.endomorphism(); // ψ(xQ)
             a = &a + &tmp; // (x+1)Q
             let mut rhs = b.endomorphism(); // ψ^2(xQ)

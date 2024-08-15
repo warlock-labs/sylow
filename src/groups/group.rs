@@ -54,6 +54,7 @@ pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTra
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError>;
     fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: F) -> Result<Self, GroupError>;
+    fn frobenius(&self, exponent: usize) -> Self;
 }
 
 #[derive(Copy, Clone, Debug)]

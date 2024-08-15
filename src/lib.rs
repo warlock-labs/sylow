@@ -15,4 +15,5 @@
 mod fields;
 mod groups;
 mod hasher;
+mod pairing;
 mod svdw;

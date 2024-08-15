@@ -11,6 +11,7 @@
 //! make the implementation of the more complicated G2 easier to handle.
 
 use crate::fields::fp::{FieldExtensionTrait, Fp};
+use crate::fields::fp2::Fp2;
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
 use crate::svdw::{SvdW, SvdWTrait};
@@ -50,6 +51,21 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
         match G1Projective::sign_message(exp, msg, private_key) {
             Ok(d) => Ok(Self::from(d)),
             Err(e) => Err(e),
+        }
+    }
+    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
+    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
+    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
+    /// directly be instantiated as a struct
+    fn frobenius(&self, exponent: usize) -> Self {
+        let vec: Vec<Fp> = [self.x, self.y]
+            .iter()
+            .map(|x| <Fp as FieldExtensionTrait<1, 1>>::frobenius(x, exponent))
+            .collect();
+        Self {
+            x: vec[0],
+            y: vec[1],
+            infinity: self.infinity,
         }
     }
 }
@@ -131,6 +147,21 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
             return Ok(&d * &private_key.value().to_le_bytes());
         }
         Err(GroupError::CannotHashToGroup)
+    }
+    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
+    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
+    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
+    /// directly be instantiated as a struct
+    fn frobenius(&self, exponent: usize) -> Self {
+        let vec: Vec<Fp> = [self.x, self.y, self.z]
+            .iter()
+            .map(|x| <Fp as FieldExtensionTrait<1, 1>>::frobenius(x, exponent))
+            .collect();
+        Self {
+            x: vec[0],
+            y: vec[1],
+            z: vec[2],
+        }
     }
 }
 impl G1Projective {
