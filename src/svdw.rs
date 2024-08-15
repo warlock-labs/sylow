@@ -13,11 +13,10 @@
 //! ----------
 //! 1. <https://link.springer.com/chapter/10.1007/11792086_36>
 use crate::fields::fp::FieldExtensionTrait;
-use crate::groups::group::{GroupAffine, GroupError, GroupProjective};
 use subtle::Choice;
 
 #[derive(Debug)]
-pub enum MapError {
+pub(crate) enum MapError {
     SvdWError,
 }
 #[derive(Debug)]
@@ -94,13 +93,13 @@ pub(crate) trait SvdWTrait<const D: usize, const N: usize, F: FieldExtensionTrai
             z,
         })
     }
-    fn map_to_point(&self, u: F) -> Result<GroupProjective<D, N, F>, MapError>;
+    fn unchecked_map_to_point(&self, u: F) -> Result<[F; 2], MapError>;
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> SvdWTrait<D, N, F>
     for SvdW<D, N, F>
 {
     #[allow(dead_code)]
-    fn map_to_point(&self, u: F) -> Result<GroupProjective<D, N, F>, MapError> {
+    fn unchecked_map_to_point(&self, u: F) -> Result<[F; 2], MapError> {
         // Implements the SvdW algorithm for a single scalar point
         let cmov = |x: &F, y: &F, b: &Choice| -> F {
             F::from(!bool::from(*b) as u64) * (*x) + F::from(bool::from(*b) as u64) * (*y)
@@ -143,9 +142,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> SvdWTrait<D, 
         };
         let e3 = Choice::from((bool::from(u.sgn0()) == bool::from(y.sgn0())) as u8);
         let y = cmov(&(-y), &y, &e3); // Select correct sign of y;
-
-        let aff = GroupAffine::new([x, y]).map_err(|_e: GroupError| MapError::SvdWError)?;
-        Ok(GroupProjective::from(aff))
+        Ok([x, y])
     }
 }
 
@@ -154,7 +151,7 @@ mod tests {
     use super::*;
     mod map_tests {
         use super::*;
-        use crate::fields::fp::{FinitePrimeField, Fp};
+        use crate::fields::fp::Fp;
         use crate::hasher::Expander;
         use crypto_bigint::U256;
         use num_traits::One;
@@ -163,7 +160,7 @@ mod tests {
         #[test]
         fn test_z_svdw() {
             let z = SvdW::<1, 1, Fp>::find_z_svdw(Fp::from(0), Fp::from(3));
-            assert_eq!(z, Fp::one(), "Finding Z failed for BN254");
+            assert_eq!(z, Fp::ONE, "Finding Z failed for BN254");
         }
         #[test]
         fn test_constants() {
@@ -214,9 +211,10 @@ mod tests {
                     let _d = scalars
                         .iter()
                         .map(|&x| {
-                            bn254_svdw.map_to_point(x).expect(
-                                "SvdW \
-                    failed",
+                            GroupProjective::<1, 1, Fp>::from(
+                                bn254_svdw
+                                    .unchecked_map_to_point(x)
+                                    .expect("SVDW failed to map to point"),
                             )
                         })
                         .fold(GroupProjective::<1, 1, Fp>::zero(), |acc, x| &acc + &x);

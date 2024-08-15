@@ -43,6 +43,12 @@ use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use subtle::CtOption;
 
+const FP_QUADRATIC_NON_RESIDUE: Fp = Fp::new(U256::from_words([
+    4332616871279656262,
+    10917124144477883021,
+    13281191951274694749,
+    3486998266802970665,
+]));
 /// This defines the key properties of a field extension. Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
@@ -88,18 +94,14 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     fn is_square(&self) -> Choice;
 
     fn sgn0(&self) -> Choice;
+
+    fn curve_constant() -> Self;
 }
 pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
 where
     UintType: ConcatMixed<MixedOutput = Uint<DLIMBS>>,
 {
-    fn new(value: UintType) -> Self;
-    #[allow(dead_code)]
-    fn new_from_str(value: &str) -> Option<Self>;
-    #[allow(dead_code)]
-    fn value(&self) -> UintType;
-    fn characteristic() -> UintType;
 }
 
 /// Due to the fact that we use `crypto_bigint` to handle the multiprecision arithmetic
@@ -117,14 +119,17 @@ macro_rules! define_finite_prime_field {
         type Output =
             crypto_bigint::modular::ConstMontyForm<ModulusStruct, { ModulusStruct::LIMBS }>;
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
-        pub struct $wrapper_name(ModulusStruct, Output);
+        pub(crate) struct $wrapper_name(ModulusStruct, Output);
         #[allow(dead_code)]
-        impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {
+        impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {}
+        impl $wrapper_name {
             // builder structure to create elements in the base field of a given value
-            fn new(value: $uint_type) -> Self {
+            pub(crate) const fn new(value: $uint_type) -> Self {
                 Self(ModulusStruct, Output::new(&value))
             }
-            fn new_from_str(value: &str) -> Option<Self> {
+            #[allow(dead_code)] // this is indeed used in the test cases, which are ignored by
+                                // the linter
+            pub(crate) fn new_from_str(value: &str) -> Option<Self> {
                 let ints: Vec<_> = {
                     let mut acc = Self::zero();
                     (0..11)
@@ -148,12 +153,18 @@ macro_rules! define_finite_prime_field {
                 Some(res)
             }
             // take the element and convert it to "normal" form from montgomery form
-            fn value(&self) -> $uint_type {
+            pub(crate) const fn value(&self) -> $uint_type {
                 self.1.retrieve()
             }
-            fn characteristic() -> $uint_type {
+            pub(crate) fn characteristic() -> $uint_type {
                 <$uint_type>::from(ModulusStruct::MODULUS.as_nz_ref().get())
             }
+            pub const ZERO: Self = Self::new(<$uint_type>::from_words([0x0; 4]));
+            pub const ONE: Self = Self::new(<$uint_type>::from_words([0x1, 0x0, 0x0, 0x0]));
+            pub const TWO: Self = Self::new(<$uint_type>::from_words([0x2, 0x0, 0x0, 0x0]));
+            pub const THREE: Self = Self::new(<$uint_type>::from_words([0x3, 0x0, 0x0, 0x0]));
+            pub const FOUR: Self = Self::new(<$uint_type>::from_words([0x4, 0x0, 0x0, 0x0]));
+            pub const NINE: Self = Self::new(<$uint_type>::from_words([0x9, 0x0, 0x0, 0x0]));
         }
         // we make the base field an extension of the
         // appropriate degree, in our case degree 1 (with
@@ -162,7 +173,7 @@ macro_rules! define_finite_prime_field {
             fn quadratic_non_residue() -> Self {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
                 // = -1
-                Self::new((-Self::from(1u64)).1.retrieve())
+                FP_QUADRATIC_NON_RESIDUE
             }
             fn frobenius(&self, _exponent: usize) -> Self {
                 Self::zero()
@@ -207,6 +218,12 @@ macro_rules! define_finite_prime_field {
                     Choice::from(1u8)
                 }
             }
+            /// this is the constant of the j-invariant curve defined over this base field.
+            /// Namely, the short Weierstrass curve is of the form $y^2 = x^3 + b$, and the below
+            /// is the constant `b`. For BN254, this is 3.
+            fn curve_constant() -> Self {
+                Self::THREE
+            }
         }
         impl From<u64> for $wrapper_name {
             fn from(value: u64) -> Self {
@@ -229,7 +246,7 @@ macro_rules! define_finite_prime_field {
         }
         impl Zero for $wrapper_name {
             fn zero() -> Self {
-                Self::from(0u64)
+                Self::ZERO
             }
             fn is_zero(&self) -> bool {
                 self.1.is_zero()
@@ -237,12 +254,12 @@ macro_rules! define_finite_prime_field {
         }
         impl One for $wrapper_name {
             fn one() -> Self {
-                Self::from(1u64)
+                Self::ONE
             }
         }
         impl Default for $wrapper_name {
             fn default() -> Self {
-                Self::from(0u64)
+                Self::ZERO
             }
         }
         impl Sub for $wrapper_name {
@@ -423,8 +440,10 @@ impl FieldExtensionTrait<2, 2> for Fp {
     fn sgn0(&self) -> Choice {
         <Fp as FieldExtensionTrait<1, 1>>::sgn0(self)
     }
+    fn curve_constant() -> Self {
+        <Fp as FieldExtensionTrait<1, 1>>::curve_constant()
+    }
 }
-
 /// This is a very comprehensive test suite, that checks every binary operation for validity,
 /// associativity, commutativity, distributivity, sanity checks, and edge cases.
 /// The reference values for non-obvious field elements are generated with Sage.
