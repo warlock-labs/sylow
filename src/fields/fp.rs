@@ -923,7 +923,7 @@ mod tests {
         use super::*;
 
         // The coefficients are [a_0,...,a_n], and so this evaluates sum(a_i x^i).
-        fn eval_polynomial(coefficients: &Vec<Fp>, x: &Fp) -> Fp {
+        fn eval_polynomial(coefficients: &[Fp], x: &Fp) -> Fp {
             let mut val = Fp::zero();
             for (i, c) in coefficients.iter().enumerate() {
                 val += *c * x.pow(U256::from_u64(i as u64));
@@ -932,7 +932,7 @@ mod tests {
         }
 
         // This uses Lagrange interpolation to solve for a_0 given a set of t points.
-        fn get_secret_lagrange(xa: &Vec<Fp>, ya: &Vec<Fp>) -> Fp {
+        fn get_secret_lagrange(xa: &[Fp], ya: &[Fp]) -> Fp {
             let mut val = Fp::zero();
             for (j, xj) in xa.iter().enumerate() {
                 let mut term_j = ya[j];
@@ -946,7 +946,7 @@ mod tests {
             val
         }
 
-        fn check_commitments(commitments: &Vec<Fp>, x: &Fp) -> Fp {
+        fn check_commitments(commitments: &[Fp], x: &Fp) -> Fp {
             let mut val = Fp::one();
             for (j, cmt_j) in commitments.iter().enumerate() {
                 val *= cmt_j.pow(x.pow(U256::from_u64(j as u64)).value());
@@ -966,14 +966,20 @@ mod tests {
         fn test_vss() {
             let coefficients = from_vec_i32(vec![14, 1, 2, 3, 4]);
             let xa = from_vec_i32(vec![2, 4, 6, 8, 10]);
-            let ya: Vec<Fp> = xa.iter().map(|x| eval_polynomial(&coefficients, x)).collect();
+            let ya: Vec<Fp> = xa
+                .iter()
+                .map(|x| eval_polynomial(&coefficients, x))
+                .collect();
 
             // example Lagrange interpolation
             assert_eq!(coefficients[0], get_secret_lagrange(&xa, &ya));
 
             // p-1 guaranteed to be a generator of the multiplicative group Fp^*.
             let generator: Fp = Fp::zero() - Fp::one();
-            let commitments: Vec<Fp> = coefficients.iter().map(|c| generator.pow(c.value())).collect();
+            let commitments: Vec<Fp> = coefficients
+                .iter()
+                .map(|c| generator.pow(c.value()))
+                .collect();
             for (i, xi) in xa.iter().enumerate() {
                 let gy = generator.pow(ya[i].value());
                 let check_x = check_commitments(&commitments, xi);
@@ -981,7 +987,7 @@ mod tests {
             }
             // TODO: I believe the commitment check can fail if any calculated y or x^i wraps around p.
             // This is because the multiplicative group Fp^* is of order p-1, not p.
-            // Might have to instantiate the ring Z_{p-1} to handle this.
+            // As per Feldman VSS, I believe we need to select appropriate p and q.
         }
     }
 }
