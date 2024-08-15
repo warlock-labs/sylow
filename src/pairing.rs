@@ -8,7 +8,7 @@
 // use crate::groups::group::GroupTrait;
 // use num_traits::{Inv, One, Zero};
 // use subtle::{Choice, ConditionallySelectable};
-// 
+//
 // impl Fp12 {
 //     fn unitary_inverse(&self) -> Self {
 //         Self::new(&[self.0[0], -self.0[1]])
@@ -33,7 +33,7 @@
 //     1, 1, 1, 0, 0, -1, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 1, 1, 0, 0, -1, 0, 0, 0, 1, 1, 0, -1, 0,
 //     0, 1, 0, 1, 1,
 // ];
-// 
+//
 // #[derive(Copy, Clone, Debug)]
 // pub(crate) struct MillerLoopResult(pub(crate) Fp12);
 // impl Default for MillerLoopResult{
@@ -86,25 +86,25 @@
 //             // Line 13-22 for A
 //             z0 = t0 - z0;
 //             z0 = z0 + z0 + t0;
-// 
+//
 //             z1 = t1 + z1;
 //             z1 = z1 + z1 + t1;
-// 
+//
 //             let (mut t0, t1) = fp4_square(z2, z3);
 //             let (t2, t3) = fp4_square(z4, z5);
-// 
+//
 //             // Lines 25-31, for C
 //             z4 = t0 - z4;
 //             z4 = z4 + z4 + t0;
-// 
+//
 //             z5 = t1 + z5;
 //             z5 = z5 + z5 + t1;
-// 
+//
 //             // Lines 34-41, for B
 //             t0 = t3.residue_mul();
 //             z2 = t0 + z2;
 //             z2 = z2 + z2 + t0;
-// 
+//
 //             z3 = t2 - z3;
 //             z3 = z3 + z3 + t2;
 //             Fp12::new(&[
@@ -127,7 +127,7 @@
 //             }
 //             res
 //         }
-//         /// The below is the easy part of the final exponentiation step, corresponding to Lines 
+//         /// The below is the easy part of the final exponentiation step, corresponding to Lines
 //         /// 1-4 of Alg 31 from https://eprint.iacr.org/2010/354.pdf.
 //         #[must_use]
 //         fn easy_part(f: Fp12) -> Fp12 {
@@ -136,7 +136,7 @@
 //             let f = f1 * f2;
 //             f.frobenius(2) * f
 //         }
-//         /// This is a helper function to determine f^z, where $z$ is the generator of this 
+//         /// This is a helper function to determine f^z, where $z$ is the generator of this
 //         /// particlar member of the BN family
 //         #[must_use]
 //         fn exp_by_negative_bls_z(f: Fp12) -> Fp12 {
@@ -150,80 +150,80 @@
 //             // let ft1 = exp_by_negative_bls_z(f);  // Algorithm 25
 //             // let ft2 = exp_by_negative_bls_z(ft1);
 //             // let ft3 = exp_by_negative_bls_z(ft2);
-//             // 
+//             //
 //             // // Steps 8-10
 //             // let fp1 = f.frobenius(1);  // Algorithm 28
 //             // let fp2 = f.frobenius(2);  // Algorithm 29
 //             // let fp3 = f.frobenius(3);  // Algorithm 30
-//             // 
+//             //
 //             // // Steps 11-14
 //             // let y0 = fp1 * fp2 * fp3;
 //             // let y1 = f.unitary_inverse();
 //             // let y2 = ft2.frobenius(2);  // Algorithm 29
 //             // let y3 = ft1.frobenius(1);  // Algorithm 28
-//             // 
+//             //
 //             // // Steps 15-17
 //             // let y3 = y3.unitary_inverse();
 //             // let y4 = ft2.frobenius(1) * ft1;  // Algorithm 28
 //             // let y4 = y4.unitary_inverse();
-//             // 
+//             //
 //             // // Steps 18-20
 //             // let y5 = ft2;
 //             // let y6 = ft3.frobenius(1) * ft3;  // Algorithm 28
 //             // let y6 = y6.unitary_inverse();
-//             // 
+//             //
 //             // // Steps 21-23
 //             // let t0 = cyclotomic_square(y6) * y4 * y5;  // Algorithm 24 for squaring
 //             // let t1 = y3 * y5 * t0;
 //             // let t0 = t0 * y2;
-//             // 
+//             //
 //             // // Steps 24-26
 //             // let t1 = cyclotomic_square(cyclotomic_square(t1) * t0);  // Algorithm 24 for squaring
 //             // let t0 = t1 * y1;
 //             // let t1 = t1 * y0;
-//             // 
+//             //
 //             // // Steps 27-29
 //             // let t0 = cyclotomic_square(t0);  // Algorithm 24
 //             // let f = t1 * t0;
-//             // 
+//             //
 //             // f
 //             let a = exp_by_negative_bls_z(input);
-//             let b = cyclotomic_square(a); 
-//             let c = cyclotomic_square(b); 
-//             let d = c * b; 
-//             
+//             let b = cyclotomic_square(a);
+//             let c = cyclotomic_square(b);
+//             let d = c * b;
+//
 //             let e = exp_by_negative_bls_z(d);
 //             let f = cyclotomic_square(e);
 //             let g = exp_by_negative_bls_z(f);
 //             let h = d.unitary_inverse();
 //             let i = g.unitary_inverse();
-//             
+//
 //             let j = i * e;
 //             let k = j * h;
 //             let l = k * b;
 //             let m = k * e;
 //             let n = input * m;
-//             
+//
 //             let o = l.frobenius(1);
 //             let p = o * n;
-//             
+//
 //             let q = k.frobenius(2);
 //             let r = q * p;
-//             
+//
 //             let s = input.unitary_inverse();
 //             let t = s * l;
 //             let u = t.frobenius(3);
-//             
+//
 //             u * r
 //         }
 //         hard_part(easy_part(self.0))
 //     }
 // }
-// 
+//
 // #[allow(clippy::suspicious_arithmetic_impl)]
 // impl<'a, 'b> Add<&'b MillerLoopResult> for &'a MillerLoopResult {
 //     type Output = MillerLoopResult;
-// 
+//
 //     #[inline]
 //     fn add(self, rhs: &'b MillerLoopResult) -> MillerLoopResult {
 //         MillerLoopResult(self.0 * rhs.0)
@@ -231,27 +231,27 @@
 // }
 // impl Add<MillerLoopResult> for MillerLoopResult {
 //     type Output = MillerLoopResult;
-// 
+//
 //     #[inline]
 //     fn add(self, rhs: MillerLoopResult) -> MillerLoopResult {
 //         &self + &rhs
 //     }
 // }
-// 
+//
 // impl AddAssign<MillerLoopResult> for MillerLoopResult {
 //     #[inline]
 //     fn add_assign(&mut self, rhs: MillerLoopResult) {
 //         *self = *self + rhs;
 //     }
 // }
-// 
+//
 // impl<'b> AddAssign<&'b MillerLoopResult> for MillerLoopResult {
 //     #[inline]
 //     fn add_assign(&mut self, rhs: &'b MillerLoopResult) {
 //         *self = *self + *rhs;
 //     }
 // }
-// 
+//
 // impl Zero for MillerLoopResult{
 //     fn zero() -> Self {
 //         MillerLoopResult(Fp12::zero())
@@ -260,7 +260,7 @@
 //         self.0.is_zero()
 //     }
 // }
-// 
+//
 // /// This is an adaptation of Algorithm 26. It modifies the input point in place to double it,
 // /// and returns the evaluation of the line at that point. Specifically:
 // /// Q\i E^\prime(F_{p^2}) and P\in E(F_{p}), this returns Q = 2Q, and \ell_{Q,Q}(P)=l0 + l1*w\in F_{p^12}
@@ -283,28 +283,28 @@
 //     let tmp5 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&tmp4);
 //     // Line 9
 //     let zsquared = <Fp2 as FieldExtensionTrait<2, 2>>::square(&q.z);
-// 
+//
 //     let tx = tmp5 - tmp3 - tmp3;
 //     // Line 10
 //     let tz = <Fp2 as FieldExtensionTrait<2, 2>>::square(&(q.y + q.z)) - tmp1 - zsquared;
 //     // Line 11
 //     let ty = (tmp3 - q.x) * tmp4 - tmp2 - tmp2 - tmp2 - tmp2 - tmp2 - tmp2 - tmp2 - tmp2; //8tmp2
-// 
+//
 //     // Line 12
 //     let tmp3 = tmp4 * zsquared;
 //     let tmp3 = tmp3 + tmp3;
 //     let tmp3 = -tmp3; // -2(tmp4*zsquared)
-// 
+//
 //     // Line 13
 //     let tmp3 = tmp3.scale(p.x); //tmp3 * p.x;
 //                                 // Line 14
 //     let tmp6 =
 //         <Fp2 as FieldExtensionTrait<2, 2>>::square(&tmp6) - tmp0 - tmp5 - tmp1 - tmp1 - tmp1 - tmp1;
-// 
+//
 //     // Line 15
 //     let tmp0 = tz * zsquared;
 //     let tmp0 = tmp0 + tmp0;
-// 
+//
 //     // Line 16
 //     let tmp0 = tmp0.scale(p.y); //tmp0 * p.y;
 //                                 // Line 17 just initializes the variables a0, a1.
@@ -320,16 +320,16 @@
 //         },
 //     )
 // }
-// 
+//
 // /// This is an adaptation of Algorithm 27, that adds two points, and evaluates the line at an
 // /// affine point. Specifically:
 // /// Q, R \in E^\prime(F_{p^2}), and P\in E(F_{p}), this returns T = Q+R, and \ell_{R, Q}(P)=l0 + l1*w\in F_{p^12}
 // fn addition_step(q: &G2Projective, r: &G2Projective, p: &G1Affine) -> (Fp12, G2Projective) {
 //     // Adaptation of Algorithm 27, https://eprint.iacr.org/2010/354.pdf
-// 
+//
 //     let zrsquared = <Fp2 as FieldExtensionTrait<2, 2>>::square(&r.z);
 //     let yqsquared = <Fp2 as FieldExtensionTrait<2, 2>>::square(&q.y);
-// 
+//
 //     // Line 1
 //     let t0 = q.x * zrsquared;
 //     // Line 2
@@ -382,7 +382,7 @@
 //     // Line 23
 //     let l0 = Fp6::new(&[t10, Fp2::zero(), Fp2::zero()]);
 //     let l1 = Fp6::new(&[t1, t9, Fp2::zero()]);
-// 
+//
 //     (
 //         Fp12::new(&[l0, l1]),
 //         G2Projective {
@@ -392,7 +392,7 @@
 //         },
 //     )
 // }
-// 
+//
 // fn miller_loop(p: &G1Affine, q: &G2Projective) -> MillerLoopResult {
 //     if q.is_zero() | p.is_zero() {
 //         return MillerLoopResult(Fp12::one());
@@ -434,7 +434,7 @@
 //     f *= _ell;
 //     MillerLoopResult(f)
 // }
-// 
+//
 // // def e(P,Q):
 // //     assert(subgroup_check_G1(P))
 // //     assert(subgroup_check_G2(Q))
@@ -464,7 +464,7 @@
 // //     T = T - Q2;
 // //
 // //     return final_exponentiation(f)
-// 
+//
 // fn pairing(p: &G1Affine, q: &G2Affine) -> Fp12 {
 //     let either_zero = Choice::from((p.is_zero() | q.is_zero()) as u8);
 //     let p = G1Affine::conditional_select(p, &G1Affine::generator(), either_zero);
@@ -475,12 +475,12 @@
 // #[cfg(test)]
 // mod tests {
 //     use super::*;
-// 
+//
 //     mod miller {
 //         use crate::fields::fp::Fp;
 //         use crate::groups::g1::G1Projective;
 //         use super::*;
-// 
+//
 //         #[test]
 //         fn test_encoding() {
 //             let sum = PSEUDO_BINARY_ENCODING
@@ -499,41 +499,41 @@
 //             let a = G1Affine::zero();
 //             let b = G2Affine::generator();
 //             assert_eq!(pairing(&a, &b), Fp12::one());
-//             
+//
 //             let a = G1Affine::generator();
 //             let b = G2Affine::zero();
 //             assert_eq!(pairing(&a, &b), Fp12::one());
 //         }
-//         #[test] 
+//         #[test]
 //         fn test_bilinearity() {
 //             use crypto_bigint::rand_core::OsRng;
 //             for _ in 0..100 {
 //                 let a = <Fp as FieldExtensionTrait<1,1>>::rand(&mut OsRng);
 //                 let b = <Fp as FieldExtensionTrait<1,1>>::rand(&mut OsRng);
 //                 let c = a*b;
-// 
+//
 //                 let g = G1Affine::from(&G1Projective::generator() * &a.value().to_le_bytes());
 //                 let h = G2Affine::from(&G2Projective::generator() * &b.value().to_le_bytes());
 //                 let p = pairing(&g, &h);
-// 
+//
 //                 let expected = G1Affine::from(&G1Projective::generator() * &c.value().to_le_bytes());
 //                 assert_eq!(p, pairing(&expected, &G2Affine::generator()));
-// 
+//
 //                 assert_eq!(
 //                     p,
 //                     pairing(&G1Affine::generator(), &G2Affine::generator()).pow(&c.value().to_words())
 //                 )
 //             }
-//            
+//
 //         }
 //         // #[test]
 //         // fn test_doubling() {
 //         //     let one = G2Projective::generator();
 //         //     let two = one.double();
 //         //     let three = &one + &(&one + &one);
-//         // 
+//         //
 //         //     let b = one.frobenius(1);
-//         // 
+//         //
 //         //     let a = addition_step(&one, &two, &G1Affine::generator());
 //         //     println!("{:?}", a);
 //         // }

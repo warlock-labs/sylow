@@ -14,7 +14,7 @@
 //! All public facing methods here implement the subgroup check to ensure that the user cannot
 //! input a value in $E^\prime(F_{p^2})$ that is not in the r-torsion.
 
-use crate::fields::fp::{FieldExtensionTrait, Fp};
+use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
 use crate::fields::fp2::Fp2;
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
@@ -194,7 +194,7 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     /// through the `new` constructor to ensure that the random value does indeed pass the curve
     /// and subgroup checks
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
-        let rando = <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
+        let rando = Fr::rand(rng)
             .value()
             .to_le_bytes();
         let mut tmp = &Self::generator() * &rando;

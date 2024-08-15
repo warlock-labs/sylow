@@ -5,13 +5,15 @@
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::fields::utils::u256_to_u512;
-use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U512};
+use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256, U512};
 use num_traits::{Inv, One, Pow, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::{Choice, ConstantTimeEq, CtOption};
 
 const FP2_QUADRATIC_NON_RESIDUE: Fp2 = Fp2::new(&[Fp::NINE, Fp::ONE]);
-
+pub(crate) const TWO_INV: Fp = Fp::new(U256::from_words([
+    11389680472494603940, 14681934109093717318, 15863968012492123182, 1743499133401485332
+]));
 pub(crate) type Fp2 = FieldExtension<2, 2, Fp>;
 
 // there are some specific things that must be defined as
