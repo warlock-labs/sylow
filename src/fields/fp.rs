@@ -430,6 +430,16 @@ define_finite_prime_field!(
     1,
     1
 );
+impl<'a> From<&'a Fr> for Fp {
+    fn from(value: &'a Fr) -> Self {
+        Fp::new(value.value())
+    }
+}
+impl From<Fr> for Fp {
+    fn from(value: Fr) -> Self {
+        Fp::from(&value)
+    }
+}
 /// the code below makes the base field "visible" to higher
 /// order extensions. The issue is really the fact that generic
 /// traits cannot enforce arithmetic relations, such as the

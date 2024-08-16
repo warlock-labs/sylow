@@ -6,8 +6,8 @@ use crate::groups::g1::G1Affine;
 use crate::groups::g2::{G2Affine, G2Projective, BLS_X};
 use crate::groups::group::GroupTrait;
 use crate::groups::gt::Gt;
-use num_traits::{Inv, One, Zero};
-use std::ops::{Add, AddAssign, Mul, MulAssign, Neg};
+use num_traits::{Inv, One};
+use std::ops::{Mul, MulAssign, Neg};
 use subtle::{Choice, ConditionallySelectable};
 
 /// This is the value 6*BLS_X+2, which is the bound of iterations on the Miller loops. Why weird?
@@ -345,6 +345,13 @@ mod tests {
         const K: u64 = 128;
 
         #[test]
+        fn test_gt_generator() {
+            assert_eq!(
+                pairing(&G1Affine::generator(), &G2Affine::generator()),
+                Gt::generator()
+            );
+        }
+        #[test]
         fn test_signatures() {
             use crate::hasher::XMDExpander;
             use sha3::Keccak256;
@@ -361,24 +368,24 @@ mod tests {
         }
         #[test]
         fn test_shared_secret() {
-            fn generate_private_key() -> Fp {
-                Fp::new(<Fr as FieldExtensionTrait<1, 1>>::rand(&mut OsRng).value())
+            fn generate_private_key() -> Fr {
+                <Fr as FieldExtensionTrait<1, 1>>::rand(&mut OsRng)
             }
             let alice_sk = generate_private_key();
             let bob_sk = generate_private_key();
             let carol_sk = generate_private_key();
 
             let (alice_pk1, alice_pk2) = (
-                G1Projective::generator() * alice_sk,
-                G2Projective::generator() * alice_sk,
+                G1Projective::generator() * alice_sk.into(),
+                G2Projective::generator() * alice_sk.into(),
             );
             let (bob_pk1, bob_pk2) = (
-                G1Projective::generator() * bob_sk,
-                G2Projective::generator() * bob_sk,
+                G1Projective::generator() * bob_sk.into(),
+                G2Projective::generator() * bob_sk.into(),
             );
             let (carol_pk1, carol_pk2) = (
-                G1Projective::generator() * carol_sk,
-                G2Projective::generator() * carol_sk,
+                G1Projective::generator() * carol_sk.into(),
+                G2Projective::generator() * carol_sk.into(),
             );
 
             let alice_ss = pairing(&G1Affine::from(bob_pk1), &G2Affine::from(carol_pk2)) * alice_sk;
@@ -397,6 +404,15 @@ mod tests {
             let g2 = G2Affine::zero();
             let gt = pairing(&g1, &g2);
             assert_eq!(gt, Gt::identity());
+
+            let g = G1Affine::generator();
+            let h = G2Affine::generator();
+            let p = -pairing(&g, &h);
+            let q = pairing(&g, &-h);
+            let r = pairing(&-g, &h);
+
+            assert_eq!(p, q);
+            assert_eq!(q, r);
         }
         #[test]
         fn test_cases() {
@@ -475,9 +491,9 @@ mod tests {
             for _ in 0..10 {
                 let p = G1Affine::rand(&mut OsRng);
                 let q = G2Affine::rand(&mut OsRng);
-                let s = Fp::new(Fr::rand(&mut OsRng).value());
-                let sp = G1Affine::from(G1Projective::from(p) * s);
-                let sq = G2Affine::from(G2Projective::from(q) * s);
+                let s = Fr::rand(&mut OsRng);
+                let sp = G1Affine::from(G1Projective::from(p) * s.into());
+                let sq = G2Affine::from(G2Projective::from(q) * s.into());
 
                 let a = pairing(&p, &q) * s;
                 let b = pairing(&sp, &q);
@@ -486,7 +502,7 @@ mod tests {
                 assert_eq!(a, b);
                 assert_eq!(a, c);
 
-                let t = Fp::new((-Fr::ONE).value());
+                let t = -Fr::ONE;
                 assert_ne!(a, Gt::identity());
                 assert_eq!(&(a * t) + &a, Gt::identity());
             }
