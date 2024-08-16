@@ -26,7 +26,7 @@ use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use std::ops::{Add, Mul, Neg, Sub};
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GroupError {
     /// This is a simple error struct that specifies the three errors
     /// that are expected for the generation of a point on the curve.
@@ -54,6 +54,7 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError>;
     fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: F) -> Result<Self, GroupError>;
+    #[allow(dead_code)]
     fn frobenius(&self, exponent: usize) -> Self;
 }
 

@@ -94,6 +94,7 @@ pub trait FieldExtensionTrait<const D: usize, const N: usize>:
 
     fn curve_constant() -> Self;
 }
+#[allow(dead_code)]
 pub trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
 where
