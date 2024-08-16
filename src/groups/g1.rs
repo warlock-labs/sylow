@@ -18,9 +18,9 @@ use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::Zero;
 use subtle::{Choice, ConstantTimeEq};
 
-#[allow(dead_code)]
+
 pub(crate) type G1Affine = GroupAffine<1, 1, Fp>;
-#[allow(dead_code)]
+
 pub(crate) type G1Projective = GroupProjective<1, 1, Fp>;
 
 impl GroupTrait<1, 1, Fp> for G1Affine {
@@ -68,7 +68,7 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
         }
     }
 }
-#[allow(dead_code)]
+
 impl G1Affine {
     /// this needs to be defined in order to have user interaction, but currently
     /// is only visible in tests, and therefore is seen by the linter as unused
@@ -78,7 +78,6 @@ impl G1Affine {
             let x2 = <Fp as FieldExtensionTrait<1, 1>>::square(x);
             let lhs = y2 - (x2 * (*x));
             let rhs = <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
-            // println!("{:?}, {:?}", lhs, rhs);
             lhs.ct_eq(&rhs) | *z
         };
 
@@ -89,7 +88,6 @@ impl G1Affine {
         let is_on_curve: Choice = _g1affine_is_on_curve(&v[0], &v[1], &Choice::from(0u8));
         match bool::from(is_on_curve) {
             true => {
-                // println!("Is on curve!");
                 let is_in_torsion: Choice =
                     _g1affine_is_torsion_free(&v[0], &v[1], &Choice::from(0u8));
                 match bool::from(is_in_torsion) {
@@ -161,7 +159,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
     }
 }
 impl G1Projective {
-    #[allow(dead_code)]
+    
     pub(crate) fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let _g1projective_is_on_curve = |x: &Fp, y: &Fp, z: &Fp| -> Choice {
             let y2 = <Fp as FieldExtensionTrait<1, 1>>::square(y);
@@ -169,7 +167,6 @@ impl G1Projective {
             let z2 = <Fp as FieldExtensionTrait<1, 1>>::square(z);
             let lhs = y2 * (*z);
             let rhs = x2 * (*x) + z2 * (*z) * <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
-            // println!("{:?}, {:?}", lhs.value(), rhs.value());
             lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
         };
         let _g1projective_is_torsion_free =
@@ -177,7 +174,6 @@ impl G1Projective {
         let is_on_curve: Choice = _g1projective_is_on_curve(&v[0], &v[1], &v[2]);
         match bool::from(is_on_curve) {
             true => {
-                // println!("Is on curve!");
                 let is_in_torsion: Choice = _g1projective_is_torsion_free(&v[0], &v[1], &v[2]);
                 match bool::from(is_in_torsion) {
                     true => Ok(Self {

@@ -92,9 +92,9 @@ const C2: Fp = Fp::new(U256::from_words([
 ]));
 // the parameter that generates this member of the BN family
 pub(crate) const BLS_X: Fp = Fp::new(U256::from_words([4965661367192848881, 0, 0, 0]));
-#[allow(dead_code)]
+
 pub(crate) type G2Affine = GroupAffine<2, 2, Fp2>;
-#[allow(dead_code)]
+
 pub(crate) type G2Projective = GroupProjective<2, 2, Fp2>;
 
 impl GroupTrait<2, 2, Fp2> for G2Affine {
@@ -267,7 +267,6 @@ impl G2Projective {
             let z2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(z);
             let lhs = y2 * (*z);
             let rhs = x2 * (*x) + z2 * (*z) * <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
-            // println!("{:?}, {:?}", lhs.value(), rhs.value());
             lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
         };
         // This method is where the magic happens. In a naïve approach, in order to check for

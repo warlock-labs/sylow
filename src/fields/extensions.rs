@@ -30,12 +30,11 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<u64>
         Self::new(&retval)
     }
 }
-#[allow(dead_code)]
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtension<D, N, F> {
-    pub(crate) const fn new(c: &[F; N]) -> Self {
+    pub const fn new(c: &[F; N]) -> Self {
         Self(*c)
     }
-    pub(crate) fn scale(&self, factor: F) -> Self {
+    pub fn scale(&self, factor: F) -> Self {
         let mut i = 0;
         let mut retval = [F::zero(); N];
         while i < N {

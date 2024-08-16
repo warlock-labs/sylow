@@ -316,8 +316,6 @@ mod tests {
                     d = d + G1Projective::generator();
                 }
                 assert_eq!(j, d, "Generator multiplication not valid");
-                let c2 = <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue();
-                println!("{:?}", c2.value().to_words());
             }
         }
         mod addition_tests {
@@ -437,9 +435,7 @@ mod tests {
             #[test]
             fn test_closure() {
                 let expander = XMDExpander::<Sha256>::new(DST, K);
-                if let Ok(d) = G1Projective::hash_to_curve(&expander, MSG) {
-                    println!("{:?}", d)
-                }
+                if let Ok(_d) = G1Projective::hash_to_curve(&expander, MSG) {}
             }
 
             #[test]

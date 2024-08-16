@@ -14,8 +14,7 @@ use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::fields::fp2::Fp2;
 use crate::fields::fp6::Fp6;
-use crate::fields::utils::u256_to_u4096;
-use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256, U4096};
+use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::{Choice, CtOption};
@@ -163,26 +162,27 @@ const FROBENIUS_COEFF_FP12_C1: &[Fp2; 12] = &[
         ])),
     ]),
 ];
-pub(crate) type Fp12 = FieldExtension<12, 2, Fp6>;
+const FP12_QUADRATIC_NON_RESIDUE: Fp12 = Fp12::new(&[
+    Fp6::new(&[
+        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+    ]),
+    Fp6::new(&[
+        Fp2::new(&[Fp::ONE, Fp::ZERO]),
+        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+    ]),
+]);
 
-impl Fp12 {
-    // we have no need to define a residue multiplication since this
-    // is the top of our tower extension
-    #[allow(dead_code)]
-    fn characteristic() -> U4096 {
-        let wide_p = u256_to_u4096(&Fp::characteristic());
-        let wide_p2 = wide_p * wide_p;
-        let wide_p6 = wide_p2 * wide_p2 * wide_p2;
-        wide_p6 * wide_p6
-    }
-}
+pub(crate) type Fp12 = FieldExtension<12, 2, Fp6>;
 
 impl FieldExtensionTrait<12, 2> for Fp12 {
     fn quadratic_non_residue() -> Self {
-        Self::new(&[Fp6::zero(), Fp6::one()])
+        // Self::new(&[Fp6::zero(), Fp6::one()])
+        FP12_QUADRATIC_NON_RESIDUE
     }
     fn frobenius(&self, exponent: usize) -> Self {
-        // TODO: integrate generic D into struct to not hardcode degrees
         Self::new(&[
             <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&self.0[0], exponent),
             <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&self.0[1], exponent)

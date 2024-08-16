@@ -1,6 +1,7 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 // #![doc = include_str!("../README.md")]
 #![deny(unsafe_code)]
+#![deny(dead_code)]
 #![warn(
     clippy::unwrap_used,
     // missing_docs,

@@ -5,8 +5,7 @@
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::fields::fp2::Fp2;
-use crate::fields::utils::u256_to_u2048;
-use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U2048, U256};
+use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::{Choice, CtOption};
@@ -166,24 +165,23 @@ const FROBENIUS_COEFF_FP6_C2: &[Fp2; 6] = &[
         ])),
     ]),
 ];
+const FP6_QUADRATIC_NON_RESIDUE: Fp6 = Fp6::new(&[
+    Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+    Fp2::new(&[Fp::ONE, Fp::ZERO]),
+    Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+]);
+
 pub(crate) type Fp6 = FieldExtension<6, 3, Fp2>;
 
 impl Fp6 {
-    #[allow(dead_code)]
     pub(crate) fn residue_mul(&self) -> Self {
         Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
-    }
-    // mainly for debug formatting
-    #[allow(dead_code)]
-    fn characteristic() -> U2048 {
-        let wide_p = u256_to_u2048(&Fp::characteristic());
-        let wide_p2 = wide_p * wide_p;
-        wide_p2 * wide_p2 * wide_p2
     }
 }
 impl FieldExtensionTrait<6, 3> for Fp6 {
     fn quadratic_non_residue() -> Self {
-        Self::new(&[Fp2::zero(), Fp2::one(), Fp2::zero()])
+        // Self::new(&[Fp2::zero(), Fp2::one(), Fp2::zero()])
+        FP6_QUADRATIC_NON_RESIDUE
     }
     fn frobenius(&self, exponent: usize) -> Self {
         Self::new(&[
@@ -355,26 +353,6 @@ mod tests {
             Fp2::new(&[create_field(v3), create_field(v4)]),
             Fp2::new(&[create_field(v5), create_field(v6)]),
         ])
-    }
-
-    mod residue_tests {
-        use super::*;
-        #[test]
-        fn test_residue() {
-            let q1 = <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue();
-            let q2 = <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue();
-            let q3 = <Fp6 as FieldExtensionTrait<6, 3>>::quadratic_non_residue();
-            println!("{:?}\n", q1.value());
-            for i in q2.0 {
-                println!("{:?}", i.value());
-            }
-            println!("\n");
-            for j in q3.0 {
-                for k in j.0 {
-                    println!("{:?} ", k.value());
-                }
-            }
-        }
     }
     mod addition_tests {
         use super::*;

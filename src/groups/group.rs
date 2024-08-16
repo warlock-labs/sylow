@@ -42,7 +42,7 @@ pub(crate) enum GroupError {
 /// without addition, which is very specific to the choice of affine,
 // projective, or mixed addition, and therefore cannot be defined for all instances satisfying
 // a group trait
-#[allow(dead_code)]
+
 pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
     Sized + Copy + Clone + std::fmt::Debug + Neg + ConstantTimeEq + ConditionallySelectable + PartialEq
 {
@@ -144,7 +144,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D
             infinity: Choice::from(1u8),
         }
     }
-    #[allow(dead_code)]
+    
     pub(crate) fn is_zero(&self) -> bool {
         bool::from(self.infinity)
     }
@@ -177,7 +177,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
             z: F::zero(),
         }
     }
-    #[allow(dead_code)]
+    
     pub(crate) fn is_zero(&self) -> bool {
         self.z.is_zero()
     }

@@ -43,6 +43,12 @@ use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use subtle::CtOption;
 
+pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
+    0x3C208C16D87CFD47,
+    0x97816A916871CA8D,
+    0xB85045B68181585D,
+    0x30644E72E131A029,
+]));
 /// This defines the key properties of a field extension. Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
@@ -74,15 +80,12 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     // heavily such a value below
     fn quadratic_non_residue() -> Self;
     // this endomorphism is key for twist operations
-    #[allow(dead_code)]
     fn frobenius(&self, exponent: usize) -> Self;
     // specialized algorithms exist in each extension
     // for sqrt and square, simply helper functions really
-    #[allow(dead_code)]
     fn sqrt(&self) -> CtOption<Self>;
     fn square(&self) -> Self;
 
-    #[allow(dead_code)]
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
 
     fn is_square(&self) -> Choice;
@@ -91,7 +94,7 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
 
     fn curve_constant() -> Self;
 }
-pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
+pub trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
 where
     UintType: ConcatMixed<MixedOutput = Uint<DLIMBS>>,
@@ -115,18 +118,18 @@ macro_rules! define_finite_prime_field {
         //special struct for const-time arithmetic on montgomery form integers mod p
         type $output = crypto_bigint::modular::ConstMontyForm<$mod_struct, { $mod_struct::LIMBS }>;
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
-        pub(crate) struct $wrapper_name($mod_struct, $output);
-        #[allow(dead_code)]
+        pub struct $wrapper_name($mod_struct, $output);
+        
         impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {}
-        #[allow(dead_code)]
+
         impl $wrapper_name {
             // builder structure to create elements in the base field of a given value
-            pub(crate) const fn new(value: $uint_type) -> Self {
+            pub const fn new(value: $uint_type) -> Self {
                 Self($mod_struct, $output::new(&value))
             }
-            #[allow(dead_code)] // this is indeed used in the test cases, which are ignored by
+             // this is indeed used in the test cases, which are ignored by
                                 // the linter
-            pub(crate) fn new_from_str(value: &str) -> Option<Self> {
+            pub fn new_from_str(value: &str) -> Option<Self> {
                 let ints: Vec<_> = {
                     let mut acc = Self::zero();
                     (0..11)
@@ -150,10 +153,10 @@ macro_rules! define_finite_prime_field {
                 Some(res)
             }
             // take the element and convert it to "normal" form from montgomery form
-            pub(crate) const fn value(&self) -> $uint_type {
+            pub const fn value(&self) -> $uint_type {
                 self.1.retrieve()
             }
-            pub(crate) fn characteristic() -> $uint_type {
+            pub fn characteristic() -> $uint_type {
                 <$uint_type>::from($mod_struct::MODULUS.as_nz_ref().get())
             }
             pub const ZERO: Self = Self::new(<$uint_type>::from_words([0x0; 4]));
@@ -170,12 +173,7 @@ macro_rules! define_finite_prime_field {
             fn quadratic_non_residue() -> Self {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
                 // = -1
-                Self::new(U256::from_words([
-                    4332616871279656262,
-                    10917124144477883021,
-                    13281191951274694749,
-                    3486998266802970665,
-                ]))
+                Self::new((-Self::ONE).1.retrieve())
             }
             fn frobenius(&self, _exponent: usize) -> Self {
                 Self::zero()
@@ -483,24 +481,9 @@ impl FieldExtensionTrait<2, 2> for Fp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const MODULUS: [u64; 4] = [
-        0x3C208C16D87CFD47,
-        0x97816A916871CA8D,
-        0xB85045B68181585D,
-        0x30644E72E131A029,
-    ];
 
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
-    }
-    mod test_modulus_conversion {
-        use super::*;
-        #[test]
-        fn test_modulus() {
-            for i in U256::from_be_hex(BN254_MOD_STRING).as_limbs() {
-                println!("{:X}", i.0);
-            }
-        }
     }
     mod addition_tests {
         use super::*;
@@ -545,7 +528,7 @@ mod tests {
             );
 
             // Addition that wraps around the modulus
-            let e = create_field(MODULUS);
+            let e = BN254_FP_MODULUS;
             let f = create_field([1, 0, 0, 0]);
             assert_eq!(
                 (e + f).value(),
@@ -633,7 +616,7 @@ mod tests {
             );
 
             // Subtraction resulting in zero
-            let g = create_field(MODULUS);
+            let g = BN254_FP_MODULUS;
             assert_eq!(
                 (g - g).value(),
                 U256::from_words([0, 0, 0, 0]),

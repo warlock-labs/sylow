@@ -14,16 +14,6 @@ pub(crate) enum HashError {
     ExpandMessage,
     ConvertInt,
 }
-#[allow(dead_code)]
-fn to_hex(bytes: &[u8]) -> String {
-    // A simple utility function to convert a byte array into a big endian hex string
-    bytes
-        .iter()
-        .fold(String::with_capacity(bytes.len() * 2), |mut acc, &b| {
-            acc.push_str(&format!("{:02x}", b));
-            acc
-        })
-}
 
 fn i2osp(val: u64, length: usize) -> Result<Vec<u8>, HashError> {
     // this is an integer to octet representation of the given length
@@ -75,7 +65,6 @@ pub(crate) struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
 }
 
 impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
-    #[allow(dead_code)]
     pub(crate) fn new(dst: &[u8], security_param: u64) -> Self {
         let dst_prime = if dst.len() > 255 {
             let mut hasher = D::default();
@@ -154,7 +143,6 @@ struct XOFExpander<D: Default + ExtendableOutput> {
 }
 
 impl<D: Default + ExtendableOutput> XOFExpander<D> {
-    #[allow(dead_code)]
     fn new(dst: &[u8], security_param: u64) -> Self {
         let dst_prime = if dst.len() > 255 {
             let mut hasher = D::default();
@@ -192,6 +180,15 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
     use std::sync::OnceLock;
+    fn to_hex(bytes: &[u8]) -> String {
+        // A simple utility function to convert a byte array into a big endian hex string
+        bytes
+            .iter()
+            .fold(String::with_capacity(bytes.len() * 2), |mut acc, &b| {
+                acc.push_str(&format!("{:02x}", b));
+                acc
+            })
+    }
     fn short_xof_hashmap() -> &'static HashMap<&'static str, &'static str> {
         static HASHMAP: OnceLock<HashMap<&str, &str>> = OnceLock::new();
         HASHMAP.get_or_init(|| {
@@ -298,12 +295,8 @@ mod tests {
                     "Conversion for short XMD failed"
                 );
                 let res = expander.hash_to_field(msg.as_bytes(), 2, 48).expect(
-                    "Short XMD failed to \
-                cast to field",
+                    "Short XMD failed to cast to field"
                 );
-                for r in res {
-                    println!("{:?}", r);
-                }
             }
         }
         #[test]

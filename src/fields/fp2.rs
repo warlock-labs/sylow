@@ -3,8 +3,7 @@
 //! that elements of this field are represented as a_0 + a_1*X. This implements
 //! the specific behaviour for this extension, such as multiplication.
 use crate::fields::extensions::FieldExtension;
-use crate::fields::fp::{FieldExtensionTrait, Fp};
-use crate::fields::utils::u256_to_u512;
+use crate::fields::fp::{FieldExtensionTrait, Fp, BN254_FP_MODULUS};
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256, U512};
 use num_traits::{Inv, One, Pow, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
@@ -17,23 +16,45 @@ pub(crate) const TWO_INV: Fp = Fp::new(U256::from_words([
     15863968012492123182,
     1743499133401485332,
 ]));
+
+// (BN254_FP_MODULUS - Fp::THREE)/Fp::FOUR
+const P_MINUS_3_OVER_4: Fp = Fp::new(U256::from_words([
+    5694840236247301969,
+    7340967054546858659,
+    7931984006246061591,
+    871749566700742666,
+]));
+// (BN254_FP_MODULUS - Fp::ONE)/Fp::TWO
+const P_MINUS_1_OVER_2: Fp = Fp::new(U256::from_words([
+    11389680472494603939,
+    14681934109093717318,
+    15863968012492123182,
+    1743499133401485332,
+]));
+const FP2_TWIST_CURVE_CONSTANT: Fp2 = Fp2::new(&[
+    Fp::new(U256::from_words([
+        3632125457679333605,
+        13093307605518643107,
+        9348936922344483523,
+        3104278944836790958,
+    ])),
+    Fp::new(U256::from_words([
+        16474938222586303954,
+        12056031220135172178,
+        14784384838321896948,
+        42524369107353300,
+    ])),
+]);
 pub(crate) type Fp2 = FieldExtension<2, 2, Fp>;
 
 // there are some specific things that must be defined as
 // helper functions for us on this specific extension, but
 // don't generalize to any extension.
 impl Fp2 {
-    // variable runtime with respect to the input argument,
-    // aka the size of the argument to the exponentiation.
-    // the naming convention makes it explicit to us that
-    // this should be used only in scenarios where we know
-    // precisely what we're doing to not expose vectors
-    // for side channel attacks in our api.
-    // the below is not exposed publicly
-    #[allow(dead_code)]
-    pub(crate) fn pow_vartime(&self, by: &[u64]) -> Self {
+    pub(crate) fn pow(&self, by: &Fp) -> Self {
+        let bits = by.value().to_words();
         let mut res = Self::one();
-        for e in by.iter().rev() {
+        for e in bits.iter().rev() {
             for i in (0..64).rev() {
                 res = res * res;
                 if ((*e >> i) & 1) == 1 {
@@ -43,13 +64,7 @@ impl Fp2 {
         }
         res
     }
-    // type casting must be done on case-by-case basis
-    #[allow(dead_code)]
-    fn characteristic() -> U512 {
-        let wide_p = u256_to_u512(&Fp::characteristic());
-        wide_p * wide_p
-    }
-
+    
     pub(crate) fn residue_mul(&self) -> Self {
         *self * FP2_QUADRATIC_NON_RESIDUE
     }
@@ -74,13 +89,10 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
         }
     }
     fn sqrt(&self) -> CtOption<Self> {
-        let p_minus_3_over_4 = ((Fp::new(Fp::characteristic()) - Fp::THREE) / Fp::FOUR).value();
-        let p_minus_1_over_2 = ((Fp::new(Fp::characteristic()) - Fp::ONE) / Fp::TWO).value();
-        let p = Fp::characteristic();
-        let a1 = self.pow_vartime(&p_minus_3_over_4.to_words());
+        let a1 = self.pow(&P_MINUS_3_OVER_4);
 
         let alpha = a1 * a1 * (*self);
-        let a0 = alpha.pow_vartime(&p.to_words());
+        let a0 = alpha.pow(&BN254_FP_MODULUS);
         if a0 == -Fp2::one() {
             return CtOption::new(Fp2::zero(), Choice::from(0u8));
         }
@@ -93,7 +105,7 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
                 <Fp2 as FieldExtensionTrait<2, 2>>::square(&sqrt).ct_eq(self),
             )
         } else {
-            let b = (alpha + Fp2::one()).pow_vartime(&p_minus_1_over_2.to_words());
+            let b = (alpha + Fp2::one()).pow(&P_MINUS_1_OVER_2);
             let sqrt = b * a1 * (*self);
             CtOption::new(
                 sqrt,
@@ -119,8 +131,7 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
     }
     fn is_square(&self) -> Choice {
         let legendre = |x: &Fp| -> i32 {
-            let exp = ((Fp::new(Fp::characteristic()) - Fp::ONE) / Fp::from(2)).value();
-            let res = x.pow(exp);
+            let res = x.pow(P_MINUS_1_OVER_2.value());
 
             if res.is_one() {
                 1
@@ -144,7 +155,8 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
     fn curve_constant() -> Self {
         // this is the curve constant for the twist curve in Fp2. In short Weierstrass form the
         // curve over the twist is $y'^2 = x'^3 + b$, where $b=3/(9+u)$, which is the below.
-        Self::from(3) / FP2_QUADRATIC_NON_RESIDUE
+        // Self::THREE / FP2_QUADRATIC_NON_RESIDUE
+        FP2_TWIST_CURVE_CONSTANT
     }
 }
 
@@ -156,7 +168,6 @@ impl Mul for Fp2 {
         // multiplication.
         // See https://eprint.iacr.org/2006/471.pdf, Sec 3
         // We create the addition chain from Algo 1 of https://eprint.iacr.org/2022/367.pdf
-        // TODO: Implement optimized squaring algorithm in base field?
         let t0 = self.0[0] * other.0[0];
         let t1 = self.0[1] * other.0[1];
 
@@ -424,7 +435,7 @@ mod tests {
             let q = FP2_QUADRATIC_NON_RESIDUE;
             let a1 = (Fp::new(Fp::characteristic()) - Fp::from(1)) / Fp::from(3);
 
-            let c1_1 = q.pow_vartime(&a1.value().to_words());
+            let c1_1 = q.pow(&a1);
             let c1_1_real = create_field_extension(
                 [
                     0x99e39557176f553d,

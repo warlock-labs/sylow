@@ -74,7 +74,7 @@ impl<'b> MulAssign<&'b MillerLoopResult> for MillerLoopResult {
 pub(crate) struct Ell(Fp2, Fp2, Fp2);
 
 impl MillerLoopResult {
-    pub fn final_exponentiation(&self) -> Gt {
+    pub(crate) fn final_exponentiation(&self) -> Gt {
         /// As part of the cyclotomic acceleration of the final exponentiation step, there is a
         /// shortcut to take when using multiplication in Fp4. We built the tower of extensions using
         /// degrees 2, 6, and 12, but there is an additional way to write Fp12:
@@ -144,7 +144,7 @@ impl MillerLoopResult {
         /// This is a simple double and add algorithm for exponentiation. You can get more
         /// complicated algorithms if you go to a compressed representation, such as Algorithm
         /// 5.5.4, listing 27
-        pub fn cyclotomic_exp(f: Fp12, exponent: &Fp) -> Fp12 {
+        pub(crate) fn cyclotomic_exp(f: Fp12, exponent: &Fp) -> Fp12 {
             let bits = exponent.value().to_words();
             let mut res = Fp12::one();
             for e in bits.iter().rev() {
@@ -159,7 +159,7 @@ impl MillerLoopResult {
         }
         /// This is a helper function to determine f^z, where $z$ is the generator of this
         /// particular member of the BN family
-        pub fn exp_by_neg_z(f: Fp12) -> Fp12 {
+        pub(crate) fn exp_by_neg_z(f: Fp12) -> Fp12 {
             cyclotomic_exp(f, &BLS_X).unitary_inverse()
         }
         /// The below is the easy part of the final exponentiation step, corresponding to Lines
@@ -226,12 +226,12 @@ impl MillerLoopResult {
 /// digits, each also with an addition step. After the loop, there are 2 more addition steps, so
 /// the total number of coefficients we need to store is 64+9+12+2 = 87.
 #[derive(PartialEq)]
-pub struct G2PreComputed {
-    pub q: G2Affine,
-    pub coeffs: [Ell; 87],
+pub(crate) struct G2PreComputed {
+    pub(crate) q: G2Affine,
+    pub(crate) coeffs: [Ell; 87],
 }
 impl G2PreComputed {
-    pub fn miller_loop(&self, g1: &G1Affine) -> MillerLoopResult {
+    pub(crate) fn miller_loop(&self, g1: &G1Affine) -> MillerLoopResult {
         let mut f = Fp12::one();
 
         let mut idx = 0;
