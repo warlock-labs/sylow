@@ -27,7 +27,7 @@ use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use std::ops::{Add, Mul, Neg, Sub};
 
 #[derive(Debug)]
-pub(crate) enum GroupError {
+pub enum GroupError {
     /// This is a simple error struct that specifies the three errors
     /// that are expected for the generation of a point on the curve.
     /// Either, the coordinates given are not even on the curve,
@@ -43,7 +43,7 @@ pub(crate) enum GroupError {
 // projective, or mixed addition, and therefore cannot be defined for all instances satisfying
 // a group trait
 
-pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
+pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
     Sized + Copy + Clone + std::fmt::Debug + Neg + ConstantTimeEq + ConditionallySelectable + PartialEq
 {
     /// this is how we'll make more elements of the field from a scalar value
@@ -58,15 +58,15 @@ pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTra
 }
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct GroupAffine<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
+pub struct GroupAffine<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     /// this is the implementation of a point on the curve in affine coordinates. It is not possible
     /// to directly input a pair of x, y such that infinity is True, since the point at infinity
     /// has no unique representation in this form. Generation of the point at infinity is accomplished
     /// either by calling the `zero` method, or by applying binary operations to 'normal' points to
     /// reach the point at infinity with arithmetic.
-    pub(crate) x: F,
-    pub(crate) y: F,
-    pub(crate) infinity: Choice,
+    pub x: F,
+    pub y: F,
+    pub infinity: Choice,
 }
 /// this is the beginning of Rust lifetime magic. The issue is that when we implement
 /// the arithmetic, we need to explicitly state the lifetime of each operand
@@ -137,20 +137,20 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D, N, F> {
-    pub(crate) fn zero() -> Self {
+    pub fn zero() -> Self {
         Self {
             x: F::zero(),
             y: F::one(),
             infinity: Choice::from(1u8),
         }
     }
-    
-    pub(crate) fn is_zero(&self) -> bool {
+
+    pub fn is_zero(&self) -> bool {
         bool::from(self.infinity)
     }
 }
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct GroupProjective<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
+pub struct GroupProjective<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     /// We now define the projective representation of a point on the curve. Here, the point(s) at
     /// infinity is (are) indicated by `z=0`. This allows the user to therefore directly generate
     /// such a point with the associated `new` method. Affine coordinates are those indicated by `z=1`.
@@ -161,24 +161,24 @@ pub(crate) struct GroupProjective<const D: usize, const N: usize, F: FieldExtens
     /// projective coords, or (iii) have mixed representations. For security, due to the uniqueness of
     /// the representation of the point at infinity, we therefore opt to have
     /// all arithmetic done in projective coordinates.
-    pub(crate) x: F,
-    pub(crate) y: F,
-    pub(crate) z: F,
+    pub x: F,
+    pub y: F,
+    pub z: F,
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjective<D, N, F> {
     /// This is the point at infinity! This object really is the additive identity of the group,
     /// when the group law is addition, which it is here. It satisfies the properties that
     /// $zero+a=a$ for some $a$ in the group, as well as $a+(-a)=zero$, which means that the
     /// convention zero makes the most sense to me here.
-    pub(crate) fn zero() -> Self {
+    pub fn zero() -> Self {
         Self {
             x: F::zero(),
             y: F::one(),
             z: F::zero(),
         }
     }
-    
-    pub(crate) fn is_zero(&self) -> bool {
+
+    pub fn is_zero(&self) -> bool {
         self.z.is_zero()
     }
 
@@ -188,7 +188,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
     /// Complexity:
     ///        `6M`(ultiplications) + `2S`(quarings)
     ///      + `1m`(ultiplication by scalar) + `9A`(dditions)
-    pub(crate) fn double(&self) -> Self {
+    pub fn double(&self) -> Self {
         let t0 = self.y * self.y;
         let z3 = t0 + t0;
         let z3 = z3 + z3;

@@ -43,7 +43,7 @@ use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use subtle::CtOption;
 
-pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
+pub const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
     0x3C208C16D87CFD47,
     0x97816A916871CA8D,
     0xB85045B68181585D,
@@ -53,7 +53,7 @@ pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
 /// that are purely relevant to the task at hand here.
-pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
+pub trait FieldExtensionTrait<const D: usize, const N: usize>:
     Sized
     + Copy
     + Clone
@@ -119,7 +119,7 @@ macro_rules! define_finite_prime_field {
         type $output = crypto_bigint::modular::ConstMontyForm<$mod_struct, { $mod_struct::LIMBS }>;
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
         pub struct $wrapper_name($mod_struct, $output);
-        
+
         impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {}
 
         impl $wrapper_name {
@@ -127,8 +127,8 @@ macro_rules! define_finite_prime_field {
             pub const fn new(value: $uint_type) -> Self {
                 Self($mod_struct, $output::new(&value))
             }
-             // this is indeed used in the test cases, which are ignored by
-                                // the linter
+            // this is indeed used in the test cases, which are ignored by
+            // the linter
             pub fn new_from_str(value: &str) -> Option<Self> {
                 let ints: Vec<_> = {
                     let mut acc = Self::zero();

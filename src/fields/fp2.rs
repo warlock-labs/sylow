@@ -4,13 +4,13 @@
 //! the specific behaviour for this extension, such as multiplication.
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp, BN254_FP_MODULUS};
-use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256, U512};
+use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Pow, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::{Choice, ConstantTimeEq, CtOption};
 
 const FP2_QUADRATIC_NON_RESIDUE: Fp2 = Fp2::new(&[Fp::NINE, Fp::ONE]);
-pub(crate) const TWO_INV: Fp = Fp::new(U256::from_words([
+pub const TWO_INV: Fp = Fp::new(U256::from_words([
     11389680472494603940,
     14681934109093717318,
     15863968012492123182,
@@ -45,13 +45,13 @@ const FP2_TWIST_CURVE_CONSTANT: Fp2 = Fp2::new(&[
         42524369107353300,
     ])),
 ]);
-pub(crate) type Fp2 = FieldExtension<2, 2, Fp>;
+pub type Fp2 = FieldExtension<2, 2, Fp>;
 
 // there are some specific things that must be defined as
 // helper functions for us on this specific extension, but
 // don't generalize to any extension.
 impl Fp2 {
-    pub(crate) fn pow(&self, by: &Fp) -> Self {
+    pub fn pow(&self, by: &Fp) -> Self {
         let bits = by.value().to_words();
         let mut res = Self::one();
         for e in bits.iter().rev() {
@@ -64,8 +64,8 @@ impl Fp2 {
         }
         res
     }
-    
-    pub(crate) fn residue_mul(&self) -> Self {
+
+    pub fn residue_mul(&self) -> Self {
         *self * FP2_QUADRATIC_NON_RESIDUE
     }
 }

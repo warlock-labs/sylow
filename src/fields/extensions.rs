@@ -17,9 +17,7 @@ use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 // since the underlying Mul, Add, etc., are not, and const traits are in the works
 // https://github.com/rust-lang/rust/issues/67792
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct FieldExtension<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>(
-    pub(crate) [F; N],
-);
+pub struct FieldExtension<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>(pub [F; N]);
 
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<u64>
     for FieldExtension<D, N, F>

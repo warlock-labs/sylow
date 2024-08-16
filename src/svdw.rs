@@ -16,11 +16,11 @@ use crate::fields::fp::FieldExtensionTrait;
 use subtle::Choice;
 
 #[derive(Debug)]
-pub(crate) enum MapError {
+pub enum MapError {
     SvdWError,
 }
 #[derive(Debug)]
-pub(crate) struct SvdW<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
+pub struct SvdW<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     a: F,
     b: F,
     c1: F,
@@ -30,13 +30,11 @@ pub(crate) struct SvdW<const D: usize, const N: usize, F: FieldExtensionTrait<D,
     z: F,
 }
 
-pub(crate) trait SvdWTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
-    Sized
-{
+pub trait SvdWTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>: Sized {
     /// This is the actual struct containing the relevant information. There are a few input
     /// constants, namely the coefficients A and B that define the curve in its short Weierstrass
     /// representation. The constants c1-c4 and Z are determined by the algorithm.
-    
+
     fn find_z_svdw(a: F, b: F) -> F {
         let g = |x: &F| -> F { (*x) * (*x) * (*x) + a * (*x) + b };
         let h = |x: &F| -> F { -(F::from(3) * (*x) * (*x) + F::from(4) * a) / (F::from(4) * g(x)) };
@@ -61,7 +59,7 @@ pub(crate) trait SvdWTrait<const D: usize, const N: usize, F: FieldExtensionTrai
             ctr += 1;
         }
     }
-    
+
     fn precompute_constants(a: F, b: F) -> Result<SvdW<D, N, F>, MapError> {
         let g = |x: &F| -> F { (*x) * (*x) * (*x) + a * (*x) + b };
         let z = Self::find_z_svdw(a, b);
@@ -98,7 +96,6 @@ pub(crate) trait SvdWTrait<const D: usize, const N: usize, F: FieldExtensionTrai
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> SvdWTrait<D, N, F>
     for SvdW<D, N, F>
 {
-    
     fn unchecked_map_to_point(&self, u: F) -> Result<[F; 2], MapError> {
         // Implements the SvdW algorithm for a single scalar point
         let cmov = |x: &F, y: &F, b: &Choice| -> F {

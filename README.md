@@ -33,8 +33,8 @@ fn main() {
     let key_pair = KeyPair::generate();
     let message = b"Hello, World!";
     
-    let signature = sign(&key_pair.secret_key, message);
-    assert!(verify(&key_pair.public_key, message, &signature));
+    let signature = sign(&key_pair.secret_key, message).unwrap();
+    assert!(verify(&key_pair.public_key, message, &signature).unwrap());
 }
 ```
 

@@ -171,10 +171,10 @@ const FP6_QUADRATIC_NON_RESIDUE: Fp6 = Fp6::new(&[
     Fp2::new(&[Fp::ZERO, Fp::ZERO]),
 ]);
 
-pub(crate) type Fp6 = FieldExtension<6, 3, Fp2>;
+pub type Fp6 = FieldExtension<6, 3, Fp2>;
 
 impl Fp6 {
-    pub(crate) fn residue_mul(&self) -> Self {
+    pub fn residue_mul(&self) -> Self {
         Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
     }
 }

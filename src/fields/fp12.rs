@@ -175,7 +175,7 @@ const FP12_QUADRATIC_NON_RESIDUE: Fp12 = Fp12::new(&[
     ]),
 ]);
 
-pub(crate) type Fp12 = FieldExtension<12, 2, Fp6>;
+pub type Fp12 = FieldExtension<12, 2, Fp6>;
 
 impl FieldExtensionTrait<12, 2> for Fp12 {
     fn quadratic_non_residue() -> Self {
@@ -282,10 +282,10 @@ impl ConditionallySelectable for Fp12 {
 }
 /// Below are additional functions needed on Fp12 for the pairing operations
 impl Fp12 {
-    pub(crate) fn unitary_inverse(&self) -> Self {
+    pub fn unitary_inverse(&self) -> Self {
         Self::new(&[self.0[0], -self.0[1]])
     }
-    pub(crate) fn pow(&self, arg: &[u64; 4]) -> Self {
+    pub fn pow(&self, arg: &[u64; 4]) -> Self {
         let mut res = Self::one();
         for e in arg.iter().rev() {
             for i in (0..64).rev() {
@@ -321,7 +321,7 @@ impl Fp12 {
     /// The function below is called by `zcash`, `bn`, and `arkworks` as `mul_by_024`, referring to
     /// the indices of the non-zero elements in the 6x Fp2 representation above for the
     /// multiplication.
-    pub(crate) fn sparse_mul(&self, ell_0: Fp2, ell_vw: Fp2, ell_vv: Fp2) -> Fp12 {
+    pub fn sparse_mul(&self, ell_0: Fp2, ell_vw: Fp2, ell_vv: Fp2) -> Fp12 {
         let z0 = self.0[0].0[0];
         let z1 = self.0[0].0[1];
         let z2 = self.0[0].0[2];
