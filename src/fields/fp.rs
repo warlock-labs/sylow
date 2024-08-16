@@ -118,6 +118,7 @@ macro_rules! define_finite_prime_field {
         pub(crate) struct $wrapper_name($mod_struct, $output);
         #[allow(dead_code)]
         impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {}
+        #[allow(dead_code)]
         impl $wrapper_name {
             // builder structure to create elements in the base field of a given value
             pub(crate) const fn new(value: $uint_type) -> Self {

@@ -299,7 +299,7 @@ impl Fp12 {
     }
     /// Due to the efficiency considerations of storing only the nonzero entries in the sparse
     /// Fp12, there is a need to implement sparse multiplication on Fp12, which is what the
-    /// madness below is. It is an amalgamation of Algs 21-25 of https://eprint.iacr.org/2010/354.pdf
+    /// madness below is. It is an amalgamation of Algs 21-25 of <https://eprint.iacr.org/2010/354.pdf>
     /// and is really just un-sparsing the value, and doing the multiplication manually. In order
     /// to get around all the zeros that would arise if we just instantiated the full Fp12,
     /// we have to manually implement all the required multiplication as far down the tower as
@@ -312,7 +312,7 @@ impl Fp12 {
     ///
     /// f = g_0 + h_0w + g_1w^2 + h_1w^3 + g_2w^4 + h_2w^5
     ///
-    /// where the representation of Fp12 is not Fp12 = Fp2[w]/(w^6-(9+u))
+    /// where the representation of Fp12 is not Fp12 = Fp2(w)/(w^6-(9+u))
     ///
     /// This is a massive headache to get correct, and relied on existing implementations tbh.
     /// Unfortunately for me, the performance boost is noticeable by early estimates (100s us).

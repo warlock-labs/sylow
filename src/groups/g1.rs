@@ -11,7 +11,6 @@
 //! make the implementation of the more complicated G2 easier to handle.
 
 use crate::fields::fp::{FieldExtensionTrait, Fp};
-use crate::fields::fp2::Fp2;
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
 use crate::svdw::{SvdW, SvdWTrait};

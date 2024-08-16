@@ -217,7 +217,7 @@ mod tests {
                                     .expect("SVDW failed to map to point"),
                             )
                         })
-                        .fold(GroupProjective::<1, 1, Fp>::zero(), |acc, x| &acc + &x);
+                        .fold(GroupProjective::<1, 1, Fp>::zero(), |acc, x| acc + x);
                     let d =
                         GroupProjective::<1, 1, Fp>::new([_d.x, _d.y, _d.z]).expect("Map failed");
                     println!("{:?}, {:?}, {:?}", d.x.value(), d.y.value(), d.z.value());
