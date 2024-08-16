@@ -194,13 +194,13 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     /// through the `new` constructor to ensure that the random value does indeed pass the curve
     /// and subgroup checks
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
-        let rando = Fr::rand(rng).value().to_le_bytes();
-        let mut tmp = &Self::generator() * &rando;
+        let rando = Fp::new(Fr::rand(rng).value());
+        let mut tmp = Self::generator() * rando;
 
         // multiplying an element of the larger base field by the cofactor of a prime-ordered
         // subgroup will return an element in the prime-order subgroup, see
         // <https://crypto.stackexchange.com/a/101736> for a nice little explainer
-        tmp = &tmp * &C2.value().to_le_bytes(); //this is cofactor clearing
+        tmp = tmp * C2; //this is cofactor clearing
         Self::new([tmp.x, tmp.y, tmp.z]).expect("Generator failed to make new value in torsion")
     }
     fn hash_to_curve<E: Expander>(_exp: &E, _msg: &[u8]) -> Result<Self, GroupError> {
@@ -299,12 +299,12 @@ impl G2Projective {
                 y: *y,
                 z: *z,
             };
-            let mut a = &tmp * &BLS_X.value().to_le_bytes(); // xQ
+            let mut a = tmp * BLS_X; // xQ
             let b = a.endomorphism(); // ψ(xQ)
-            a = &a + &tmp; // (x+1)Q
+            a = a + tmp; // (x+1)Q
             let mut rhs = b.endomorphism(); // ψ^2(xQ)
-            let lhs = &rhs + &(&b + &a); // ψ^2(xQ) + ψ(xQ) + (x+1)Q
-            rhs = &rhs.endomorphism().double() - &lhs; // ψ^3(2xQ) - (ψ^2(xQ) + ψ(xQ) + (x+1)Q)
+            let lhs = rhs + b + a; // ψ^2(xQ) + ψ(xQ) + (x+1)Q
+            rhs = rhs.endomorphism().double() - lhs; // ψ^3(2xQ) - (ψ^2(xQ) + ψ(xQ) + (x+1)Q)
 
             // we do two checks: one is to verify that the result is indeed a point at infinity,
             // but we need a second check to verify that it is OUR point at infinity, namely for

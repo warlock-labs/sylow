@@ -114,10 +114,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
         Self::generator()
     }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
-        &Self::generator()
-            * &<Fp as FieldExtensionTrait<1, 1>>::rand(rng)
-                .value()
-                .to_le_bytes()
+        Self::generator() * <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
     }
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError> {
         const COUNT: usize = 2;
@@ -137,14 +134,14 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
                         .unchecked_map_to_point(scalars[1])
                         .expect("Failed to hash"),
                 );
-                Ok(&a + &b)
+                Ok(a + b)
             }
             _ => Err(GroupError::CannotHashToGroup),
         }
     }
     fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: Fp) -> Result<Self, GroupError> {
         if let Ok(d) = Self::hash_to_curve(exp, msg) {
-            return Ok(&d * &private_key.value().to_le_bytes());
+            return Ok(d * private_key);
         }
         Err(GroupError::CannotHashToGroup)
     }

@@ -461,14 +461,14 @@ mod tests {
         }
         #[test]
         fn test_cases() {
-            let g1 = G1Affine::from(&G1Projective::generator()
-                * &Fr::new_from_str(
+            let g1 = G1Affine::from(G1Projective::generator()
+                * Fp::new(Fr::new_from_str(
                 "18097487326282793650237947474982649264364522469319914492172746413872781676",
-            ).expect("").value().to_le_bytes());
-            let g2 = G2Affine::from(&G2Projective::generator()
-                * &Fr::new_from_str(
+            ).expect("").value()));
+            let g2 = G2Affine::from(G2Projective::generator()
+                * Fp::new(Fr::new_from_str(
                 "20390255904278144451778773028944684152769293537511418234311120800877067946",
-            ).expect("").value().to_le_bytes());
+            ).expect("").value()));
 
             let gt = pairing(&g1, &g2);
 
@@ -536,9 +536,9 @@ mod tests {
             for _ in 0..10 {
                 let p = G1Affine::rand(&mut OsRng);
                 let q = G2Affine::rand(&mut OsRng);
-                let s = Fr::rand(&mut OsRng);
-                let sp = G1Affine::from(&p.into() * &s.value().to_le_bytes());
-                let sq = G2Affine::from(&q.into() * &s.value().to_le_bytes());
+                let s = Fp::new(Fr::rand(&mut OsRng).value());
+                let sp = G1Affine::from(G1Projective::from(p) * s);
+                let sq = G2Affine::from(G2Projective::from(q) * s);
 
                 let a = pairing(&p, &q).pow(&s.value().to_words());
                 let b = pairing(&sp, &q);

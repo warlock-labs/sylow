@@ -20,7 +20,7 @@
 //! 2. <https://eprint.iacr.org/2015/1060.pdf>.
 //! 3. <https://marcjoye.github.io/papers/BJ02espa.pdf>
 
-use crate::fields::fp::FieldExtensionTrait;
+use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::hasher::Expander;
 use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
@@ -398,6 +398,15 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         }
     }
 }
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add<GroupProjective<D, N, F>> 
+for GroupProjective<D, N, F>
+{
+    type Output = Self;
+    fn add(self, rhs: GroupProjective<D, N, F>) -> Self::Output {
+        &self + &rhs
+    }
+}
+
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     Sub<&'b GroupProjective<D, N, F>> for &'a GroupProjective<D, N, F>
@@ -407,9 +416,17 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         self + &(-other)
     }
 }
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Sub<GroupProjective<D, N, F>>
+for GroupProjective<D, N, F>
+{
+    type Output = Self;
+    fn sub(self, rhs: GroupProjective<D, N, F>) -> Self::Output {
+        &self - &rhs
+    }
+}
 
 #[allow(clippy::suspicious_arithmetic_impl)]
-impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&'b [u8; 32]>
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&'b Fp>
     for &'a GroupProjective<D, N, F>
 {
     /// This is simply the `double-and-add` algorithm for multiplication, which is the ECC
@@ -417,9 +434,10 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&
     ///
     /// <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
     type Output = GroupProjective<D, N, F>;
-    fn mul(self, other: &'b [u8; 32]) -> Self::Output {
+    fn mul(self, other: &'b Fp) -> Self::Output {
+        let bits = other.value().to_le_bytes();
         let mut res = Self::Output::zero();
-        for bit in other.iter().rev() {
+        for bit in bits.iter().rev() {
             for i in (0..8).rev() {
                 res = res.double();
                 if (bit & (1 << i)) != 0 {
@@ -428,5 +446,14 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&
             }
         }
         res
+    }
+}
+
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<Fp>
+for GroupProjective<D, N, F>
+{
+    type Output = Self;
+    fn mul(self, rhs: Fp) -> Self::Output {
+        &self * &rhs
     }
 }

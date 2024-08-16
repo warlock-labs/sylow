@@ -312,7 +312,7 @@ mod tests {
 
                 let mut d = G1Projective::generator();
                 for _ in 0..5 {
-                    d = &d + &G1Projective::generator();
+                    d = d + G1Projective::generator();
                 }
                 assert_eq!(j, d, "Generator multiplication not valid");
                 let c2 = <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue();
@@ -399,7 +399,7 @@ mod tests {
                 for i in &g1_points.a {
                     assert_eq!(
                         i + &(i + i),
-                        i * &three.value().to_le_bytes(),
+                        i * &three,
                         "Multiplication failed"
                     );
                 }
@@ -417,7 +417,7 @@ mod tests {
                 load_g1_reference_data!(g1_points);
                 let expected = g1_points.mul;
                 for (i, (a, r)) in g1_points.a.iter().zip(&g1_points.r).enumerate() {
-                    let result = a * &r.value().to_le_bytes();
+                    let result = a * r;
                     assert_eq!(result, expected[i], "Simple multiplication failed");
                 }
                 let expected = g1_points.dbl;
@@ -542,7 +542,7 @@ mod tests {
 
                 let mut d = G2Projective::generator();
                 for _ in 0..5 {
-                    d = &d + &G2Projective::generator();
+                    d = d + G2Projective::generator();
                 }
                 assert_eq!(j, d, "Generator multiplication not valid");
             }
@@ -621,7 +621,7 @@ mod tests {
                 for i in &g2_points.a {
                     assert_eq!(
                         i + &(i + i),
-                        i * &three.value().to_le_bytes(),
+                        i * &three,
                         "Multiplication failed"
                     );
                 }
@@ -631,7 +631,7 @@ mod tests {
                 load_g2_reference_data!(g2_points, _g2_invalids);
                 let expected = g2_points.mul;
                 for (i, (a, r)) in g2_points.a.iter().zip(&g2_points.r).enumerate() {
-                    let result = a * &r.value().to_le_bytes();
+                    let result = a * r;
                     assert_eq!(result, expected[i], "Simple multiplication failed");
                 }
                 let expected = g2_points.dbl;
