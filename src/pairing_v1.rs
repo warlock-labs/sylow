@@ -7,7 +7,7 @@ use crate::groups::g2::{G2Affine, G2Projective, BLS_X};
 use crate::groups::group::GroupTrait;
 use crate::groups::gt::Gt;
 use num_traits::{Inv, One};
-use std::ops::{Mul, MulAssign, Neg};
+use std::ops::{Index, Mul, MulAssign, Neg};
 use subtle::{Choice, ConditionallySelectable};
 
 /// This is the value 6*BLS_X+2, which is the bound of iterations on the Miller loops. Why weird?
@@ -213,6 +213,15 @@ impl MillerLoopResult {
         Gt(hard_part(easy_part(self.0)))
     }
 }
+/// This is a nice little trick we can use. The Miller loops require the evaluation of an affine 
+/// point along a line betwixt two projective coordinates, with these two points either being R, 
+/// and R (therefore leading to the doubling step), or R and Q (leading to the addition step). 
+/// Think of this as determining the discretization of a parametrized function, but notice that 
+/// for the entire loop, this discretization does not change, only the point at which we evaluate
+/// this function! Therefore, we simply precompute the values on the line, and then use a cheap 
+/// evaluation in each iteration of the Miller loop to avoid recomputing these "constants" each 
+/// time. Again, because of the sparse nature of the returned Fp12 from the doubling and addition
+/// steps, we store only the 3 non-zero coefficients in a vec of EllCoeffs
 #[derive(PartialEq)]
 pub struct G2PreComputed {
     pub q: G2Affine,
@@ -252,7 +261,7 @@ impl G2Affine {
     fn precompute(&self) -> G2PreComputed {
         let mut r = G2Projective::from(self);
 
-        let mut coeffs = Vec::with_capacity(102);
+        let mut coeffs = Vec::with_capacity(102); //85
 
         let q_neg = self.neg();
         for i in ATE_LOOP_COUNT_NAF.iter() {
@@ -333,6 +342,42 @@ pub(crate) fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
     tmp.final_exponentiation()
 }
 
+pub(crate) fn glued_miller_loop(g2_precomps: &[G2PreComputed], g1s: &[G1Affine]) -> MillerLoopResult {
+    let mut f = Fp12::one();
+    let mut idx = 0;
+    for i in ATE_LOOP_COUNT_NAF.iter(){
+        f = f.square();
+        for (g2_precomp, g1) in g2_precomps.iter().zip(g1s.iter()){
+            let c = &g2_precomp.coeffs[idx];
+            f = f.sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+        }
+        idx += 1;
+        if *i != 0 {
+            for (g2_precomp, g1) in g2_precomps.iter().zip(g1s.iter()){
+                let c = &g2_precomp.coeffs[idx];
+                f = f.sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+            }
+            idx += 1;
+        }
+    }
+
+    for (g2_precompute, g1) in g2_precomps.iter().zip(g1s.iter()) {
+        let c = &g2_precompute.coeffs[idx];
+        f = f.sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+    }
+    idx += 1;
+    for (g2_precompute, g1) in g2_precomps.iter().zip(g1s.iter()) {
+        let c = &g2_precompute.coeffs[idx];
+        f = f.sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+    }
+    MillerLoopResult(f)
+}
+pub(crate) fn glued_pairing(g1s: &[G1Projective], g2s: &[G2Projective]) -> Gt {
+    let g1s = g1s.iter().map(G1Affine::from).collect::<Vec<G1Affine>>();
+    let g2s = g2s.iter().map(G2Affine::from).collect::<Vec<G2Affine>>();
+    let g2_precomps = g2s.iter().map(|g2| g2.precompute()).collect::<Vec<G2PreComputed>>();
+    glued_miller_loop(&g2_precomps, &g1s).final_exponentiation()
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -508,6 +553,35 @@ mod tests {
                 assert_ne!(a, Gt::identity());
                 assert_eq!(&(a * t) + &a, Gt::identity());
             }
+        }
+        
+        #[test]
+        fn test_batches() {
+            use crypto_bigint::rand_core::OsRng;
+            let r = glued_pairing(&[], &[]);
+            assert_eq!(r, Gt::identity());
+            
+            const RANGE: usize = 50;
+            
+            let mut p_arr = [G1Projective::zero(); RANGE];
+            let mut q_arr = [G2Projective::zero(); RANGE];
+            let mut sp_arr = [G1Projective::zero(); RANGE];
+            let mut sq_arr = [G2Projective::zero(); RANGE];
+            
+            for i in 0..RANGE {
+                let p = G1Projective::rand(&mut OsRng);
+                let q = G2Projective::rand(&mut OsRng);
+                let s = Fr::rand(&mut OsRng);
+                let sp = p*s.into();
+                let sq = q*s.into();
+                sp_arr[i] = sp;
+                q_arr[i] = q;
+                sq_arr[i] = sq;
+                p_arr[i] = p;
+            }
+            let b_batch = glued_pairing(&sp_arr, &q_arr);
+            let c_batch = glued_pairing(&p_arr, &sq_arr);
+            assert_eq!(b_batch, c_batch);
         }
     }
 }
