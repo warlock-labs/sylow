@@ -16,12 +16,11 @@ use subtle::{Choice, ConditionallySelectable};
 /// algorithm of multiplication, the number of operations needed to iterate is directly related
 /// to the Hamming weight (number of zeros in a binary representation) of a number. In binary
 /// base 2, on average half of the digits will be zero, whereas in the trinary base 3 of the NAF,
-/// this moves down to 1/3 on average, improving the loop speed. 
+/// this moves down to 1/3 on average, improving the loop speed.
 const ATE_LOOP_COUNT_NAF: [i8; 64] = [
     1, 0, 1, 0, 0, 0, -1, 0, -1, 0, 0, 0, -1, 0, 1, 0, -1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0,
-    1, 0,
-    0, -1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, -1, 0, -1, 0, 0, 1, 0, 0, 0, -1, 0, 0, -1, 0, 1, 0, 1, 0,
-    0, 0,
+    1, 0, 0, -1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, -1, 0, -1, 0, 0, 1, 0, 0, 0, -1, 0, 0, -1, 0, 1, 0,
+    1, 0, 0, 0,
 ];
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct MillerLoopResult(pub(crate) Fp12);
@@ -72,11 +71,7 @@ impl<'b> MulAssign<&'b MillerLoopResult> for MillerLoopResult {
 /// zero, which is not ideal. We therefore only keep the 3 nonzero coefficients returned by these
 /// evaluations. These nonzero coeffs are stored in the struct below.
 #[derive(PartialEq, Default, Clone, Copy)]
-pub struct EllCoeffs {
-    pub ell_0: Fp2,
-    pub ell_vw: Fp2,
-    pub ell_vv: Fp2,
-}
+pub(crate) struct Ell(Fp2, Fp2, Fp2);
 
 impl MillerLoopResult {
     pub fn final_exponentiation(&self) -> Gt {
@@ -176,8 +171,8 @@ impl MillerLoopResult {
             f.frobenius(2) * f
         }
 
-        /// I was originally going to implement lines 5-28 of Alg 31 from <https://eprint.iacr.org/2010/354.pdf>, 
-        /// which is allegedly fast, but there is another algorithm that came out more recently 
+        /// I was originally going to implement lines 5-28 of Alg 31 from <https://eprint.iacr.org/2010/354.pdf>,
+        /// which is allegedly fast, but there is another algorithm that came out more recently
         /// that avoids expensive frobenius operations, which is what Arkworks does.
         ///
         /// This is the hard part, and follows Laura Fuentes-Castaneda et al. "Faster hashing to
@@ -233,7 +228,7 @@ impl MillerLoopResult {
 #[derive(PartialEq)]
 pub struct G2PreComputed {
     pub q: G2Affine,
-    pub coeffs: [EllCoeffs; 87],
+    pub coeffs: [Ell; 87],
 }
 impl G2PreComputed {
     pub fn miller_loop(&self, g1: &G1Affine) -> MillerLoopResult {
@@ -244,23 +239,21 @@ impl G2PreComputed {
         for i in ATE_LOOP_COUNT_NAF.iter() {
             let c = &self.coeffs[idx];
             idx += 1;
-            f = f
-                .square()
-                .sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+            f = f.square().sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
 
             if *i != 0 {
                 let c = &self.coeffs[idx];
                 idx += 1;
-                f = f.sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+                f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
             }
         }
 
         let c = &self.coeffs[idx];
         idx += 1;
-        f = f.sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+        f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
 
         let c = &self.coeffs[idx];
-        f = f.sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+        f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
 
         MillerLoopResult(f)
     }
@@ -269,11 +262,11 @@ impl G2Affine {
     fn precompute(&self) -> G2PreComputed {
         let mut r = G2Projective::from(self);
 
-        let mut coeffs = [EllCoeffs::default(); 87];
+        let mut coeffs = [Ell::default(); 87];
 
         let q_neg = self.neg();
-        // in order to get rid of all the idx's all over the place, you COULD do use a mut 
-        // iterator, but then you'll have coeffs.iter_mut().next().unwrap().expect("") all over, 
+        // in order to get rid of all the idx's all over the place, you COULD do use a mut
+        // iterator, but then you'll have coeffs.iter_mut().next().unwrap().expect("") all over,
         // which is worse ...
         let mut idx: usize = 0;
         for i in ATE_LOOP_COUNT_NAF.iter() {
@@ -283,11 +276,11 @@ impl G2Affine {
                 1 => {
                     coeffs[idx] = r.addition_step(self);
                     idx += 1;
-                },
+                }
                 -1 => {
                     coeffs[idx] = r.addition_step(&q_neg);
                     idx += 1;
-                },
+                }
                 _ => {}
             }
         }
@@ -304,14 +297,14 @@ impl G2Affine {
 /// notice that it doesn't return a Fp12, which it should! See notes on efficiency above as to
 /// why this returns EllCoeffs instead.
 ///
-/// What zkcrypto does is implement Alg 26 and 27 from <https://eprint.iacr.org/2010/354.pdf>, 
-/// but there was a more memory sensitive algorithm that came out the same year for the same 
-/// speed so for use as a pre-compile, we stick with that version that's used by zcash / bn. 
+/// What zkcrypto does is implement Alg 26 and 27 from <https://eprint.iacr.org/2010/354.pdf>,
+/// but there was a more memory sensitive algorithm that came out the same year for the same
+/// speed so for use as a pre-compile, we stick with that version that's used by zcash / bn.
 ///
 /// It implements the addition step from page 234, and the doubling step from 235 of
 /// <https://link.springer.com/chapter/10.1007/978-3-642-13013-7_14>.
 impl G2Projective {
-    fn addition_step(&mut self, base: &G2Affine) -> EllCoeffs {
+    fn addition_step(&mut self, base: &G2Affine) -> Ell {
         let d = self.x - self.z * base.x;
         let e = self.y - self.z * base.y;
         let f = <Fp2 as FieldExtensionTrait<2, 2>>::square(&d);
@@ -324,14 +317,13 @@ impl G2Projective {
         self.y = e * (i - j) - h * self.y;
         self.z *= h;
 
-        EllCoeffs {
-            ell_0: <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue()
-                * (e * base.x - d * base.y),
-            ell_vv: e.neg(),
-            ell_vw: d,
-        }
+        Ell(
+            <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue() * (e * base.x - d * base.y),
+            d,
+            e.neg(),
+        )
     }
-    fn doubling_step(&mut self) -> EllCoeffs {
+    fn doubling_step(&mut self) -> Ell {
         let a = (self.x * self.y).scale(TWO_INV);
         let b = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.y);
         let c = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.z);
@@ -348,11 +340,11 @@ impl G2Projective {
         self.y = <Fp2 as FieldExtensionTrait<2, 2>>::square(&g) - (e_sq + e_sq + e_sq);
         self.z = b * h;
 
-        EllCoeffs {
-            ell_0: <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue() * i,
-            ell_vw: h.neg(),
-            ell_vv: j + j + j,
-        }
+        Ell(
+            <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue() * i,
+            h.neg(),
+            j + j + j,
+        )
     }
 }
 pub(crate) fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
@@ -376,13 +368,13 @@ pub(crate) fn glued_miller_loop(
         f = f.square();
         for (g2_precomp, g1) in g2_precomps.iter().zip(g1s.iter()) {
             let c = &g2_precomp.coeffs[idx];
-            f = f.sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+            f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
         }
         idx += 1;
         if *i != 0 {
             for (g2_precomp, g1) in g2_precomps.iter().zip(g1s.iter()) {
                 let c = &g2_precomp.coeffs[idx];
-                f = f.sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+                f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
             }
             idx += 1;
         }
@@ -390,12 +382,12 @@ pub(crate) fn glued_miller_loop(
 
     for (g2_precompute, g1) in g2_precomps.iter().zip(g1s.iter()) {
         let c = &g2_precompute.coeffs[idx];
-        f = f.sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+        f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
     }
     idx += 1;
     for (g2_precompute, g1) in g2_precomps.iter().zip(g1s.iter()) {
         let c = &g2_precompute.coeffs[idx];
-        f = f.sparse_mul(c.ell_0, c.ell_vw.scale(g1.y), c.ell_vv.scale(g1.x));
+        f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
     }
     MillerLoopResult(f)
 }

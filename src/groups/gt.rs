@@ -4,7 +4,7 @@ use crate::fields::fp2::Fp2;
 use crate::fields::fp6::Fp6;
 use crate::groups::group::{GroupError, GroupTrait};
 use crate::hasher::Expander;
-use crate::pairing_v1::MillerLoopResult;
+use crate::pairing::MillerLoopResult;
 use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::U256;
 use num_traits::{One, Zero};
