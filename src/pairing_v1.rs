@@ -1,4 +1,4 @@
-use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
+use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::fields::fp12::Fp12;
 use crate::fields::fp2::{Fp2, TWO_INV};
 use crate::fields::fp6::Fp6;
@@ -7,7 +7,7 @@ use crate::groups::g2::{G2Affine, G2Projective, BLS_X};
 use crate::groups::group::GroupTrait;
 use crate::groups::gt::Gt;
 use num_traits::{Inv, One};
-use std::ops::{Index, Mul, MulAssign, Neg};
+use std::ops::{Mul, MulAssign, Neg};
 use subtle::{Choice, ConditionallySelectable};
 
 /// This is the value 6*BLS_X+2, which is the bound of iterations on the Miller loops. Why weird?
@@ -70,7 +70,7 @@ impl<'b> MulAssign<&'b MillerLoopResult> for MillerLoopResult {
 /// which is very, very sparse, resulting in many unnecessary multiplications and additions by
 /// zero, which is not ideal. We therefore only keep the 3 nonzero coefficients returned by these
 /// evaluations. These nonzero coeffs are stored in the struct below.
-#[derive(PartialEq)]
+#[derive(PartialEq, Default, Clone, Copy)]
 pub struct EllCoeffs {
     pub ell_0: Fp2,
     pub ell_vw: Fp2,
@@ -205,9 +205,8 @@ impl MillerLoopResult {
             let s = input.unitary_inverse();
             let t = s * l;
             let u = t.frobenius(3);
-            let v = u * r;
-
-            v
+            u * r
+            
         }
 
         Gt(hard_part(easy_part(self.0)))
@@ -221,11 +220,16 @@ impl MillerLoopResult {
 /// this function! Therefore, we simply precompute the values on the line, and then use a cheap 
 /// evaluation in each iteration of the Miller loop to avoid recomputing these "constants" each 
 /// time. Again, because of the sparse nature of the returned Fp12 from the doubling and addition
-/// steps, we store only the 3 non-zero coefficients in a vec of EllCoeffs
+/// steps, we store only the 3 non-zero coefficients in an arr of EllCoeffs
+/// 
+/// But 87? There's 64 total iterations through the NAF representation, each one incurring a 
+/// doubling step. Further, there are 9 `1` digits (each with an addition step), and 12 `3` 
+/// digits, each also with an addition step. After the loop, there are 2 more addition steps, so 
+/// the total number of coefficients we need to store is 64+9+12+2 = 87. 
 #[derive(PartialEq)]
 pub struct G2PreComputed {
     pub q: G2Affine,
-    pub coeffs: Vec<EllCoeffs>,
+    pub coeffs: [EllCoeffs; 87],
 }
 impl G2PreComputed {
     pub fn miller_loop(&self, g1: &G1Affine) -> MillerLoopResult {
@@ -261,25 +265,27 @@ impl G2Affine {
     fn precompute(&self) -> G2PreComputed {
         let mut r = G2Projective::from(self);
 
-        let mut coeffs = Vec::with_capacity(102); //85
-
+        let mut coeffs = [EllCoeffs::default(); 87];
         let q_neg = self.neg();
+        let mut idx: usize = 0;
         for i in ATE_LOOP_COUNT_NAF.iter() {
-            coeffs.push(r.doubling_step());
-
+            coeffs[idx] = r.doubling_step();
+            idx += 1;
             if *i == 1 {
-                coeffs.push(r.addition_step(self));
+                coeffs[idx] = r.addition_step(self);
+                idx += 1;
             }
             if *i == 3 {
-                coeffs.push(r.addition_step(&q_neg));
+                coeffs[idx] = r.addition_step(&q_neg);
+                idx += 1;
             }
         }
         let q1 = self.endomorphism();
         let q2 = -(q1.endomorphism());
 
-        coeffs.push(r.addition_step(&q1));
-        coeffs.push(r.addition_step(&q2));
-
+        coeffs[idx] = r.addition_step(&q1);
+        idx += 1;
+        coeffs[idx] = r.addition_step(&q2);
         G2PreComputed { q: *self, coeffs }
     }
 }
@@ -381,7 +387,7 @@ pub(crate) fn glued_pairing(g1s: &[G1Projective], g2s: &[G2Projective]) -> Gt {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use crate::fields::fp::Fr;
     mod pairing_tests {
         use crypto_bigint::rand_core::OsRng;
 
