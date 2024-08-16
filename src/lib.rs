@@ -2,6 +2,7 @@
 #![doc = include_str!("../README.md")]
 #![deny(unsafe_code)]
 #![deny(dead_code)]
+#![allow(clippy::needless_doctest_main)]
 #![warn(
     clippy::unwrap_used,
     missing_docs,
