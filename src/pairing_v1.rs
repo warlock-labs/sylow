@@ -5,10 +5,19 @@ use crate::fields::fp6::Fp6;
 use crate::groups::g1::G1Affine;
 use crate::groups::g2::{G2Affine, G2Projective, BLS_X};
 use crate::groups::group::GroupTrait;
+use crate::groups::gt::Gt;
 use num_traits::{Inv, One, Zero};
-use std::ops::{Add, AddAssign, Neg};
+use std::ops::{Add, AddAssign, Mul, MulAssign, Neg};
 use subtle::{Choice, ConditionallySelectable};
 
+/// This is the value 6*BLS_X+2, which is the bound of iterations on the Miller loops. Why weird?
+/// Well, great question. This is the (windowed) non-adjacent form of the number 65, meaning that
+/// no nonzero digits are adjacent in this form. The benefit is that during the double and add
+/// algorithm of multiplication, the number of operations needed to iterate is directly related
+/// to the Hamming weight (number of zeros in a binary representation) of a number. In binary
+/// base 2, on average half of the digits will be zero, whereas in the trinary base 3 of the NAF,
+/// this moves down to 1/3 on average, improving the loop speed. The actual NAF has -1 instead of
+/// 3s, but this is a micro-optimization to have an array of only unsigned ints.
 const ATE_LOOP_COUNT_NAF: [u8; 64] = [
     1, 0, 1, 0, 0, 0, 3, 0, 3, 0, 0, 0, 3, 0, 1, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 1, 0,
     0, 3, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0, 3, 0, 3, 0, 0, 1, 0, 0, 0, 3, 0, 0, 3, 0, 1, 0, 1, 0, 0, 0,
@@ -20,46 +29,37 @@ impl Default for MillerLoopResult {
         MillerLoopResult(Fp12::one())
     }
 }
-#[allow(clippy::suspicious_arithmetic_impl)]
-impl<'a, 'b> Add<&'b MillerLoopResult> for &'a MillerLoopResult {
+impl<'a, 'b> Mul<&'b MillerLoopResult> for &'a MillerLoopResult {
     type Output = MillerLoopResult;
 
     #[inline]
-    fn add(self, rhs: &'b MillerLoopResult) -> MillerLoopResult {
+    fn mul(self, rhs: &'b MillerLoopResult) -> MillerLoopResult {
         MillerLoopResult(self.0 * rhs.0)
     }
 }
-impl Add<MillerLoopResult> for MillerLoopResult {
+impl Mul<MillerLoopResult> for MillerLoopResult {
     type Output = MillerLoopResult;
 
     #[inline]
-    fn add(self, rhs: MillerLoopResult) -> MillerLoopResult {
-        &self + &rhs
+    fn mul(self, rhs: MillerLoopResult) -> MillerLoopResult {
+        &self * &rhs
     }
 }
 
-impl AddAssign<MillerLoopResult> for MillerLoopResult {
+impl MulAssign<MillerLoopResult> for MillerLoopResult {
     #[inline]
-    fn add_assign(&mut self, rhs: MillerLoopResult) {
-        *self = *self + rhs;
+    fn mul_assign(&mut self, rhs: MillerLoopResult) {
+        *self = *self * rhs;
     }
 }
 
-impl<'b> AddAssign<&'b MillerLoopResult> for MillerLoopResult {
+impl<'b> MulAssign<&'b MillerLoopResult> for MillerLoopResult {
     #[inline]
-    fn add_assign(&mut self, rhs: &'b MillerLoopResult) {
-        *self = *self + *rhs;
+    fn mul_assign(&mut self, rhs: &'b MillerLoopResult) {
+        *self = *self * *rhs;
     }
 }
 
-impl Zero for MillerLoopResult {
-    fn zero() -> Self {
-        MillerLoopResult(Fp12::zero())
-    }
-    fn is_zero(&self) -> bool {
-        self.0.is_zero()
-    }
-}
 /// There are many evaluations in Fp12 throughout this. As you can see directly from Algs. 27 and 28
 /// in https://eprint.iacr.org/2010/354.pdf, for example, regarding the double and addition
 /// formulae:
@@ -77,113 +77,8 @@ pub struct EllCoeffs {
     pub ell_vv: Fp2,
 }
 
-impl Fp12 {
-    fn unitary_inverse(&self) -> Self {
-        Self::new(&[self.0[0], -self.0[1]])
-    }
-    fn pow(&self, arg: &[u64; 4]) -> Self {
-        let mut res = Self::one();
-        for e in arg.iter().rev() {
-            for i in (0..64).rev() {
-                res = res.square();
-                if ((*e >> i) & 1) == 1 {
-                    res *= *self;
-                }
-            }
-        }
-        res
-    }
-    /// Due to the efficiency considerations of storing only the nonzero entries in the sparse
-    /// Fp12, there is a need to implement sparse multiplication on Fp12, which is what the
-    /// madness below is. It is an amalgamation of Algs 21-25 of https://eprint.iacr.org/2010/354.pdf
-    /// and is really just un-sparsing the value, and doing the multiplication manually. In order
-    /// to get around all the zeros that would arise if we just instantiated the full Fp12,
-    /// we have to manually implement all the required multiplication as far down the tower as
-    /// we can go.
-    ///
-    /// The following code relies on a separate representation of an element in Fp12.
-    /// Namely, hereunto we have defined Fp12 as a pair of Fp6 elements. However, it is just as
-    /// valid to define Fp12 as a pair of Fp2 elements. For f\in Fp12, f = g+hw, where g, h \in Fp6,
-    /// with g = g_0 + g_1v + g_2v^2, and h = h_0 + h_1v + h_2v^2, we can then write:
-    ///
-    /// f = g_0 + h_0w + g_1w^2 + h_1w^3 + g_2w^4 + h_2w^5
-    ///
-    /// where the representation of Fp12 is not Fp12 = Fp2[w]/(w^6-(9+u))
-    ///
-    /// This is a massive headache to get correct, and relied on existing implementations tbh.
-    /// Unfortunately for me, the performance boost is noticeable by early estimates (100s us).
-    /// Therefore, worth it.
-    ///
-    /// The function below is called by `zcash`, `bn`, and `arkworks` as `mul_by_024`, referring to
-    /// the indices of the non-zero elements in the 6x Fp2 representation above for the
-    /// multiplication.
-    pub fn sparse_mul(&self, ell_0: Fp2, ell_vw: Fp2, ell_vv: Fp2) -> Fp12 {
-        let z0 = self.0[0].0[0];
-        let z1 = self.0[0].0[1];
-        let z2 = self.0[0].0[2];
-        let z3 = self.0[1].0[0];
-        let z4 = self.0[1].0[1];
-        let z5 = self.0[1].0[2];
-
-        let x0 = ell_0;
-        let x2 = ell_vv;
-        let x4 = ell_vw;
-
-        let d0 = z0 * x0;
-        let d2 = z2 * x2;
-        let d4 = z4 * x4;
-        let t2 = z0 + z4;
-        let t1 = z0 + z2;
-        let s0 = z1 + z3 + z5;
-
-        let s1 = z1 * x2;
-        let t3 = s1 + d4;
-        let t4 = t3.residue_mul() + d0;
-        let z0 = t4;
-
-        let t3 = z5 * x4;
-        let s1 = s1 + t3;
-        let t3 = t3 + d2;
-        let t4 = t3.residue_mul();
-        let t3 = z1 * x0;
-        let s1 = s1 + t3;
-        let t4 = t4 + t3;
-        let z1 = t4;
-
-        let t0 = x0 + x2;
-        let t3 = t1 * t0 - d0 - d2;
-        let t4 = z3 * x4;
-        let s1 = s1 + t4;
-        let t3 = t3 + t4;
-
-        let t0 = z2 + z4;
-        let z2 = t3;
-
-        let t1 = x2 + x4;
-        let t3 = t0 * t1 - d2 - d4;
-        let t4 = t3.residue_mul();
-        let t3 = z3 * x0;
-        let s1 = s1 + t3;
-        let t4 = t4 + t3;
-        let z3 = t4;
-
-        let t3 = z5 * x2;
-        let s1 = s1 + t3;
-        let t4 = t3.residue_mul();
-        let t0 = x0 + x4;
-        let t3 = t2 * t0 - d0 - d4;
-        let t4 = t4 + t3;
-        let z4 = t4;
-
-        let t0 = x0 + x2 + x4;
-        let t3 = s0 * t0 - s1;
-        let z5 = t3;
-
-        Fp12::new(&[Fp6::new(&[z0, z1, z2]), Fp6::new(&[z3, z4, z5])])
-    }
-}
 impl MillerLoopResult {
-    pub fn final_exponentiation(&self) -> Fp12 {
+    pub fn final_exponentiation(&self) -> Gt {
         /// As part of the cyclotomic acceleration of the final exponentiation step, there is a
         /// shortcut to take when using multiplication in Fp4. We built the tower of extensions using
         /// degrees 2, 6, and 12, but there is an additional way to write Fp12:
@@ -253,9 +148,10 @@ impl MillerLoopResult {
         /// This is a simple double and add algorithm for exponentiation. You can get more
         /// complicated algorithms if you go to a compressed representation, such as Algorithm
         /// 5.5.4, listing 27
-        pub fn cyclotomic_exp(f: Fp12, exponent: &[u64; 4]) -> Fp12 {
+        pub fn cyclotomic_exp(f: Fp12, exponent: &Fp) -> Fp12 {
+            let bits = exponent.value().to_words();
             let mut res = Fp12::one();
-            for e in exponent.iter().rev() {
+            for e in bits.iter().rev() {
                 for i in (0..64).rev() {
                     res = cyclotomic_squared(res);
                     if ((*e >> i) & 1) == 1 {
@@ -268,7 +164,7 @@ impl MillerLoopResult {
         /// This is a helper function to determine f^z, where $z$ is the generator of this
         /// particular member of the BN family
         pub fn exp_by_neg_z(f: Fp12) -> Fp12 {
-            cyclotomic_exp(f, &BLS_X.value().to_words()).unitary_inverse()
+            cyclotomic_exp(f, &BLS_X).unitary_inverse()
         }
         /// The below is the easy part of the final exponentiation step, corresponding to Lines
         /// 1-4 of Alg 31 from https://eprint.iacr.org/2010/354.pdf.
@@ -314,7 +210,7 @@ impl MillerLoopResult {
             v
         }
 
-        hard_part(easy_part(self.0))
+        Gt(hard_part(easy_part(self.0)))
     }
 }
 #[derive(PartialEq)]
@@ -426,7 +322,7 @@ impl G2Projective {
         }
     }
 }
-pub(crate) fn pairing(p: &G1Affine, q: &G2Affine) -> Fp12 {
+pub(crate) fn pairing(p: &G1Affine, q: &G2Affine) -> Gt {
     let either_zero = Choice::from((p.is_zero() | q.is_zero()) as u8);
     let p = G1Affine::conditional_select(p, &G1Affine::generator(), either_zero);
     let q = G2Affine::conditional_select(q, &G2Affine::generator(), either_zero);
@@ -439,25 +335,68 @@ pub(crate) fn pairing(p: &G1Affine, q: &G2Affine) -> Fp12 {
 mod tests {
     use super::*;
 
-    mod miller_tests {
+    mod pairing_tests {
+        use crypto_bigint::rand_core::OsRng;
+
         use super::*;
         use crate::groups::g1::G1Projective;
+        const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
+        const MSG: &[u8; 4] = &20_i32.to_be_bytes();
+        const K: u64 = 128;
 
+        #[test]
+        fn test_signatures() {
+            use crate::hasher::XMDExpander;
+            use sha3::Keccak256;
+            let expander = XMDExpander::<Keccak256>::new(DST, K);
+            let private_key = Fp::new(Fr::rand(&mut OsRng).value());
+            if let Ok(hashed_message) = G1Projective::hash_to_curve(&expander, MSG) {
+                let signature = G1Affine::from(hashed_message * private_key);
+                let public_key = G2Affine::from(G2Projective::generator() * private_key);
+
+                let lhs = pairing(&signature, &G2Affine::generator());
+                let rhs = pairing(&hashed_message.into(), &public_key);
+                assert_eq!(lhs, rhs);
+            }
+        }
+        #[test]
+        fn test_shared_secret() {
+            fn generate_private_key() -> Fp {
+                Fp::new(<Fr as FieldExtensionTrait<1, 1>>::rand(&mut OsRng).value())
+            }
+            let alice_sk = generate_private_key();
+            let bob_sk = generate_private_key();
+            let carol_sk = generate_private_key();
+
+            let (alice_pk1, alice_pk2) = (
+                G1Projective::generator() * alice_sk,
+                G2Projective::generator() * alice_sk,
+            );
+            let (bob_pk1, bob_pk2) = (
+                G1Projective::generator() * bob_sk,
+                G2Projective::generator() * bob_sk,
+            );
+            let (carol_pk1, carol_pk2) = (
+                G1Projective::generator() * carol_sk,
+                G2Projective::generator() * carol_sk,
+            );
+
+            let alice_ss = pairing(&G1Affine::from(bob_pk1), &G2Affine::from(carol_pk2)) * alice_sk;
+            let bob_ss = pairing(&G1Affine::from(carol_pk1), &G2Affine::from(alice_pk2)) * bob_sk;
+            let carol_ss = pairing(&G1Affine::from(alice_pk1), &G2Affine::from(bob_pk2)) * carol_sk;
+            assert!(alice_ss == bob_ss && bob_ss == carol_ss);
+        }
         #[test]
         fn test_identities() {
             let g1 = G1Affine::zero();
             let g2 = G2Affine::generator();
             let gt = pairing(&g1, &g2);
-            assert_eq!(gt, Fp12::one());
+            assert_eq!(gt, Gt::identity());
 
             let g1 = G1Affine::generator();
             let g2 = G2Affine::zero();
             let gt = pairing(&g1, &g2);
-            assert_eq!(gt, Fp12::one());
-
-            let g1 = G1Affine::generator();
-            let g2 = G2Affine::generator();
-            assert_ne!(pairing(&g1, &g2), pairing(&-g1, &g2));
+            assert_eq!(gt, Gt::identity());
         }
         #[test]
         fn test_cases() {
@@ -472,7 +411,7 @@ mod tests {
 
             let gt = pairing(&g1, &g2);
 
-            let expected = Fp12::new(&[
+            let expected = Gt(Fp12::new(&[
                 Fp6::new(&[
                     Fp2::new(&[
                         Fp::new_from_str(
@@ -525,7 +464,7 @@ mod tests {
                         ).expect(""),
                     ]),
                 ]), ]
-            );
+            ));
             assert_eq!(gt, expected);
         }
 
@@ -540,16 +479,16 @@ mod tests {
                 let sp = G1Affine::from(G1Projective::from(p) * s);
                 let sq = G2Affine::from(G2Projective::from(q) * s);
 
-                let a = pairing(&p, &q).pow(&s.value().to_words());
+                let a = pairing(&p, &q) * s;
                 let b = pairing(&sp, &q);
                 let c = pairing(&p, &sq);
 
                 assert_eq!(a, b);
                 assert_eq!(a, c);
 
-                let t = -Fr::ONE;
-                assert_ne!(a, Fp12::one());
-                assert_eq!((a.pow(&t.value().to_words())) * a, Fp12::one());
+                let t = Fp::new((-Fr::ONE).value());
+                assert_ne!(a, Gt::identity());
+                assert_eq!(&(a * t) + &a, Gt::identity());
             }
         }
     }

@@ -398,8 +398,8 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         }
     }
 }
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add<GroupProjective<D, N, F>> 
-for GroupProjective<D, N, F>
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add<GroupProjective<D, N, F>>
+    for GroupProjective<D, N, F>
 {
     type Output = Self;
     fn add(self, rhs: GroupProjective<D, N, F>) -> Self::Output {
@@ -417,7 +417,7 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Sub<GroupProjective<D, N, F>>
-for GroupProjective<D, N, F>
+    for GroupProjective<D, N, F>
 {
     type Output = Self;
     fn sub(self, rhs: GroupProjective<D, N, F>) -> Self::Output {
@@ -450,7 +450,7 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&
 }
 
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<Fp>
-for GroupProjective<D, N, F>
+    for GroupProjective<D, N, F>
 {
     type Output = Self;
     fn mul(self, rhs: Fp) -> Self::Output {

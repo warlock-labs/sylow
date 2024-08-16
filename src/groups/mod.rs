@@ -1,6 +1,7 @@
 pub(crate) mod g1;
 pub(crate) mod g2;
 pub(crate) mod group;
+pub(crate) mod gt;
 
 /// This test suite takes time, the biggest culprit of which is the multiplication. Really the
 /// biggest bottleneck is assuredly the loading of the reference data from disk. The
@@ -397,11 +398,7 @@ mod tests {
                 load_g1_reference_data!(g1_points);
                 let three = Fp::from(3);
                 for i in &g1_points.a {
-                    assert_eq!(
-                        i + &(i + i),
-                        i * &three,
-                        "Multiplication failed"
-                    );
+                    assert_eq!(i + &(i + i), i * &three, "Multiplication failed");
                 }
             }
             #[test]
@@ -619,11 +616,7 @@ mod tests {
                 load_g2_reference_data!(g2_points, _g2_invalids);
                 let three = Fp::from(3);
                 for i in &g2_points.a {
-                    assert_eq!(
-                        i + &(i + i),
-                        i * &three,
-                        "Multiplication failed"
-                    );
+                    assert_eq!(i + &(i + i), i * &three, "Multiplication failed");
                 }
             }
             #[test]

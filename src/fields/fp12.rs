@@ -280,6 +280,112 @@ impl ConditionallySelectable for Fp12 {
         ])
     }
 }
+/// Below are additional functions needed on Fp12 for the pairing operations
+impl Fp12 {
+    pub(crate) fn unitary_inverse(&self) -> Self {
+        Self::new(&[self.0[0], -self.0[1]])
+    }
+    pub(crate) fn pow(&self, arg: &[u64; 4]) -> Self {
+        let mut res = Self::one();
+        for e in arg.iter().rev() {
+            for i in (0..64).rev() {
+                res = res.square();
+                if ((*e >> i) & 1) == 1 {
+                    res *= *self;
+                }
+            }
+        }
+        res
+    }
+    /// Due to the efficiency considerations of storing only the nonzero entries in the sparse
+    /// Fp12, there is a need to implement sparse multiplication on Fp12, which is what the
+    /// madness below is. It is an amalgamation of Algs 21-25 of https://eprint.iacr.org/2010/354.pdf
+    /// and is really just un-sparsing the value, and doing the multiplication manually. In order
+    /// to get around all the zeros that would arise if we just instantiated the full Fp12,
+    /// we have to manually implement all the required multiplication as far down the tower as
+    /// we can go.
+    ///
+    /// The following code relies on a separate representation of an element in Fp12.
+    /// Namely, hereunto we have defined Fp12 as a pair of Fp6 elements. However, it is just as
+    /// valid to define Fp12 as a pair of Fp2 elements. For f\in Fp12, f = g+hw, where g, h \in Fp6,
+    /// with g = g_0 + g_1v + g_2v^2, and h = h_0 + h_1v + h_2v^2, we can then write:
+    ///
+    /// f = g_0 + h_0w + g_1w^2 + h_1w^3 + g_2w^4 + h_2w^5
+    ///
+    /// where the representation of Fp12 is not Fp12 = Fp2[w]/(w^6-(9+u))
+    ///
+    /// This is a massive headache to get correct, and relied on existing implementations tbh.
+    /// Unfortunately for me, the performance boost is noticeable by early estimates (100s us).
+    /// Therefore, worth it.
+    ///
+    /// The function below is called by `zcash`, `bn`, and `arkworks` as `mul_by_024`, referring to
+    /// the indices of the non-zero elements in the 6x Fp2 representation above for the
+    /// multiplication.
+    pub(crate) fn sparse_mul(&self, ell_0: Fp2, ell_vw: Fp2, ell_vv: Fp2) -> Fp12 {
+        let z0 = self.0[0].0[0];
+        let z1 = self.0[0].0[1];
+        let z2 = self.0[0].0[2];
+        let z3 = self.0[1].0[0];
+        let z4 = self.0[1].0[1];
+        let z5 = self.0[1].0[2];
+
+        let x0 = ell_0;
+        let x2 = ell_vv;
+        let x4 = ell_vw;
+
+        let d0 = z0 * x0;
+        let d2 = z2 * x2;
+        let d4 = z4 * x4;
+        let t2 = z0 + z4;
+        let t1 = z0 + z2;
+        let s0 = z1 + z3 + z5;
+
+        let s1 = z1 * x2;
+        let t3 = s1 + d4;
+        let t4 = t3.residue_mul() + d0;
+        let z0 = t4;
+
+        let t3 = z5 * x4;
+        let s1 = s1 + t3;
+        let t3 = t3 + d2;
+        let t4 = t3.residue_mul();
+        let t3 = z1 * x0;
+        let s1 = s1 + t3;
+        let t4 = t4 + t3;
+        let z1 = t4;
+
+        let t0 = x0 + x2;
+        let t3 = t1 * t0 - d0 - d2;
+        let t4 = z3 * x4;
+        let s1 = s1 + t4;
+        let t3 = t3 + t4;
+
+        let t0 = z2 + z4;
+        let z2 = t3;
+
+        let t1 = x2 + x4;
+        let t3 = t0 * t1 - d2 - d4;
+        let t4 = t3.residue_mul();
+        let t3 = z3 * x0;
+        let s1 = s1 + t3;
+        let t4 = t4 + t3;
+        let z3 = t4;
+
+        let t3 = z5 * x2;
+        let s1 = s1 + t3;
+        let t4 = t3.residue_mul();
+        let t0 = x0 + x4;
+        let t3 = t2 * t0 - d0 - d4;
+        let t4 = t4 + t3;
+        let z4 = t4;
+
+        let t0 = x0 + x2 + x4;
+        let t3 = s0 * t0 - s1;
+        let z5 = t3;
+
+        Fp12::new(&[Fp6::new(&[z0, z1, z2]), Fp6::new(&[z3, z4, z5])])
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
