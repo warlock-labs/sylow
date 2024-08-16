@@ -2,7 +2,7 @@ use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
 use crate::fields::fp12::Fp12;
 use crate::fields::fp2::{Fp2, TWO_INV};
 use crate::fields::fp6::Fp6;
-use crate::groups::g1::G1Affine;
+use crate::groups::g1::{G1Affine, G1Projective};
 use crate::groups::g2::{G2Affine, G2Projective, BLS_X};
 use crate::groups::group::GroupTrait;
 use crate::groups::gt::Gt;
@@ -322,7 +322,9 @@ impl G2Projective {
         }
     }
 }
-pub(crate) fn pairing(p: &G1Affine, q: &G2Affine) -> Gt {
+pub(crate) fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
+    let p = &G1Affine::from(p);
+    let q = &G2Affine::from(q);
     let either_zero = Choice::from((p.is_zero() | q.is_zero()) as u8);
     let p = G1Affine::conditional_select(p, &G1Affine::generator(), either_zero);
     let q = G2Affine::conditional_select(q, &G2Affine::generator(), either_zero);
@@ -347,7 +349,7 @@ mod tests {
         #[test]
         fn test_gt_generator() {
             assert_eq!(
-                pairing(&G1Affine::generator(), &G2Affine::generator()),
+                pairing(&G1Projective::generator(), &G2Projective::generator()),
                 Gt::generator()
             );
         }
@@ -358,11 +360,11 @@ mod tests {
             let expander = XMDExpander::<Keccak256>::new(DST, K);
             let private_key = Fp::new(Fr::rand(&mut OsRng).value());
             if let Ok(hashed_message) = G1Projective::hash_to_curve(&expander, MSG) {
-                let signature = G1Affine::from(hashed_message * private_key);
-                let public_key = G2Affine::from(G2Projective::generator() * private_key);
+                let signature = hashed_message * private_key;
+                let public_key = G2Projective::generator() * private_key;
 
-                let lhs = pairing(&signature, &G2Affine::generator());
-                let rhs = pairing(&hashed_message.into(), &public_key);
+                let lhs = pairing(&signature, &G2Projective::generator());
+                let rhs = pairing(&hashed_message, &public_key);
                 assert_eq!(lhs, rhs);
             }
         }
@@ -388,25 +390,25 @@ mod tests {
                 G2Projective::generator() * carol_sk.into(),
             );
 
-            let alice_ss = pairing(&G1Affine::from(bob_pk1), &G2Affine::from(carol_pk2)) * alice_sk;
-            let bob_ss = pairing(&G1Affine::from(carol_pk1), &G2Affine::from(alice_pk2)) * bob_sk;
-            let carol_ss = pairing(&G1Affine::from(alice_pk1), &G2Affine::from(bob_pk2)) * carol_sk;
+            let alice_ss = pairing(&bob_pk1, &carol_pk2) * alice_sk;
+            let bob_ss = pairing(&carol_pk1, &alice_pk2) * bob_sk;
+            let carol_ss = pairing(&alice_pk1, &bob_pk2) * carol_sk;
             assert!(alice_ss == bob_ss && bob_ss == carol_ss);
         }
         #[test]
         fn test_identities() {
-            let g1 = G1Affine::zero();
-            let g2 = G2Affine::generator();
+            let g1 = G1Projective::zero();
+            let g2 = G2Projective::generator();
             let gt = pairing(&g1, &g2);
             assert_eq!(gt, Gt::identity());
 
-            let g1 = G1Affine::generator();
-            let g2 = G2Affine::zero();
+            let g1 = G1Projective::generator();
+            let g2 = G2Projective::zero();
             let gt = pairing(&g1, &g2);
             assert_eq!(gt, Gt::identity());
 
-            let g = G1Affine::generator();
-            let h = G2Affine::generator();
+            let g = G1Projective::generator();
+            let h = G2Projective::generator();
             let p = -pairing(&g, &h);
             let q = pairing(&g, &-h);
             let r = pairing(&-g, &h);
@@ -416,14 +418,14 @@ mod tests {
         }
         #[test]
         fn test_cases() {
-            let g1 = G1Affine::from(G1Projective::generator()
+            let g1 = G1Projective::generator()
                 * Fp::new(Fr::new_from_str(
                 "18097487326282793650237947474982649264364522469319914492172746413872781676",
-            ).expect("").value()));
-            let g2 = G2Affine::from(G2Projective::generator()
+            ).expect("").value());
+            let g2 = G2Projective::generator()
                 * Fp::new(Fr::new_from_str(
                 "20390255904278144451778773028944684152769293537511418234311120800877067946",
-            ).expect("").value()));
+            ).expect("").value());
 
             let gt = pairing(&g1, &g2);
 
@@ -489,11 +491,11 @@ mod tests {
             use crypto_bigint::rand_core::OsRng;
 
             for _ in 0..10 {
-                let p = G1Affine::rand(&mut OsRng);
-                let q = G2Affine::rand(&mut OsRng);
+                let p = G1Projective::rand(&mut OsRng);
+                let q = G2Projective::rand(&mut OsRng);
                 let s = Fr::rand(&mut OsRng);
-                let sp = G1Affine::from(G1Projective::from(p) * s.into());
-                let sq = G2Affine::from(G2Projective::from(q) * s.into());
+                let sp = G1Projective::from(p) * s.into();
+                let sq = G2Projective::from(q) * s.into();
 
                 let a = pairing(&p, &q) * s;
                 let b = pairing(&sp, &q);
