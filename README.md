@@ -27,7 +27,7 @@ sylow = "0.0.1"
 Here's a basic example of generating a key pair, signing a message, and verifying the signature:
 
 ```rust
-use alt_bn128_bls::{KeyPair, sign, verify};
+use sylow::{KeyPair, sign, verify};
 
 fn main() {
     let key_pair = KeyPair::generate();
