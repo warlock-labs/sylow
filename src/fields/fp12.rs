@@ -175,7 +175,7 @@ const FP12_QUADRATIC_NON_RESIDUE: Fp12 = Fp12::new(&[
     ]),
 ]);
 
-pub type Fp12 = FieldExtension<12, 2, Fp6>;
+pub(crate) type Fp12 = FieldExtension<12, 2, Fp6>;
 
 impl FieldExtensionTrait<12, 2> for Fp12 {
     fn quadratic_non_residue() -> Self {
@@ -259,21 +259,10 @@ impl ConditionallySelectable for Fp12 {
 }
 /// Below are additional functions needed on Fp12 for the pairing operations
 impl Fp12 {
-    pub fn unitary_inverse(&self) -> Self {
+    pub(crate) fn unitary_inverse(&self) -> Self {
         Self::new(&[self.0[0], -self.0[1]])
     }
-    pub fn pow(&self, arg: &[u64; 4]) -> Self {
-        let mut res = Self::one();
-        for e in arg.iter().rev() {
-            for i in (0..64).rev() {
-                res = res.square();
-                if ((*e >> i) & 1) == 1 {
-                    res *= *self;
-                }
-            }
-        }
-        res
-    }
+
     /// Due to the efficiency considerations of storing only the nonzero entries in the sparse
     /// Fp12, there is a need to implement sparse multiplication on Fp12, which is what the
     /// madness below is. It is an amalgamation of Algs 21-25 of <https://eprint.iacr.org/2010/354.pdf>
@@ -298,7 +287,7 @@ impl Fp12 {
     /// The function below is called by `zcash`, `bn`, and `arkworks` as `mul_by_024`, referring to
     /// the indices of the non-zero elements in the 6x Fp2 representation above for the
     /// multiplication.
-    pub fn sparse_mul(&self, ell_0: Fp2, ell_vw: Fp2, ell_vv: Fp2) -> Fp12 {
+    pub(crate) fn sparse_mul(&self, ell_0: Fp2, ell_vw: Fp2, ell_vv: Fp2) -> Fp12 {
         let z0 = self.0[0].0[0];
         let z1 = self.0[0].0[1];
         let z2 = self.0[0].0[2];
@@ -362,7 +351,7 @@ impl Fp12 {
 
         Fp12::new(&[Fp6::new(&[z0, z1, z2]), Fp6::new(&[z3, z4, z5])])
     }
-    pub fn frobenius(&self, exponent: usize) -> Self {
+    pub(crate) fn frobenius(&self, exponent: usize) -> Self {
         Self::new(&[
             self.0[0].frobenius(exponent),
             self.0[1]
@@ -370,7 +359,7 @@ impl Fp12 {
                 .scale(FROBENIUS_COEFF_FP12_C1[exponent % 12]),
         ])
     }
-    pub fn square(&self) -> Self {
+    pub(crate) fn square(&self) -> Self {
         // For F_{p^{12}} = F_{p^6}(w)/(w^2-\gamma), and A=a_0 + a_1*w \in F_{p^{12}},
         // we determine C=c_0+c_1*w = A^2\in F_{p^{12}}
         // Alg 22 from <https://eprint.iacr.org/2010/354.pdf>

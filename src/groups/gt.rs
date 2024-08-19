@@ -106,7 +106,7 @@ const GT: Fp12 = Fp12::new(&[
 ]);
 
 #[derive(Copy, Clone, Debug)]
-pub struct Gt(pub Fp12);
+pub(crate) struct Gt(pub(crate) Fp12);
 
 impl<'a> Neg for &'a Gt {
     type Output = Gt;
@@ -226,12 +226,12 @@ impl GroupTrait<12, 2, Fp12> for Gt {
 }
 impl Gt {
     /// Returns the group identity, which is $1$.
-    pub fn identity() -> Gt {
+    pub(crate) fn identity() -> Gt {
         Gt(Fp12::one())
     }
 
     /// Doubles this group element.
-    pub fn double(&self) -> Gt {
+    pub(crate) fn double(&self) -> Gt {
         Gt(self.0.square())
     }
 }

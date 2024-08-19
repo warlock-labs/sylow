@@ -43,7 +43,7 @@ use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use subtle::CtOption;
 
-pub const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
+pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
     0x3C208C16D87CFD47,
     0x97816A916871CA8D,
     0xB85045B68181585D,
@@ -59,6 +59,7 @@ pub const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
 /// used to generate the quotient field F(x)/f(x)), D, and (ii) the number of elements
 /// required for a unique representation of an element in the extension, N. An extension can have
 /// many different representations, so it is key to allow this flexibility.
+///
 pub trait FieldExtensionTrait<const D: usize, const N: usize>:
     Sized
     + Copy
@@ -90,6 +91,9 @@ pub trait FieldExtensionTrait<const D: usize, const N: usize>:
 
     fn curve_constant() -> Self;
 }
+/// Visibility settings in rust on macro exports make this seem as not use, even though its
+/// public and is indeed used ...
+#[allow(dead_code)]
 pub trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
 where

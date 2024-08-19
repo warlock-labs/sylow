@@ -10,7 +10,7 @@ use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::{Choice, ConstantTimeEq, CtOption};
 
 const FP2_QUADRATIC_NON_RESIDUE: Fp2 = Fp2::new(&[Fp::NINE, Fp::ONE]);
-pub const TWO_INV: Fp = Fp::new(U256::from_words([
+pub(crate) const TWO_INV: Fp = Fp::new(U256::from_words([
     11389680472494603940,
     14681934109093717318,
     15863968012492123182,
@@ -65,7 +65,7 @@ impl Fp2 {
         res
     }
 
-    pub fn residue_mul(&self) -> Self {
+    pub(crate) fn residue_mul(&self) -> Self {
         self * &FP2_QUADRATIC_NON_RESIDUE
     }
     pub fn frobenius(&self, exponent: usize) -> Self {

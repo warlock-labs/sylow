@@ -33,7 +33,7 @@ use subtle::ConstantTimeEq;
 const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
 const SECURITY_BITS: u64 = 128;
 
-/// This is a basic struct that simply contains a pair of (private, pub) keys for later use in
+/// This is a basic struct that simply contains a pair of (private, pub ) keys for later use in
 /// the signature and verification
 #[derive(Debug, Copy, Clone)]
 pub struct KeyPair {
@@ -63,13 +63,13 @@ pub fn sign(k: &Fp, msg: &[u8]) -> Result<G1Projective, GroupError> {
     }
 }
 
-/// This takes a public key, message, and a signature, and verifies that the signature is valid
-pub fn verify(pub_key: &G2Projective, msg: &[u8], sig: &G1Projective) -> Result<bool, GroupError> {
+/// This takes a pub lic key, message, and a signature, and verifies that the signature is valid
+pub fn verify(pubkey: &G2Projective, msg: &[u8], sig: &G1Projective) -> Result<bool, GroupError> {
     let expander = XMDExpander::<Keccak256>::new(DST, SECURITY_BITS);
     match G1Projective::hash_to_curve(&expander, msg) {
         Ok(hashed_message) => {
             let lhs = pairing(sig, &G2Projective::generator());
-            let rhs = pairing(&hashed_message, pub_key);
+            let rhs = pairing(&hashed_message, pubkey);
             Ok(lhs.ct_eq(&rhs).into())
         }
         _ => Err(GroupError::CannotHashToGroup),
