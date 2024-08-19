@@ -180,10 +180,8 @@ impl Fp6 {
     pub fn frobenius(&self, exponent: usize) -> Self {
         Self::new(&[
             self.0[0].frobenius(exponent),
-            self.0[1].frobenius(exponent)
-                * FROBENIUS_COEFF_FP6_C1[exponent % 6],
-            self.0[2].frobenius(exponent)
-                * FROBENIUS_COEFF_FP6_C2[exponent % 6],
+            self.0[1].frobenius(exponent) * FROBENIUS_COEFF_FP6_C1[exponent % 6],
+            self.0[2].frobenius(exponent) * FROBENIUS_COEFF_FP6_C2[exponent % 6],
         ])
     }
 
@@ -260,10 +258,8 @@ impl MulAssign for Fp6 {
 impl Inv for Fp6 {
     type Output = Self;
     fn inv(self) -> Self::Output {
-        let t0 = self.0[0].square()
-            - self.0[1] * self.0[2].residue_mul();
-        let t1 = self.0[2].square().residue_mul()
-            - self.0[0] * self.0[1];
+        let t0 = self.0[0].square() - self.0[1] * self.0[2].residue_mul();
+        let t1 = self.0[2].square().residue_mul() - self.0[0] * self.0[1];
         let t2 = self.0[1].square() - self.0[0] * self.0[2];
 
         let inverse = ((self.0[2] * t1 + self.0[1] * t2).residue_mul() + self.0[0] * t0).inv();
@@ -570,12 +566,12 @@ mod tests {
             );
             assert_eq!(
                 a,
-                a.frobenius(1).
-                    frobenius(1).
-                    frobenius(1).
-                    frobenius(1).
-                    frobenius(1).
-                    frobenius(1),
+                a.frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1)
+                    .frobenius(1),
                 "Frobenius failed at cycle order 6"
             );
         }

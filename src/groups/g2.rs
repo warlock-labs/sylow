@@ -23,7 +23,7 @@ use crypto_bigint::U256;
 use num_traits::{One, Zero};
 use subtle::{Choice, ConstantTimeEq};
 
-/// This is the X coordinate of the generator for the r-torsion of the twist curve, generated 
+/// This is the X coordinate of the generator for the r-torsion of the twist curve, generated
 /// directly from sage
 const G2_X: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([

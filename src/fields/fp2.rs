@@ -95,17 +95,11 @@ impl Fp2 {
         if alpha == -Fp2::one() {
             let i = Fp2::new(&[Fp::ZERO, Fp::ONE]);
             let sqrt = i * a1 * (*self);
-            CtOption::new(
-                sqrt,
-                sqrt.square().ct_eq(self),
-            )
+            CtOption::new(sqrt, sqrt.square().ct_eq(self))
         } else {
             let b = (alpha + Fp2::one()).pow(&P_MINUS_1_OVER_2);
             let sqrt = b * a1 * (*self);
-            CtOption::new(
-                sqrt,
-                sqrt.square().ct_eq(self),
-            )
+            CtOption::new(sqrt, sqrt.square().ct_eq(self))
         }
     }
     pub fn square(&self) -> Self {
@@ -131,8 +125,7 @@ impl Fp2 {
             }
         };
         let sum = self.0[0].square()
-            + <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()
-            * (-self.0[0]).square();
+            + <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() * (-self.0[0]).square();
         Choice::from((legendre(&sum) != -1) as u8)
     }
     pub fn sgn0(&self) -> Choice {
@@ -158,8 +151,7 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
         FP2_TWIST_CURVE_CONSTANT
     }
 }
-impl<'a, 'b> Mul<&'b Fp2> for &'a Fp2
-{
+impl<'a, 'b> Mul<&'b Fp2> for &'a Fp2 {
     type Output = Fp2;
     fn mul(self, other: &'b Fp2) -> Self::Output {
         // This requires a bit more consideration. In Fp2,
@@ -176,11 +168,10 @@ impl<'a, 'b> Mul<&'b Fp2> for &'a Fp2
         ])
     }
 }
-impl Mul<Fp2> for Fp2
-{
+impl Mul<Fp2> for Fp2 {
     type Output = Self;
     fn mul(self, other: Fp2) -> Self::Output {
-        // TODO linter complains about this being a needless reference if I do &a * &b, so this 
+        // TODO linter complains about this being a needless reference if I do &a * &b, so this
         // gets around it
         (&self).mul(&other)
     }
@@ -416,11 +407,7 @@ mod tests {
                 ],
             );
             for i in [a, b, c] {
-                assert_eq!(
-                    i.square(),
-                    i * i,
-                    "Squaring failed"
-                );
+                assert_eq!(i.square(), i * i, "Squaring failed");
             }
         }
         #[test]
@@ -512,10 +499,7 @@ mod tests {
             for _ in 0..100 {
                 let a = <Fp2 as FieldExtensionTrait<2, 2>>::rand(&mut OsRng);
                 let b = a.square();
-                assert!(
-                    bool::from(b.is_square()),
-                    "Is square failed"
-                );
+                assert!(bool::from(b.is_square()), "Is square failed");
             }
         }
     }

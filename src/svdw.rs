@@ -13,8 +13,8 @@
 //! ----------
 //! 1. <https://link.springer.com/chapter/10.1007/11792086_36>
 
-use num_traits::{Inv, Zero};
 use crate::fields::fp::Fp;
+use num_traits::{Inv, Zero};
 use subtle::Choice;
 
 #[derive(Debug)]
@@ -39,8 +39,7 @@ pub trait SvdWTrait: Sized {
 
     fn find_z_svdw(a: Fp, b: Fp) -> Fp {
         let g = |x: &Fp| -> Fp { (*x) * (*x) * (*x) + a * (*x) + b };
-        let h = |x: &Fp| -> Fp { -(Fp::THREE * (*x) * (*x) + Fp::FOUR * a) / (Fp::FOUR * g(x)
-        ) };
+        let h = |x: &Fp| -> Fp { -(Fp::THREE * (*x) * (*x) + Fp::FOUR * a) / (Fp::FOUR * g(x)) };
         let mut ctr = 1;
         loop {
             for z_cand in [Fp::from(ctr), -Fp::from(ctr)] {
@@ -96,8 +95,7 @@ pub trait SvdWTrait: Sized {
     }
     fn unchecked_map_to_point(&self, u: Fp) -> Result<[Fp; 2], MapError>;
 }
-impl SvdWTrait for SvdW
-{
+impl SvdWTrait for SvdW {
     fn unchecked_map_to_point(&self, u: Fp) -> Result<[Fp; 2], MapError> {
         // Implements the SvdW algorithm for a single scalar point
         let cmov = |x: &Fp, y: &Fp, b: &Choice| -> Fp {
@@ -158,7 +156,10 @@ mod tests {
 
         #[test]
         fn test_z_svdw() {
-            let z = SvdW::find_z_svdw(Fp::ZERO, <Fp as FieldExtensionTrait<1,1>>::curve_constant());
+            let z = SvdW::find_z_svdw(
+                Fp::ZERO,
+                <Fp as FieldExtensionTrait<1, 1>>::curve_constant(),
+            );
             assert_eq!(z, Fp::ONE, "Finding Z failed for BN254");
         }
         #[test]

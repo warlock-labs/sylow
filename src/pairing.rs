@@ -219,9 +219,9 @@ impl MillerLoopResult {
 /// time. Again, because of the sparse nature of the returned Fp12 from the doubling and addition
 /// steps, we store only the 3 non-zero coefficients in an arr of EllCoeffs
 ///
-/// There's two components to this struct. First, is the original value at which we are 
-/// computing the line. Second, is an array of the coefficients we determine by the generation 
-/// of the line, stored as an array. But an array of 87 elements is very specific, no?  
+/// There's two components to this struct. First, is the original value at which we are
+/// computing the line. Second, is an array of the coefficients we determine by the generation
+/// of the line, stored as an array. But an array of 87 elements is very specific, no?
 /// There's 64 total iterations through the NAF representation, each one incurring a
 /// doubling step. Further, there are 9 `1` digits (each with an addition step), and 12 `3`
 /// digits, each also with an addition step. After the loop, there are 2 more addition steps, so
@@ -334,7 +334,7 @@ impl G2Projective {
         let g = (b + f).scale(TWO_INV);
         let h = (self.y + self.z).square() - (b + c);
         let i = e - b;
-        let j =self.x.square();
+        let j = self.x.square();
         let e_sq = e.square();
 
         self.x = a * (b - f);

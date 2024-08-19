@@ -403,7 +403,7 @@ impl Fp {
         // will require the frobenius transformation
         match exponent {
             1 => self.pow(BN254_FP_MODULUS.value()),
-            _ => *self
+            _ => *self,
         }
     }
     pub fn sqrt(&self) -> CtOption<Self> {
@@ -415,13 +415,9 @@ impl Fp {
         // prime that is congruent to 3 mod 4. In this case, the sqrt only has the
         // possible solution of $\pm pow(n, \frac{p+1}{4})$, which is where this magic
         // number below comes from ;)
-        let arg =
-            ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
+        let arg = ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
         let sqrt = self.pow(arg);
-        CtOption::new(
-            sqrt,
-            sqrt.square().ct_eq(self),
-        )
+        CtOption::new(sqrt, sqrt.square().ct_eq(self))
     }
     pub fn square(&self) -> Self {
         (*self) * (*self)
@@ -919,10 +915,7 @@ mod tests {
             for _ in 0..100 {
                 let a = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng);
                 let b = a.square();
-                assert!(
-                    bool::from(b.is_square()),
-                    "Is square failed"
-                );
+                assert!(bool::from(b.is_square()), "Is square failed");
             }
         }
         #[test]

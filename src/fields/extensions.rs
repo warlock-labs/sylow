@@ -63,11 +63,11 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> ConstantTimeE
     }
 }
 impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
-Add<&'b FieldExtension<D, N, F>> for &'a FieldExtension<D, N, F>
+    Add<&'b FieldExtension<D, N, F>> for &'a FieldExtension<D, N, F>
 {
     type Output = FieldExtension<D, N, F>;
-    
-    fn add(self, other: &'b FieldExtension<D, N, F>) -> Self::Output  {
+
+    fn add(self, other: &'b FieldExtension<D, N, F>) -> Self::Output {
         let mut i = 0;
         let mut retval = [F::zero(); N];
         while i < N {
@@ -78,7 +78,8 @@ Add<&'b FieldExtension<D, N, F>> for &'a FieldExtension<D, N, F>
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add<FieldExtension<D, N, F>>
-for FieldExtension<D, N, F> {
+    for FieldExtension<D, N, F>
+{
     type Output = Self;
     fn add(self, other: FieldExtension<D, N, F>) -> Self::Output {
         &self + &other
@@ -92,8 +93,9 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> AddAssign
     }
 }
 impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
-Sub<&'b FieldExtension<D, N, F>> for &'a FieldExtension<D, N, F>{
-    type Output = FieldExtension<D,N,F>;
+    Sub<&'b FieldExtension<D, N, F>> for &'a FieldExtension<D, N, F>
+{
+    type Output = FieldExtension<D, N, F>;
 
     fn sub(self, other: &'b FieldExtension<D, N, F>) -> Self::Output {
         let mut i = 0;
@@ -106,10 +108,11 @@ Sub<&'b FieldExtension<D, N, F>> for &'a FieldExtension<D, N, F>{
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Sub<FieldExtension<D, N, F>>
-for FieldExtension<D, N, F> {
+    for FieldExtension<D, N, F>
+{
     type Output = Self;
     fn sub(self, other: FieldExtension<D, N, F>) -> Self::Output {
-       &self - &other
+        &self - &other
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> SubAssign

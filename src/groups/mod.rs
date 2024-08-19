@@ -462,8 +462,10 @@ mod tests {
             fn test_svdw() {
                 load_g1_reference_data!(g1_points);
 
-                if let Ok(d) = SvdW::precompute_constants(Fp::ZERO, <Fp as 
-                    FieldExtensionTrait<1,1>>::curve_constant()) {
+                if let Ok(d) = SvdW::precompute_constants(
+                    Fp::ZERO,
+                    <Fp as FieldExtensionTrait<1, 1>>::curve_constant(),
+                ) {
                     for s in g1_points.svdw.iter() {
                         let r = s.i;
                         let p = s.p;

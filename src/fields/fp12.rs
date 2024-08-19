@@ -207,7 +207,7 @@ impl<'a, 'b> Mul<&'b Fp12> for &'a Fp12 {
         ])
     }
 }
-impl Mul for Fp12{
+impl Mul for Fp12 {
     type Output = Self;
     fn mul(self, other: Self) -> Self::Output {
         (&self).mul(&other)
@@ -221,9 +221,7 @@ impl MulAssign for Fp12 {
 impl Inv for Fp12 {
     type Output = Self;
     fn inv(self) -> Self::Output {
-        let tmp = (self.0[0].square()
-            - (self.0[1].square().residue_mul()))
-        .inv();
+        let tmp = (self.0[0].square() - (self.0[1].square().residue_mul())).inv();
         Self([self.0[0] * tmp, -(self.0[1] * tmp)])
     }
 }
@@ -367,12 +365,13 @@ impl Fp12 {
     pub fn frobenius(&self, exponent: usize) -> Self {
         Self::new(&[
             self.0[0].frobenius(exponent),
-            self.0[1].frobenius(exponent)
+            self.0[1]
+                .frobenius(exponent)
                 .scale(FROBENIUS_COEFF_FP12_C1[exponent % 12]),
         ])
     }
     pub fn square(&self) -> Self {
-        // For F_{p^{12}} = F_{p^6}(w)/(w^2-\gamma), and A=a_0 + a_1*w \in F_{p^{12}}, 
+        // For F_{p^{12}} = F_{p^6}(w)/(w^2-\gamma), and A=a_0 + a_1*w \in F_{p^{12}},
         // we determine C=c_0+c_1*w = A^2\in F_{p^{12}}
         // Alg 22 from <https://eprint.iacr.org/2010/354.pdf>
         let c0 = self.0[0] - self.0[1];
