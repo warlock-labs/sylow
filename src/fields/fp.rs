@@ -43,7 +43,7 @@ use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use subtle::CtOption;
 
-pub const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
+pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
     0x3C208C16D87CFD47,
     0x97816A916871CA8D,
     0xB85045B68181585D,
@@ -90,7 +90,7 @@ pub trait FieldExtensionTrait<const D: usize, const N: usize>:
 
     fn curve_constant() -> Self;
 }
-pub trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
+pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
 where
     UintType: ConcatMixed<MixedOutput = Uint<DLIMBS>>,
@@ -397,7 +397,7 @@ impl From<Fr> for Fp {
     }
 }
 impl Fp {
-    pub fn frobenius(&self, exponent: usize) -> Self {
+    pub(crate) fn frobenius(&self, exponent: usize) -> Self {
         // this function is inherently expensive, and we never call it on the base field, but if
         // we did, it's only defined for p=1. Specialized versions exist for all extensions which
         // will require the frobenius transformation
@@ -406,7 +406,7 @@ impl Fp {
             _ => *self,
         }
     }
-    pub fn sqrt(&self) -> CtOption<Self> {
+    pub(crate) fn sqrt(&self) -> CtOption<Self> {
         // This is an instantiation of Shank's algorithm, which solves congruences of
         // the form $r^2\equiv n \mod p$, namely the sqrt of n. It does not work for
         // composite moduli (aka nonprime p), since that is the integer factorization
@@ -419,16 +419,16 @@ impl Fp {
         let sqrt = self.pow(arg);
         CtOption::new(sqrt, sqrt.square().ct_eq(self))
     }
-    pub fn square(&self) -> Self {
+    pub(crate) fn square(&self) -> Self {
         (*self) * (*self)
     }
-    pub fn is_square(&self) -> Choice {
+    pub(crate) fn is_square(&self) -> Choice {
         let p_minus_1_div_2 =
             ((Self::new(Self::characteristic()) - Self::from(1)) / Self::from(2)).value();
         let retval = self.pow(p_minus_1_div_2);
         Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
     }
-    pub fn sgn0(&self) -> Choice {
+    pub(crate) fn sgn0(&self) -> Choice {
         let a = *self % Self::from(2u64);
         if a.is_zero() {
             Choice::from(0u8)

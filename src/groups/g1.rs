@@ -18,9 +18,9 @@ use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::Zero;
 use subtle::{Choice, ConstantTimeEq};
 
-pub type G1Affine = GroupAffine<1, 1, Fp>;
+pub(crate) type G1Affine = GroupAffine<1, 1, Fp>;
 
-pub type G1Projective = GroupProjective<1, 1, Fp>;
+pub(crate) type G1Projective = GroupProjective<1, 1, Fp>;
 
 impl GroupTrait<1, 1, Fp> for G1Affine {
     fn generator() -> Self {
@@ -71,7 +71,7 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
 impl G1Affine {
     /// this needs to be defined in order to have user interaction, but currently
     /// is only visible in tests, and therefore is seen by the linter as unused
-    pub fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
+    pub(crate) fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
         let _g1affine_is_on_curve = |x: &Fp, y: &Fp, z: &Choice| -> Choice {
             let y2 = y.square();
             let x2 = x.square();
@@ -154,7 +154,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
     }
 }
 impl G1Projective {
-    pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
+    pub(crate) fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let _g1projective_is_on_curve = |x: &Fp, y: &Fp, z: &Fp| -> Choice {
             let y2 = y.square();
             let x2 = x.square();

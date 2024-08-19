@@ -10,7 +10,7 @@ use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::{Choice, ConstantTimeEq, CtOption};
 
 const FP2_QUADRATIC_NON_RESIDUE: Fp2 = Fp2::new(&[Fp::NINE, Fp::ONE]);
-pub const TWO_INV: Fp = Fp::new(U256::from_words([
+pub(crate) const TWO_INV: Fp = Fp::new(U256::from_words([
     11389680472494603940,
     14681934109093717318,
     15863968012492123182,
@@ -51,7 +51,7 @@ pub type Fp2 = FieldExtension<2, 2, Fp>;
 // helper functions for us on this specific extension, but
 // don't generalize to any extension.
 impl Fp2 {
-    pub fn pow(&self, by: &Fp) -> Self {
+    pub(crate) fn pow(&self, by: &Fp) -> Self {
         let bits = by.value().to_words();
         let mut res = Self::one();
         for e in bits.iter().rev() {
@@ -65,10 +65,10 @@ impl Fp2 {
         res
     }
 
-    pub fn residue_mul(&self) -> Self {
+    pub(crate) fn residue_mul(&self) -> Self {
         self * &FP2_QUADRATIC_NON_RESIDUE
     }
-    pub fn frobenius(&self, exponent: usize) -> Self {
+    pub(crate) fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp2: &[Fp; 2] = &[
             // Fp::quadratic_non_residue()**(((p^0) - 1) / 2)
             Fp::ONE,
@@ -83,7 +83,7 @@ impl Fp2 {
             ]),
         }
     }
-    pub fn sqrt(&self) -> CtOption<Self> {
+    pub(crate) fn sqrt(&self) -> CtOption<Self> {
         let a1 = self.pow(&P_MINUS_3_OVER_4);
 
         let alpha = a1 * a1 * (*self);
@@ -102,7 +102,7 @@ impl Fp2 {
             CtOption::new(sqrt, sqrt.square().ct_eq(self))
         }
     }
-    pub fn square(&self) -> Self {
+    pub(crate) fn square(&self) -> Self {
         let t0 = self.0[0] * self.0[1];
         Self([
             (self.0[1] * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() + self.0[0])
@@ -112,7 +112,7 @@ impl Fp2 {
             t0 + t0,
         ])
     }
-    pub fn is_square(&self) -> Choice {
+    pub(crate) fn is_square(&self) -> Choice {
         let legendre = |x: &Fp| -> i32 {
             let res = x.pow(P_MINUS_1_OVER_2.value());
 
@@ -128,7 +128,7 @@ impl Fp2 {
             + <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() * (-self.0[0]).square();
         Choice::from((legendre(&sum) != -1) as u8)
     }
-    pub fn sgn0(&self) -> Choice {
+    pub(crate) fn sgn0(&self) -> Choice {
         let sign_0 = self.0[0].sgn0();
         let zero_0 = Choice::from(self.0[0].is_zero() as u8);
         let sign_1 = self.0[1].sgn0();

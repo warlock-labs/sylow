@@ -11,7 +11,7 @@
 //! representations. The internal translation does not induce that much overhead really, but it
 //! is something to keep in mind.
 //!
-//! All public facing methods here implement the subgroup check to ensure that the user cannot
+//! All pub(crate) lic facing methods here implement the subgroup check to ensure that the user cannot
 //! input a value in $E^\prime(F_{p^2})$ that is not in the r-torsion.
 
 use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
@@ -56,7 +56,7 @@ const G2_Y: Fp2 = Fp2::new(&[
     ])),
 ]);
 // the first constant of the endomorphism, $\xi^((p-1)/3)$, see below
-pub const EPS_EXP0: Fp2 = Fp2::new(&[
+pub(crate) const EPS_EXP0: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
         11088870908804158781,
         13226160682434769676,
@@ -71,7 +71,7 @@ pub const EPS_EXP0: Fp2 = Fp2::new(&[
     ])),
 ]);
 // the second constant of the endomorphism, $\xi^((p-1)/2)$, see below
-pub const EPS_EXP1: Fp2 = Fp2::new(&[
+pub(crate) const EPS_EXP1: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
         15876315988453495642,
         15828711151707445656,
@@ -94,9 +94,9 @@ const C2: Fp = Fp::new(U256::from_words([
     0,
 ]));
 // the parameter that generates this member of the BN family
-pub const BLS_X: Fp = Fp::new(U256::from_words([4965661367192848881, 0, 0, 0]));
+pub(crate) const BLS_X: Fp = Fp::new(U256::from_words([4965661367192848881, 0, 0, 0]));
 
-pub type G2Affine = GroupAffine<2, 2, Fp2>;
+pub(crate) type G2Affine = GroupAffine<2, 2, Fp2>;
 
 pub type G2Projective = GroupProjective<2, 2, Fp2>;
 
@@ -232,7 +232,7 @@ impl G2Affine {
     /// This method is used internally for rapid, low overhead, conversion of types when there
     /// are formulae that don't have clean versions in projective coordinates. The 'unchecked'
     /// refers to the fact that these points are not subjected to a subgroup verification, and
-    /// therefore this method is not exposed publicly.
+    /// therefore this method is not exposed pub(crate) licly.
     ///
     /// DON'T USE THIS METHOD UNLESS YOU KNOW WHAT YOU'RE DOING
     fn new_unchecked(v: [Fp2; 2]) -> Result<Self, GroupError> {
@@ -256,10 +256,10 @@ impl G2Affine {
     }
 }
 impl G2Projective {
-    /// The public entrypoint to making a value in $\mathbb{G}_2$. This takes the (x,y,z) values
+    /// The pub(crate) lic entrypoint to making a value in $\mathbb{G}_2$. This takes the (x,y,z) values
     /// from the user, and passes them through a subgroup and curve check to ensure validity.
     /// Values returned from this function are guaranteed to be on the curve and in the r-torsion.
-    pub fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
+    pub(crate) fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
         let _g2projective_is_on_curve = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
             let y2 = y.square();
             let x2 = x.square();

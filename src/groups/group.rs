@@ -43,7 +43,7 @@ pub enum GroupError {
 // projective, or mixed addition, and therefore cannot be defined for all instances satisfying
 // a group trait
 
-pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
+pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
     Sized + Copy + Clone + std::fmt::Debug + Neg + ConstantTimeEq + ConditionallySelectable + PartialEq
 {
     /// this is how we'll make more elements of the field from a scalar value
@@ -68,9 +68,9 @@ pub struct GroupAffine<const D: usize, const N: usize, F: FieldExtensionTrait<D,
     /// has no unique representation in this form. Generation of the point at infinity is accomplished
     /// either by calling the `zero` method, or by applying binary operations to 'normal' points to
     /// reach the point at infinity with arithmetic.
-    pub x: F,
-    pub y: F,
-    pub infinity: Choice,
+    pub(crate) x: F,
+    pub(crate) y: F,
+    pub(crate) infinity: Choice,
 }
 /// this is the beginning of Rust lifetime magic. The issue is that when we implement
 /// the arithmetic, we need to explicitly state the lifetime of each operand
@@ -141,7 +141,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D, N, F> {
-    pub fn zero() -> Self {
+    pub(crate) fn zero() -> Self {
         Self {
             x: F::zero(),
             y: F::one(),
@@ -149,7 +149,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D
         }
     }
 
-    pub fn is_zero(&self) -> bool {
+    pub(crate) fn is_zero(&self) -> bool {
         bool::from(self.infinity)
     }
 }
@@ -165,16 +165,16 @@ pub struct GroupProjective<const D: usize, const N: usize, F: FieldExtensionTrai
     /// projective coords, or (iii) have mixed representations. For security, due to the uniqueness of
     /// the representation of the point at infinity, we therefore opt to have
     /// all arithmetic done in projective coordinates.
-    pub x: F,
-    pub y: F,
-    pub z: F,
+    pub(crate) x: F,
+    pub(crate) y: F,
+    pub(crate) z: F,
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjective<D, N, F> {
     /// This is the point at infinity! This object really is the additive identity of the group,
     /// when the group law is addition, which it is here. It satisfies the properties that
     /// $zero+a=a$ for some $a$ in the group, as well as $a+(-a)=zero$, which means that the
     /// convention zero makes the most sense to me here.
-    pub fn zero() -> Self {
+    pub(crate) fn zero() -> Self {
         Self {
             x: F::zero(),
             y: F::one(),
@@ -182,7 +182,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         }
     }
 
-    pub fn is_zero(&self) -> bool {
+    pub(crate) fn is_zero(&self) -> bool {
         self.z.is_zero()
     }
 
@@ -192,7 +192,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
     /// Complexity:
     ///        `6M`(ultiplications) + `2S`(quarings)
     ///      + `1m`(ultiplication by scalar) + `9A`(dditions)
-    pub fn double(&self) -> Self {
+    pub(crate) fn double(&self) -> Self {
         let t0 = self.y * self.y;
         let z3 = t0 + t0;
         let z3 = z3 + z3;
