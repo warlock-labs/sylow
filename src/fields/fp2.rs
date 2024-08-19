@@ -68,12 +68,7 @@ impl Fp2 {
     pub fn residue_mul(&self) -> Self {
         *self * FP2_QUADRATIC_NON_RESIDUE
     }
-}
-impl FieldExtensionTrait<2, 2> for Fp2 {
-    fn quadratic_non_residue() -> Self {
-        FP2_QUADRATIC_NON_RESIDUE
-    }
-    fn frobenius(&self, exponent: usize) -> Self {
+    pub fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp2: &[Fp; 2] = &[
             // Fp::quadratic_non_residue()**(((p^0) - 1) / 2)
             Fp::ONE,
@@ -88,7 +83,7 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
             ]),
         }
     }
-    fn sqrt(&self) -> CtOption<Self> {
+    pub fn sqrt(&self) -> CtOption<Self> {
         let a1 = self.pow(&P_MINUS_3_OVER_4);
 
         let alpha = a1 * a1 * (*self);
@@ -102,18 +97,18 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
             let sqrt = i * a1 * (*self);
             CtOption::new(
                 sqrt,
-                <Fp2 as FieldExtensionTrait<2, 2>>::square(&sqrt).ct_eq(self),
+                sqrt.square().ct_eq(self),
             )
         } else {
             let b = (alpha + Fp2::one()).pow(&P_MINUS_1_OVER_2);
             let sqrt = b * a1 * (*self);
             CtOption::new(
                 sqrt,
-                <Fp2 as FieldExtensionTrait<2, 2>>::square(&sqrt).ct_eq(self),
+                sqrt.square().ct_eq(self),
             )
         }
     }
-    fn square(&self) -> Self {
+    pub fn square(&self) -> Self {
         let t0 = self.0[0] * self.0[1];
         Self([
             (self.0[1] * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() + self.0[0])
@@ -123,13 +118,7 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
             t0 + t0,
         ])
     }
-    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
-        Self([
-            <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
-            <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
-        ])
-    }
-    fn is_square(&self) -> Choice {
+    pub fn is_square(&self) -> Choice {
         let legendre = |x: &Fp| -> i32 {
             let res = x.pow(P_MINUS_1_OVER_2.value());
 
@@ -141,16 +130,27 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
                 -1
             }
         };
-        let sum = <Fp as FieldExtensionTrait<1, 1>>::square(&self.0[0])
+        let sum = self.0[0].square()
             + <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()
-                * <Fp as FieldExtensionTrait<1, 1>>::square(&(-self.0[0]));
+            * (-self.0[0]).square();
         Choice::from((legendre(&sum) != -1) as u8)
     }
-    fn sgn0(&self) -> Choice {
-        let sign_0 = <Fp as FieldExtensionTrait<1, 1>>::sgn0(&self.0[0]);
+    pub fn sgn0(&self) -> Choice {
+        let sign_0 = self.0[0].sgn0();
         let zero_0 = Choice::from(self.0[0].is_zero() as u8);
-        let sign_1 = <Fp as FieldExtensionTrait<1, 1>>::sgn0(&self.0[1]);
+        let sign_1 = self.0[1].sgn0();
         sign_0 | (zero_0 & sign_1)
+    }
+}
+impl FieldExtensionTrait<2, 2> for Fp2 {
+    fn quadratic_non_residue() -> Self {
+        FP2_QUADRATIC_NON_RESIDUE
+    }
+    fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        Self([
+            <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
+            <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
+        ])
     }
     fn curve_constant() -> Self {
         // this is the curve constant for the twist curve in Fp2. In short Weierstrass form the
@@ -186,8 +186,8 @@ impl MulAssign for Fp2 {
 impl Inv for Fp2 {
     type Output = Self;
     fn inv(self) -> Self {
-        let c0_squared = <Fp as FieldExtensionTrait<1, 1>>::square(&self.0[0]);
-        let c1_squared = <Fp as FieldExtensionTrait<1, 1>>::square(&self.0[1]);
+        let c0_squared = self.0[0].square();
+        let c1_squared = self.0[1].square();
         let tmp = (c0_squared
             - (c1_squared * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()))
         .inv();
@@ -236,23 +236,8 @@ impl FieldExtensionTrait<6, 3> for Fp2 {
     fn quadratic_non_residue() -> Self {
         FP2_QUADRATIC_NON_RESIDUE
     }
-    fn frobenius(&self, exponent: usize) -> Self {
-        <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(self, exponent)
-    }
-    fn sqrt(&self) -> CtOption<Self> {
-        <Fp2 as FieldExtensionTrait<2, 2>>::sqrt(self)
-    }
-    fn square(&self) -> Self {
-        <Fp2 as FieldExtensionTrait<2, 2>>::square(self)
-    }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng)
-    }
-    fn is_square(&self) -> Choice {
-        <Fp2 as FieldExtensionTrait<2, 2>>::is_square(self)
-    }
-    fn sgn0(&self) -> Choice {
-        <Fp2 as FieldExtensionTrait<2, 2>>::sgn0(self)
     }
     fn curve_constant() -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant()
@@ -395,7 +380,7 @@ mod tests {
                 [0xffffffffffffffff, 0xffffffffffffffff, 0x0, 0x0],
             );
             for i in [a, b, c, d, e, f] {
-                let tmp = <Fp2 as FieldExtensionTrait<2, 2>>::sqrt(&i);
+                let tmp = i.sqrt();
                 match tmp.into_option() {
                     Some(d) => {
                         assert_eq!(d * d, i, "Sqrt failed");
@@ -424,7 +409,7 @@ mod tests {
             );
             for i in [a, b, c] {
                 assert_eq!(
-                    <Fp2 as FieldExtensionTrait<2, 2>>::square(&i),
+                    i.square(),
                     i * i,
                     "Squaring failed"
                 );
@@ -518,9 +503,9 @@ mod tests {
 
             for _ in 0..100 {
                 let a = <Fp2 as FieldExtensionTrait<2, 2>>::rand(&mut OsRng);
-                let b = <Fp2 as FieldExtensionTrait<2, 2>>::square(&a);
+                let b = a.square();
                 assert!(
-                    bool::from(<Fp2 as FieldExtensionTrait<2, 2>>::is_square(&b)),
+                    bool::from(b.is_square()),
                     "Is square failed"
                 );
             }

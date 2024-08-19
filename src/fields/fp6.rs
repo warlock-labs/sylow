@@ -177,23 +177,17 @@ impl Fp6 {
     pub fn residue_mul(&self) -> Self {
         Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
     }
-}
-impl FieldExtensionTrait<6, 3> for Fp6 {
-    fn quadratic_non_residue() -> Self {
-        // Self::new(&[Fp2::zero(), Fp2::one(), Fp2::zero()])
-        FP6_QUADRATIC_NON_RESIDUE
-    }
-    fn frobenius(&self, exponent: usize) -> Self {
+    pub fn frobenius(&self, exponent: usize) -> Self {
         Self::new(&[
-            <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[0], exponent),
-            <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[1], exponent)
+            self.0[0].frobenius(exponent),
+            self.0[1].frobenius(exponent)
                 * FROBENIUS_COEFF_FP6_C1[exponent % 6],
-            <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.0[2], exponent)
+            self.0[2].frobenius(exponent)
                 * FROBENIUS_COEFF_FP6_C2[exponent % 6],
         ])
     }
 
-    fn sqrt(&self) -> CtOption<Self> {
+    pub fn sqrt(&self) -> CtOption<Self> {
         unimplemented!()
     }
 
@@ -201,16 +195,16 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
     // however, there are some simple algebraic reductions
     // you can do with squaring. this just implements that,
     // but functionally it is the same as the `Mul` trait below
-    fn square(&self) -> Self {
-        let t0 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.0[0]);
+    pub fn square(&self) -> Self {
+        let t0 = self.0[0].square();
         let cross = self.0[0] * self.0[1];
         let t1 = cross + cross;
         let mut t2 = self.0[0] - self.0[1] + self.0[2];
-        t2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&t2);
+        t2 = t2.square();
         let bc = self.0[1] * self.0[2];
         let s3 = bc + bc;
         let mut s4 = self.0[2];
-        s4 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&s4);
+        s4 = s4.square();
 
         Self([
             t0 + s3.residue_mul(),
@@ -218,6 +212,13 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
             t1 + t2 + s3 - t0 - s4,
         ])
     }
+}
+impl FieldExtensionTrait<6, 3> for Fp6 {
+    fn quadratic_non_residue() -> Self {
+        // Self::new(&[Fp2::zero(), Fp2::one(), Fp2::zero()])
+        FP6_QUADRATIC_NON_RESIDUE
+    }
+
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self([
             <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
@@ -225,14 +226,8 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
             <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
         ])
     }
-    fn is_square(&self) -> Choice {
-        unimplemented!()
-    }
-    fn sgn0(&self) -> Choice {
-        unimplemented!()
-    }
     fn curve_constant() -> Self {
-        unimplemented!()
+        Self::from(3)
     }
 }
 impl Mul for Fp6 {
@@ -260,11 +255,11 @@ impl MulAssign for Fp6 {
 impl Inv for Fp6 {
     type Output = Self;
     fn inv(self) -> Self::Output {
-        let t0 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.0[0])
+        let t0 = self.0[0].square()
             - self.0[1] * self.0[2].residue_mul();
-        let t1 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.0[2]).residue_mul()
+        let t1 = self.0[2].square().residue_mul()
             - self.0[0] * self.0[1];
-        let t2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.0[1]) - self.0[0] * self.0[2];
+        let t2 = self.0[1].square() - self.0[0] * self.0[2];
 
         let inverse = ((self.0[2] * t1 + self.0[1] * t2).residue_mul() + self.0[0] * t0).inv();
         Self([inverse * t0, inverse * t1, inverse * t2])
@@ -309,23 +304,8 @@ impl FieldExtensionTrait<12, 2> for Fp6 {
     fn quadratic_non_residue() -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::quadratic_non_residue()
     }
-    fn frobenius(&self, exponent: usize) -> Self {
-        <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(self, exponent)
-    }
-    fn sqrt(&self) -> CtOption<Self> {
-        <Fp6 as FieldExtensionTrait<6, 3>>::sqrt(self)
-    }
-    fn square(&self) -> Self {
-        <Fp6 as FieldExtensionTrait<6, 3>>::square(self)
-    }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng)
-    }
-    fn is_square(&self) -> Choice {
-        <Fp6 as FieldExtensionTrait<6, 3>>::is_square(self)
-    }
-    fn sgn0(&self) -> Choice {
-        <Fp6 as FieldExtensionTrait<6, 3>>::sgn0(self)
     }
     fn curve_constant() -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::curve_constant()
@@ -575,41 +555,22 @@ mod tests {
 
             assert_eq!(
                 a,
-                <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
-                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
-                        &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&a, 2),
-                        2
-                    ),
-                    2
-                ),
+                a.frobenius(2).frobenius(2).frobenius(2),
                 "Frobenius failed at cycle order 3"
             );
             assert_eq!(
                 a,
-                <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
-                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&a, 3),
-                    3
-                ),
+                a.frobenius(3).frobenius(3),
                 "Frobenius failed at cycle order 3"
             );
             assert_eq!(
                 a,
-                <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
-                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
-                        &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
-                            &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
-                                &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(
-                                    &<Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&a, 1),
-                                    1
-                                ),
-                                1
-                            ),
-                            1
-                        ),
-                        1
-                    ),
-                    1
-                ),
+                a.frobenius(1).
+                    frobenius(1).
+                    frobenius(1).
+                    frobenius(1).
+                    frobenius(1).
+                    frobenius(1),
                 "Frobenius failed at cycle order 6"
             );
         }

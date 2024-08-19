@@ -33,8 +33,11 @@ fn main() {
     let key_pair = KeyPair::generate();
     let message = b"Hello, World!";
     
-    let signature = sign(&key_pair.secret_key, message).unwrap();
-    assert!(verify(&key_pair.public_key, message, &signature).unwrap());
+    if let Ok(signature) = sign(&key_pair.secret_key, message){
+        if let Ok(verify) = verify(&key_pair.public_key, message, &signature){
+            assert!(verify, "Signature verification failed");
+        }
+    }
 }
 ```
 

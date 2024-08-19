@@ -12,7 +12,9 @@
 //! References
 //! ----------
 //! 1. <https://link.springer.com/chapter/10.1007/11792086_36>
-use crate::fields::fp::FieldExtensionTrait;
+
+use num_traits::{Inv, Zero};
+use crate::fields::fp::Fp;
 use subtle::Choice;
 
 #[derive(Debug)]
@@ -20,27 +22,28 @@ pub enum MapError {
     SvdWError,
 }
 #[derive(Debug)]
-pub struct SvdW<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
-    a: F,
-    b: F,
-    c1: F,
-    c2: F,
-    c3: F,
-    c4: F,
-    z: F,
+pub struct SvdW {
+    a: Fp,
+    b: Fp,
+    c1: Fp,
+    c2: Fp,
+    c3: Fp,
+    c4: Fp,
+    z: Fp,
 }
 
-pub trait SvdWTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>: Sized {
+pub trait SvdWTrait: Sized {
     /// This is the actual struct containing the relevant information. There are a few input
     /// constants, namely the coefficients A and B that define the curve in its short Weierstrass
     /// representation. The constants c1-c4 and Z are determined by the algorithm.
 
-    fn find_z_svdw(a: F, b: F) -> F {
-        let g = |x: &F| -> F { (*x) * (*x) * (*x) + a * (*x) + b };
-        let h = |x: &F| -> F { -(F::from(3) * (*x) * (*x) + F::from(4) * a) / (F::from(4) * g(x)) };
+    fn find_z_svdw(a: Fp, b: Fp) -> Fp {
+        let g = |x: &Fp| -> Fp { (*x) * (*x) * (*x) + a * (*x) + b };
+        let h = |x: &Fp| -> Fp { -(Fp::THREE * (*x) * (*x) + Fp::FOUR * a) / (Fp::FOUR * g(x)
+        ) };
         let mut ctr = 1;
         loop {
-            for z_cand in [F::from(ctr), -F::from(ctr)] {
+            for z_cand in [Fp::from(ctr), -Fp::from(ctr)] {
                 if g(&z_cand).is_zero() {
                     continue;
                 }
@@ -51,7 +54,7 @@ pub trait SvdWTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>
                     continue;
                 }
                 if bool::from(g(&z_cand).is_square())
-                    | bool::from(g(&(-z_cand / F::from(2))).is_square())
+                    | bool::from(g(&(-z_cand / Fp::from(2))).is_square())
                 {
                     return z_cand;
                 }
@@ -60,13 +63,13 @@ pub trait SvdWTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>
         }
     }
 
-    fn precompute_constants(a: F, b: F) -> Result<SvdW<D, N, F>, MapError> {
-        let g = |x: &F| -> F { (*x) * (*x) * (*x) + a * (*x) + b };
+    fn precompute_constants(a: Fp, b: Fp) -> Result<SvdW, MapError> {
+        let g = |x: &Fp| -> Fp { (*x) * (*x) * (*x) + a * (*x) + b };
         let z = Self::find_z_svdw(a, b);
         let mgz = -g(&z);
         let c1 = g(&z);
-        let c2 = -z / F::from(2);
-        let mut c3 = match (-g(&z) * (F::from(3) * z.square() + F::from(4) * a))
+        let c2 = -z / Fp::TWO;
+        let mut c3 = match (-g(&z) * (Fp::THREE * z.square() + Fp::FOUR * a))
             .sqrt()
             .into_option()
         {
@@ -79,7 +82,7 @@ pub trait SvdWTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>
         if c3.sgn0().unwrap_u8() != 0u8 {
             return Err(MapError::SvdWError);
         }
-        let c4 = F::from(4) * mgz / (F::from(3) * z * z + F::from(4) * a);
+        let c4 = Fp::FOUR * mgz / (Fp::THREE * z * z + Fp::FOUR * a);
 
         Ok(SvdW {
             a,
@@ -91,20 +94,19 @@ pub trait SvdWTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>
             z,
         })
     }
-    fn unchecked_map_to_point(&self, u: F) -> Result<[F; 2], MapError>;
+    fn unchecked_map_to_point(&self, u: Fp) -> Result<[Fp; 2], MapError>;
 }
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> SvdWTrait<D, N, F>
-    for SvdW<D, N, F>
+impl SvdWTrait for SvdW
 {
-    fn unchecked_map_to_point(&self, u: F) -> Result<[F; 2], MapError> {
+    fn unchecked_map_to_point(&self, u: Fp) -> Result<[Fp; 2], MapError> {
         // Implements the SvdW algorithm for a single scalar point
-        let cmov = |x: &F, y: &F, b: &Choice| -> F {
-            F::from(!bool::from(*b) as u64) * (*x) + F::from(bool::from(*b) as u64) * (*y)
+        let cmov = |x: &Fp, y: &Fp, b: &Choice| -> Fp {
+            Fp::from(!bool::from(*b) as u64) * (*x) + Fp::from(bool::from(*b) as u64) * (*y)
         };
         let tv1 = u * u;
         let tv1 = tv1 * self.c1;
-        let tv2 = F::from(1) + tv1;
-        let tv1 = F::from(1) - tv1;
+        let tv2 = Fp::from(1) + tv1;
+        let tv1 = Fp::from(1) - tv1;
         let tv3 = tv1 * tv2;
         let tv3 = tv3.inv();
         let tv4 = u * tv1;
@@ -148,7 +150,7 @@ mod tests {
     use super::*;
     mod map_tests {
         use super::*;
-        use crate::fields::fp::Fp;
+        use crate::fields::fp::{FieldExtensionTrait, Fp};
         use crate::hasher::Expander;
         use crypto_bigint::U256;
         use num_traits::One;
@@ -156,7 +158,7 @@ mod tests {
 
         #[test]
         fn test_z_svdw() {
-            let z = SvdW::<1, 1, Fp>::find_z_svdw(Fp::from(0), Fp::from(3));
+            let z = SvdW::find_z_svdw(Fp::ZERO, <Fp as FieldExtensionTrait<1,1>>::curve_constant());
             assert_eq!(z, Fp::ONE, "Finding Z failed for BN254");
         }
         #[test]
@@ -172,7 +174,7 @@ mod tests {
             let c4 = U256::from_be_hex(
                 "10216f7ba065e00de81ac1e7808072c9dd2b2385cd7b438469602eb24829a9bd",
             );
-            let res = match SvdW::<1, 1, Fp>::precompute_constants(Fp::from(0), Fp::from(3)) {
+            let res = match SvdW::precompute_constants(Fp::from(0), Fp::from(3)) {
                 Ok(bn254_svdw) => {
                     println!("{:?}", bn254_svdw.a.value());
                     println!("{:?}", bn254_svdw.b.value());
@@ -203,7 +205,7 @@ mod tests {
                 .hash_to_field(msg, 2, 48)
                 .expect("Conversion failed");
 
-            let res = match SvdW::<1, 1, Fp>::precompute_constants(Fp::from(0), Fp::from(3)) {
+            let res = match SvdW::precompute_constants(Fp::from(0), Fp::from(3)) {
                 Ok(bn254_svdw) => {
                     let _d = scalars
                         .iter()

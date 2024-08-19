@@ -53,6 +53,12 @@ pub const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
 /// that are purely relevant to the task at hand here.
+///
+/// There are two generic elements that describe the particular field extension one generates:
+/// (i) the degree of the extension (what is the highest degree of an element in the ring that is
+/// used to generate the quotient field F(x)/f(x)), D, and (ii) the number of elements
+/// required for a unique representation of an element in the extension, N. An extension can have
+/// many different representations, so it is key to allow this flexibility.
 pub trait FieldExtensionTrait<const D: usize, const N: usize>:
     Sized
     + Copy
@@ -79,22 +85,11 @@ pub trait FieldExtensionTrait<const D: usize, const N: usize>:
     // multiplication in a field extension is dictated
     // heavily such a value below
     fn quadratic_non_residue() -> Self;
-    // this endomorphism is key for twist operations
-    fn frobenius(&self, exponent: usize) -> Self;
-    // specialized algorithms exist in each extension
-    // for sqrt and square, simply helper functions really
-    fn sqrt(&self) -> CtOption<Self>;
-    fn square(&self) -> Self;
 
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
 
-    fn is_square(&self) -> Choice;
-
-    fn sgn0(&self) -> Choice;
-
     fn curve_constant() -> Self;
 }
-#[allow(dead_code)]
 pub trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
 where
@@ -176,48 +171,11 @@ macro_rules! define_finite_prime_field {
                 // = -1
                 Self::new((-Self::ONE).1.retrieve())
             }
-            fn frobenius(&self, _exponent: usize) -> Self {
-                Self::zero()
-            }
-            fn sqrt(&self) -> CtOption<Self> {
-                // This is an instantiation of Shank's algorithm, which solves congruences of
-                // the form $r^2\equiv n \mod p$, namely the sqrt of n. It does not work for
-                // composite moduli (aka nonprime p), since that is the integer factorization
-                // problem. The full algorithm is not necessary here, and has the additional
-                // simpication that we can exploit in our case. Namely, the BN254 curve has a
-                // prime that is congruent to 3 mod 4. In this case, the sqrt only has the
-                // possible solution of $\pm pow(n, \frac{p+1}{4})$, which is where this magic
-                // number below comes from ;)
-                let arg =
-                    ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
-                let sqrt = self.pow(arg);
-                CtOption::new(
-                    sqrt,
-                    <Self as FieldExtensionTrait<$degree, $nreps>>::square(&sqrt).ct_eq(self),
-                )
-            }
-            fn square(&self) -> Self {
-                (*self) * (*self)
-            }
             fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
                 Self::new(<$uint_type>::random_mod(
                     rng,
                     $mod_struct::MODULUS.as_nz_ref(),
                 ))
-            }
-            fn is_square(&self) -> Choice {
-                let p_minus_1_div_2 =
-                    ((Self::new(Self::characteristic()) - Self::from(1)) / Self::from(2)).value();
-                let retval = self.pow(p_minus_1_div_2);
-                Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
-            }
-            fn sgn0(&self) -> Choice {
-                let a = *self % Self::from(2u64);
-                if a.is_zero() {
-                    Choice::from(0u8)
-                } else {
-                    Choice::from(1u8)
-                }
             }
             /// this is the constant of the j-invariant curve defined over this base field.
             /// Namely, the short Weierstrass curve is of the form $y^2 = x^3 + b$, and the below
@@ -440,6 +398,51 @@ impl From<Fr> for Fp {
         Fp::from(&value)
     }
 }
+impl Fp {
+    pub fn frobenius(&self, exponent: usize) -> Self {
+        // this function is inherently expensive, and we never call it on the base field, but if
+        // we did, it's only defined for p=1. Specialized versions exist for all extensions which
+        // will require the frobenius transformation
+        match exponent {
+            1 => self.pow(BN254_FP_MODULUS.value()),
+            _ => *self
+        }
+    }
+    pub fn sqrt(&self) -> CtOption<Self> {
+        // This is an instantiation of Shank's algorithm, which solves congruences of
+        // the form $r^2\equiv n \mod p$, namely the sqrt of n. It does not work for
+        // composite moduli (aka nonprime p), since that is the integer factorization
+        // problem. The full algorithm is not necessary here, and has the additional
+        // simpication that we can exploit in our case. Namely, the BN254 curve has a
+        // prime that is congruent to 3 mod 4. In this case, the sqrt only has the
+        // possible solution of $\pm pow(n, \frac{p+1}{4})$, which is where this magic
+        // number below comes from ;)
+        let arg =
+            ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
+        let sqrt = self.pow(arg);
+        CtOption::new(
+            sqrt,
+            sqrt.square().ct_eq(self),
+        )
+    }
+    pub fn square(&self) -> Self {
+        (*self) * (*self)
+    }
+    pub fn is_square(&self) -> Choice {
+        let p_minus_1_div_2 =
+            ((Self::new(Self::characteristic()) - Self::from(1)) / Self::from(2)).value();
+        let retval = self.pow(p_minus_1_div_2);
+        Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
+    }
+    pub fn sgn0(&self) -> Choice {
+        let a = *self % Self::from(2u64);
+        if a.is_zero() {
+            Choice::from(0u8)
+        } else {
+            Choice::from(1u8)
+        }
+    }
+}
 /// the code below makes the base field "visible" to higher
 /// order extensions. The issue is really the fact that generic
 /// traits cannot enforce arithmetic relations, such as the
@@ -453,24 +456,8 @@ impl FieldExtensionTrait<2, 2> for Fp {
     fn quadratic_non_residue() -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()
     }
-    fn frobenius(&self, exponent: usize) -> Self {
-        <Fp as FieldExtensionTrait<1, 1>>::frobenius(self, exponent)
-    }
-    fn sqrt(&self) -> CtOption<Self> {
-        <Fp as FieldExtensionTrait<1, 1>>::sqrt(self)
-    }
-    fn square(&self) -> Self {
-        <Fp as FieldExtensionTrait<1, 1>>::square(self)
-    }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
-    }
-
-    fn is_square(&self) -> Choice {
-        <Fp as FieldExtensionTrait<1, 1>>::is_square(self)
-    }
-    fn sgn0(&self) -> Choice {
-        <Fp as FieldExtensionTrait<1, 1>>::sgn0(self)
     }
     fn curve_constant() -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::curve_constant()
@@ -933,9 +920,9 @@ mod tests {
         fn test_square() {
             for _ in 0..100 {
                 let a = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng);
-                let b = <Fp as FieldExtensionTrait<1, 1>>::square(&a);
+                let b = a.square();
                 assert!(
-                    bool::from(<Fp as FieldExtensionTrait<1, 1>>::is_square(&b)),
+                    bool::from(b.is_square()),
                     "Is square failed"
                 );
             }
@@ -944,7 +931,7 @@ mod tests {
         fn test_sqrt() {
             for i in 0..100 {
                 let a = create_field([i, 2 * i, 3 * i, 4 * i]);
-                let b = <Fp as FieldExtensionTrait<1, 1>>::sqrt(&a);
+                let b = a.sqrt();
                 match b.into_option() {
                     Some(d) => {
                         assert_eq!(d * d, a, "Sqrt failed")

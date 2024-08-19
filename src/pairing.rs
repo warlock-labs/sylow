@@ -88,9 +88,9 @@ impl MillerLoopResult {
         #[must_use]
         fn fp4_square(a: Fp2, b: Fp2) -> (Fp2, Fp2) {
             // Line 1
-            let t0 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&a);
+            let t0 = a.square();
             // Line 2
-            let t1 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&b);
+            let t1 = b.square();
             // Line 3
             let c0 = t1.residue_mul();
             // Line 4
@@ -98,7 +98,7 @@ impl MillerLoopResult {
             // Line 5
             let c1 = a + b;
             // Line 6
-            let c1 = <Fp2 as FieldExtensionTrait<2, 2>>::square(&c1) - t0 - t1;
+            let c1 = c1.square() - t0 - t1;
             (c0, c1)
         }
         /// This implements efficient squaring of an element of Fp12 in the cyclotomic subgroup
@@ -307,8 +307,8 @@ impl G2Projective {
     fn addition_step(&mut self, base: &G2Affine) -> Ell {
         let d = self.x - self.z * base.x;
         let e = self.y - self.z * base.y;
-        let f = <Fp2 as FieldExtensionTrait<2, 2>>::square(&d);
-        let g = <Fp2 as FieldExtensionTrait<2, 2>>::square(&e);
+        let f = d.square();
+        let g = e.square();
         let h = d * f;
         let i = self.x * f;
         let j = self.z * g + h - (i + i);
@@ -325,19 +325,19 @@ impl G2Projective {
     }
     fn doubling_step(&mut self) -> Ell {
         let a = (self.x * self.y).scale(TWO_INV);
-        let b = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.y);
-        let c = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.z);
+        let b = self.y.square();
+        let c = self.z.square();
         let d = c + c + c;
         let e = <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant() * d;
         let f = e + e + e;
         let g = (b + f).scale(TWO_INV);
-        let h = <Fp2 as FieldExtensionTrait<2, 2>>::square(&(self.y + self.z)) - (b + c);
+        let h = (self.y + self.z).square() - (b + c);
         let i = e - b;
-        let j = <Fp2 as FieldExtensionTrait<2, 2>>::square(&self.x);
-        let e_sq = <Fp2 as FieldExtensionTrait<2, 2>>::square(&e);
+        let j =self.x.square();
+        let e_sq = e.square();
 
         self.x = a * (b - f);
-        self.y = <Fp2 as FieldExtensionTrait<2, 2>>::square(&g) - (e_sq + e_sq + e_sq);
+        self.y = g.square() - (e_sq + e_sq + e_sq);
         self.z = b * h;
 
         Ell(

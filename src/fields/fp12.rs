@@ -17,7 +17,7 @@ use crate::fields::fp6::Fp6;
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
-use subtle::{Choice, CtOption};
+use subtle::Choice;
 const FROBENIUS_COEFF_FP12_C1: &[Fp2; 12] = &[
     // Fp2::quadratic_non_residue().pow( ( p^0 - 1) / 6)
     Fp2::new(&[Fp::ONE, Fp::ZERO]),
@@ -182,38 +182,11 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
         // Self::new(&[Fp6::zero(), Fp6::one()])
         FP12_QUADRATIC_NON_RESIDUE
     }
-    fn frobenius(&self, exponent: usize) -> Self {
-        Self::new(&[
-            <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&self.0[0], exponent),
-            <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&self.0[1], exponent)
-                .scale(FROBENIUS_COEFF_FP12_C1[exponent % 12]),
-        ])
-    }
-    fn sqrt(&self) -> CtOption<Self> {
-        unimplemented!()
-    }
-    fn square(&self) -> Self {
-        // alg 22 from https://eprint.iacr.org/2010/354.pdf
-        let c0 = self.0[0] - self.0[1];
-        let c3 = self.0[0] - self.0[1].residue_mul();
-        let c2 = self.0[0] * self.0[1];
-        let c0 = c0 * c3 + c2;
-        let c1 = c2 + c2;
-        let c2 = c2.residue_mul();
-        let c0 = c0 + c2;
-        Self::new(&[c0, c1])
-    }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self([
             <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng),
             <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng),
         ])
-    }
-    fn is_square(&self) -> Choice {
-        unimplemented!()
-    }
-    fn sgn0(&self) -> Choice {
-        unimplemented!()
     }
     fn curve_constant() -> Self {
         unimplemented!()
@@ -242,8 +215,8 @@ impl MulAssign for Fp12 {
 impl Inv for Fp12 {
     type Output = Self;
     fn inv(self) -> Self::Output {
-        let tmp = (<Fp6 as FieldExtensionTrait<6, 3>>::square(&self.0[0])
-            - (<Fp6 as FieldExtensionTrait<6, 3>>::square(&self.0[1]).residue_mul()))
+        let tmp = (self.0[0].square()
+            - (self.0[1].square().residue_mul()))
         .inv();
         Self([self.0[0] * tmp, -(self.0[1] * tmp)])
     }
@@ -384,6 +357,24 @@ impl Fp12 {
         let z5 = t3;
 
         Fp12::new(&[Fp6::new(&[z0, z1, z2]), Fp6::new(&[z3, z4, z5])])
+    }
+    pub fn frobenius(&self, exponent: usize) -> Self {
+        Self::new(&[
+            self.0[0].frobenius(exponent),
+            self.0[1].frobenius(exponent)
+                .scale(FROBENIUS_COEFF_FP12_C1[exponent % 12]),
+        ])
+    }
+    pub fn square(&self) -> Self {
+        // alg 22 from https://eprint.iacr.org/2010/354.pdf
+        let c0 = self.0[0] - self.0[1];
+        let c3 = self.0[0] - self.0[1].residue_mul();
+        let c2 = self.0[0] * self.0[1];
+        let c0 = c0 * c3 + c2;
+        let c1 = c2 + c2;
+        let c2 = c2.residue_mul();
+        let c0 = c0 + c2;
+        Self::new(&[c0, c1])
     }
 }
 #[cfg(test)]

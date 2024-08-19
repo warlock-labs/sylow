@@ -58,7 +58,7 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
     fn frobenius(&self, exponent: usize) -> Self {
         let vec: Vec<Fp> = [self.x, self.y]
             .iter()
-            .map(|x| <Fp as FieldExtensionTrait<1, 1>>::frobenius(x, exponent))
+            .map(|x| x.frobenius(exponent))
             .collect();
         Self {
             x: vec[0],
@@ -73,8 +73,8 @@ impl G1Affine {
     /// is only visible in tests, and therefore is seen by the linter as unused
     pub fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
         let _g1affine_is_on_curve = |x: &Fp, y: &Fp, z: &Choice| -> Choice {
-            let y2 = <Fp as FieldExtensionTrait<1, 1>>::square(y);
-            let x2 = <Fp as FieldExtensionTrait<1, 1>>::square(x);
+            let y2 = y.square();
+            let x2 = x.square();
             let lhs = y2 - (x2 * (*x));
             let rhs = <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
             lhs.ct_eq(&rhs) | *z
@@ -118,7 +118,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
         let scalars = exp
             .hash_to_field(msg, COUNT, L)
             .expect("Hashing to base field failed");
-        match SvdW::<1, 1, Fp>::precompute_constants(Fp::from(0), Fp::from(3)) {
+        match SvdW::precompute_constants(Fp::from(0), Fp::from(3)) {
             Ok(bn254_g1_svdw) => {
                 let a = G1Projective::from(
                     bn254_g1_svdw
@@ -148,7 +148,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
     fn frobenius(&self, exponent: usize) -> Self {
         let vec: Vec<Fp> = [self.x, self.y, self.z]
             .iter()
-            .map(|x| <Fp as FieldExtensionTrait<1, 1>>::frobenius(x, exponent))
+            .map(|x| x.frobenius(exponent))
             .collect();
         Self {
             x: vec[0],
@@ -160,9 +160,9 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
 impl G1Projective {
     pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let _g1projective_is_on_curve = |x: &Fp, y: &Fp, z: &Fp| -> Choice {
-            let y2 = <Fp as FieldExtensionTrait<1, 1>>::square(y);
-            let x2 = <Fp as FieldExtensionTrait<1, 1>>::square(x);
-            let z2 = <Fp as FieldExtensionTrait<1, 1>>::square(z);
+            let y2 = y.square();
+            let x2 = x.square();
+            let z2 = z.square();
             let lhs = y2 * (*z);
             let rhs = x2 * (*x) + z2 * (*z) * <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
             lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)

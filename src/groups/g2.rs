@@ -136,8 +136,8 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
         if self.is_zero() {
             return *self;
         }
-        let x_frob = <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.x, 1);
-        let y_frob = <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.y, 1);
+        let x_frob = self.x.frobenius(1);
+        let y_frob = self.y.frobenius(1);
 
         let x_endo = EPS_EXP0 * x_frob;
         let y_endo = EPS_EXP1 * y_frob;
@@ -167,7 +167,7 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
     fn frobenius(&self, exponent: usize) -> Self {
         let vec: Vec<Fp2> = [self.x, self.y]
             .iter()
-            .map(|x| <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(x, exponent))
+            .map(|x| x.frobenius(exponent))
             .collect();
         Self {
             x: vec[0],
@@ -220,7 +220,7 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     fn frobenius(&self, exponent: usize) -> Self {
         let vec: Vec<Fp2> = [self.x, self.y, self.z]
             .iter()
-            .map(|x| <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(x, exponent))
+            .map(|x| x.frobenius(exponent))
             .collect();
         Self {
             x: vec[0],
@@ -238,8 +238,8 @@ impl G2Affine {
     /// DON'T USE THIS METHOD UNLESS YOU KNOW WHAT YOU'RE DOING
     fn new_unchecked(v: [Fp2; 2]) -> Result<Self, GroupError> {
         let _g2affine_is_on_curve = |x: &Fp2, y: &Fp2, z: &Choice| -> Choice {
-            let y2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(y);
-            let x2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(x);
+            let y2 = y.square();
+            let x2 = x.square();
             let lhs = y2 - (x2 * (*x));
             let rhs = <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
             lhs.ct_eq(&rhs) | *z
@@ -262,9 +262,9 @@ impl G2Projective {
     /// Values returned from this function are guaranteed to be on the curve and in the r-torsion.
     pub fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
         let _g2projective_is_on_curve = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
-            let y2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(y);
-            let x2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(x);
-            let z2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(z);
+            let y2 = y.square();
+            let x2 = x.square();
+            let z2 = z.square();
             let lhs = y2 * (*z);
             let rhs = x2 * (*x) + z2 * (*z) * <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
             lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
