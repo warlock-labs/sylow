@@ -8,7 +8,7 @@ use crate::fields::fp2::Fp2;
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
-use subtle::{Choice, CtOption};
+use subtle::Choice;
 
 // the following values are a bit difficult to compute. The reason
 // is that they involve operations up to p^11, which occupy a U4096
@@ -171,13 +171,13 @@ const FP6_QUADRATIC_NON_RESIDUE: Fp6 = Fp6::new(&[
     Fp2::new(&[Fp::ZERO, Fp::ZERO]),
 ]);
 
-pub type Fp6 = FieldExtension<6, 3, Fp2>;
+pub(crate) type Fp6 = FieldExtension<6, 3, Fp2>;
 
 impl Fp6 {
-    pub fn residue_mul(&self) -> Self {
+    pub(crate) fn residue_mul(&self) -> Self {
         Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
     }
-    pub fn frobenius(&self, exponent: usize) -> Self {
+    pub(crate) fn frobenius(&self, exponent: usize) -> Self {
         Self::new(&[
             self.0[0].frobenius(exponent),
             self.0[1].frobenius(exponent) * FROBENIUS_COEFF_FP6_C1[exponent % 6],
@@ -185,15 +185,11 @@ impl Fp6 {
         ])
     }
 
-    pub fn sqrt(&self) -> CtOption<Self> {
-        unimplemented!()
-    }
-
     // this is simply the same as the multiplication below
     // however, there are some simple algebraic reductions
     // you can do with squaring. this just implements that,
     // but functionally it is the same as the `Mul` trait below
-    pub fn square(&self) -> Self {
+    pub(crate) fn square(&self) -> Self {
         let t0 = self.0[0].square();
         let cross = self.0[0] * self.0[1];
         let t1 = cross + cross;

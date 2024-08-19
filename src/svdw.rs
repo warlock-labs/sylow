@@ -18,11 +18,11 @@ use num_traits::{Inv, Zero};
 use subtle::Choice;
 
 #[derive(Debug)]
-pub enum MapError {
+pub(crate) enum MapError {
     SvdWError,
 }
 #[derive(Debug)]
-pub struct SvdW {
+pub(crate) struct SvdW {
     a: Fp,
     b: Fp,
     c1: Fp,
@@ -32,7 +32,7 @@ pub struct SvdW {
     z: Fp,
 }
 
-pub trait SvdWTrait: Sized {
+pub(crate) trait SvdWTrait: Sized {
     /// This is the actual struct containing the relevant information. There are a few input
     /// constants, namely the coefficients A and B that define the curve in its short Weierstrass
     /// representation. The constants c1-c4 and Z are determined by the algorithm.

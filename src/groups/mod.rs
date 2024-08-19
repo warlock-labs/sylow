@@ -1,7 +1,7 @@
-pub mod g1;
-pub mod g2;
-pub mod group;
-pub mod gt;
+pub(crate) mod g1;
+pub(crate) mod g2;
+pub(crate) mod group;
+pub(crate) mod gt;
 
 /// This test suite takes time, the biggest culprit of which is the multiplication. Really the
 /// biggest bottleneck is assuredly the loading of the reference data from disk. The

@@ -23,7 +23,7 @@ const ATE_LOOP_COUNT_NAF: [i8; 64] = [
     1, 0, 0, 0,
 ];
 #[derive(Copy, Clone, Debug)]
-pub struct MillerLoopResult(pub Fp12);
+pub(crate) struct MillerLoopResult(pub(crate) Fp12);
 impl Default for MillerLoopResult {
     fn default() -> Self {
         MillerLoopResult(Fp12::one())
@@ -71,10 +71,10 @@ impl<'b> MulAssign<&'b MillerLoopResult> for MillerLoopResult {
 /// zero, which is not ideal. We therefore only keep the 3 nonzero coefficients returned by these
 /// evaluations. These nonzero coeffs are stored in the struct below.
 #[derive(PartialEq, Default, Clone, Copy)]
-pub struct Ell(Fp2, Fp2, Fp2);
+pub(crate) struct Ell(Fp2, Fp2, Fp2);
 
 impl MillerLoopResult {
-    pub fn final_exponentiation(&self) -> Gt {
+    pub(crate) fn final_exponentiation(&self) -> Gt {
         /// As part of the cyclotomic acceleration of the final exponentiation step, there is a
         /// shortcut to take when using multiplication in Fp4. We built the tower of extensions using
         /// degrees 2, 6, and 12, but there is an additional way to write Fp12:
@@ -142,7 +142,7 @@ impl MillerLoopResult {
         /// This is a simple double and add algorithm for exponentiation. You can get more
         /// complicated algorithms if you go to a compressed representation, such as Algorithm
         /// 5.5.4, listing 27
-        pub fn cyclotomic_exp(f: Fp12, exponent: &Fp) -> Fp12 {
+        pub(crate) fn cyclotomic_exp(f: Fp12, exponent: &Fp) -> Fp12 {
             let bits = exponent.value().to_words();
             let mut res = Fp12::one();
             for e in bits.iter().rev() {
@@ -157,7 +157,7 @@ impl MillerLoopResult {
         }
         /// This is a helper function to determine f^z, where $z$ is the generator of this
         /// particular member of the BN family
-        pub fn exp_by_neg_z(f: Fp12) -> Fp12 {
+        pub(crate) fn exp_by_neg_z(f: Fp12) -> Fp12 {
             cyclotomic_exp(f, &BLS_X).unitary_inverse()
         }
         /// The below is the easy part of the final exponentiation step, corresponding to Lines
@@ -227,12 +227,12 @@ impl MillerLoopResult {
 /// digits, each also with an addition step. After the loop, there are 2 more addition steps, so
 /// the total number of coefficients we need to store is 64+9+12+2 = 87.
 #[derive(PartialEq)]
-pub struct G2PreComputed {
-    pub q: G2Affine,
-    pub coeffs: [Ell; 87],
+pub(crate) struct G2PreComputed {
+    pub(crate) q: G2Affine,
+    pub(crate) coeffs: [Ell; 87],
 }
 impl G2PreComputed {
-    pub fn miller_loop(&self, g1: &G1Affine) -> MillerLoopResult {
+    pub(crate) fn miller_loop(&self, g1: &G1Affine) -> MillerLoopResult {
         let mut f = Fp12::one();
 
         let mut idx = 0;
@@ -348,7 +348,7 @@ impl G2Projective {
         )
     }
 }
-pub fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
+pub(crate) fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
     let p = &G1Affine::from(p);
     let q = &G2Affine::from(q);
     let either_zero = Choice::from((p.is_zero() | q.is_zero()) as u8);
@@ -359,7 +359,10 @@ pub fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
     tmp.final_exponentiation()
 }
 
-pub fn glued_miller_loop(g2_precomps: &[G2PreComputed], g1s: &[G1Affine]) -> MillerLoopResult {
+pub(crate) fn glued_miller_loop(
+    g2_precomps: &[G2PreComputed],
+    g1s: &[G1Affine],
+) -> MillerLoopResult {
     let mut f = Fp12::one();
     let mut idx = 0;
     for i in ATE_LOOP_COUNT_NAF.iter() {
@@ -390,7 +393,7 @@ pub fn glued_miller_loop(g2_precomps: &[G2PreComputed], g1s: &[G1Affine]) -> Mil
     MillerLoopResult(f)
 }
 #[allow(dead_code)]
-pub fn glued_pairing(g1s: &[G1Projective], g2s: &[G2Projective]) -> Gt {
+pub(crate) fn glued_pairing(g1s: &[G1Projective], g2s: &[G2Projective]) -> Gt {
     let g1s = g1s.iter().map(G1Affine::from).collect::<Vec<G1Affine>>();
     let g2s = g2s.iter().map(G2Affine::from).collect::<Vec<G2Affine>>();
     let g2_precomps = g2s

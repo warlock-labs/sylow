@@ -9,7 +9,7 @@ use sha3::digest::crypto_common::BlockSizeUser;
 use sha3::digest::{ExtendableOutput, FixedOutput};
 use std::array::TryFromSliceError;
 #[derive(Debug)]
-pub enum HashError {
+pub(crate) enum HashError {
     CastToField,
     ExpandMessage,
     ConvertInt,
@@ -22,7 +22,7 @@ fn i2osp(val: u64, length: usize) -> Result<Vec<u8>, HashError> {
     }
     Ok(val.to_be_bytes()[8 - length..].to_vec())
 }
-pub trait Expander {
+pub(crate) trait Expander {
     const OVERSIZE_DST_PREFIX: &'static [u8] = b"H2C-OVERSIZE-DST-";
 
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError>;
@@ -54,7 +54,7 @@ pub trait Expander {
     }
 }
 
-pub struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
+pub(crate) struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
     /// This implements the XMD function, which produces a uniformly random
     /// byte string using a hash function that outputs b bits.
     /// Usage of this function is recommended only with Sha2 and Sha3 hashes.
@@ -65,7 +65,7 @@ pub struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
 }
 
 impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
-    pub fn new(dst: &[u8], security_param: u64) -> Self {
+    pub(crate) fn new(dst: &[u8], security_param: u64) -> Self {
         let dst_prime = if dst.len() > 255 {
             let mut hasher = D::default();
             hasher.update(Self::OVERSIZE_DST_PREFIX);
