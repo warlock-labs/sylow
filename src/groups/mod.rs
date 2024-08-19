@@ -19,19 +19,19 @@ pub(crate) mod gt;
 mod tests {
     #[allow(unused_imports)]
     use std::{fs, path::Path};
-
+    use lazy_static::lazy_static;
     use serde::{Deserialize, Serialize};
 
     use crate::fields::fp::{FieldExtensionTrait, Fp};
     use crate::fields::fp2::Fp2;
     use crate::groups::g1::{G1Affine, G1Projective};
     use crate::groups::g2::G2Projective;
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, Clone)]
     struct _G2Coords {
         c0: String,
         c1: String,
     }
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, Clone)]
     struct _G2Projective {
         x: _G2Coords,
         y: _G2Coords,
@@ -161,107 +161,32 @@ mod tests {
     }
     const FNAME: &str = "./src/sage_reference/bn254_reference.json";
 
-    /// Loading from disk is not a const operation (so we therefore cannot just run this code
-    /// once in the beginning of the `tests` module definition), so we roll the loading
-    /// and processing into a macro so that it can be performed at the beginning of each test as
-    /// needed.
-    ///
-    macro_rules! load_reference_data_from_disk {
-        ($wrapper_name:ident) => {
+    lazy_static! {
+        static ref REFERENCE_DATA: ReferenceData = {
             let path = Path::new(FNAME);
             let file_content = fs::read_to_string(path).expect("Failed to read file");
-            let $wrapper_name: ReferenceData =
-                serde_json::from_str(&file_content).expect("Failed to parse JSON");
+            serde_json::from_str(&file_content).expect("Failed to parse JSON")
         };
-    }
-    macro_rules! load_g1_reference_data {
-        ($g1_wrapper_name:ident) => {
-            load_reference_data_from_disk!(reference_data);
-            let $g1_wrapper_name: G1ReferenceData = G1ReferenceData {
-                a: reference_data
-                    .g1
-                    .a
-                    .iter()
-                    .map(convert_to_g1projective)
-                    .collect(),
-                b: reference_data
-                    .g1
-                    .b
-                    .iter()
-                    .map(convert_to_g1projective)
-                    .collect(),
-                r: reference_data.g1.r.iter().map(convert_to_fp).collect(),
-                add: reference_data
-                    .g1
-                    .add
-                    .iter()
-                    .map(convert_to_g1projective)
-                    .collect(),
-                dbl: reference_data
-                    .g1
-                    .dbl
-                    .iter()
-                    .map(convert_to_g1projective)
-                    .collect(),
-                mul: reference_data
-                    .g1
-                    .mul
-                    .iter()
-                    .map(convert_to_g1projective)
-                    .collect(),
-                svdw: reference_data
-                    .g1
-                    .svdw
-                    .iter()
-                    .map(convert_to_g1svdw)
-                    .collect(),
-            };
+        static ref G1_REFERENCE_DATA: G1ReferenceData = G1ReferenceData {
+            a: REFERENCE_DATA.g1.a.iter().map(convert_to_g1projective).collect(),
+            b: REFERENCE_DATA.g1.b.iter().map(convert_to_g1projective).collect(),
+            r: REFERENCE_DATA.g1.r.iter().map(convert_to_fp).collect(),
+            add: REFERENCE_DATA.g1.add.iter().map(convert_to_g1projective).collect(),
+            dbl: REFERENCE_DATA.g1.dbl.iter().map(convert_to_g1projective).collect(),
+            mul: REFERENCE_DATA.g1.mul.iter().map(convert_to_g1projective).collect(),
+            svdw: REFERENCE_DATA.g1.svdw.iter().map(convert_to_g1svdw).collect(),
         };
-    }
-    macro_rules! load_g2_reference_data {
-        ($g2_wrapper_name:ident, $g2_invalids:ident) => {
-            load_reference_data_from_disk!(reference_data);
-            let $g2_wrapper_name: G2ReferenceData = G2ReferenceData {
-                a: reference_data
-                    .g2
-                    .a
-                    .iter()
-                    .map(convert_to_g2projective)
-                    .collect(),
-                b: reference_data
-                    .g2
-                    .b
-                    .iter()
-                    .map(convert_to_g2projective)
-                    .collect(),
-                r: reference_data.g2.r.iter().map(convert_to_fp).collect(),
-                add: reference_data
-                    .g2
-                    .add
-                    .iter()
-                    .map(convert_to_g2projective)
-                    .collect(),
-                dbl: reference_data
-                    .g2
-                    .dbl
-                    .iter()
-                    .map(convert_to_g2projective)
-                    .collect(),
-                mul: reference_data
-                    .g2
-                    .mul
-                    .iter()
-                    .map(convert_to_g2projective)
-                    .collect(),
-                psi: reference_data
-                    .g2
-                    .psi
-                    .iter()
-                    .map(convert_to_g2projective)
-                    .collect(),
-            };
-            let $g2_invalids = reference_data.g2.invalid;
+        static ref G2_REFERENCE_DATA: G2ReferenceData = G2ReferenceData {
+            a: REFERENCE_DATA.g2.a.iter().map(convert_to_g2projective).collect(),
+            b: REFERENCE_DATA.g2.b.iter().map(convert_to_g2projective).collect(),
+            r: REFERENCE_DATA.g2.r.iter().map(convert_to_fp).collect(),
+            add: REFERENCE_DATA.g2.add.iter().map(convert_to_g2projective).collect(),
+            dbl: REFERENCE_DATA.g2.dbl.iter().map(convert_to_g2projective).collect(),
+            mul: REFERENCE_DATA.g2.mul.iter().map(convert_to_g2projective).collect(),
+            psi: REFERENCE_DATA.g2.psi.iter().map(convert_to_g2projective).collect(),
         };
+        static ref G2_INVALIDS: Vec<_G2Projective> = REFERENCE_DATA.g2.invalid.iter().map(|x| (*x)
+            .clone()).collect();
     }
 
     mod g1 {
@@ -271,12 +196,12 @@ mod tests {
 
             #[test]
             fn test_generation_and_conversion() {
-                load_g1_reference_data!(_g1_points);
+                let _g1_points = &*G1_REFERENCE_DATA;
             }
             #[test]
             #[should_panic(expected = "Conversion to projective failed: NotOnCurve")]
             fn test_malformed_points() {
-                load_g1_reference_data!(g1_points);
+                let g1_points = &*G1_REFERENCE_DATA;
                 for a in &g1_points.a {
                     let mut x = a.x;
                     let y = a.y;
@@ -323,7 +248,7 @@ mod tests {
 
             #[test]
             fn test_addition_closure() {
-                load_g1_reference_data!(g1_points);
+                let g1_points = &*G1_REFERENCE_DATA;
                 for i in &g1_points.a[1..] {
                     let _ = i + &g1_points.a[0];
                 }
@@ -331,7 +256,7 @@ mod tests {
 
             #[test]
             fn test_addition_associativity_commutativity() {
-                load_g1_reference_data!(g1_points);
+                let g1_points = &*G1_REFERENCE_DATA;
                 if let [a, b, c] = &g1_points.a[0..3] {
                     assert_eq!(&(a + b) + c, a + &(b + c), "Addition is not associative");
                     assert_eq!(a + b, b + a, "Addition is not commutative");
@@ -339,8 +264,8 @@ mod tests {
             }
             #[test]
             fn test_addition_cases() {
-                load_g1_reference_data!(g1_points);
-                let expected = g1_points.add;
+                let g1_points = &*G1_REFERENCE_DATA;
+                let expected = &g1_points.add;
                 for (i, (a, b)) in g1_points.a.iter().zip(&g1_points.b).enumerate() {
                     let result = a + b;
                     assert_eq!(result, expected[i], "Simple addition failed");
@@ -361,7 +286,7 @@ mod tests {
             // successful addition test case run, to verify the accuracy of subtraction
             #[test]
             fn test_subtraction_closure() {
-                load_g1_reference_data!(g1_points);
+                let g1_points = &*G1_REFERENCE_DATA;
                 let a = &g1_points.a[0];
                 for i in &g1_points.a {
                     let _ = i - a;
@@ -371,7 +296,7 @@ mod tests {
             }
             #[test]
             fn test_subtraction_associativity() {
-                load_g1_reference_data!(g1_points);
+                let g1_points = &*G1_REFERENCE_DATA;
                 if let [a, b, c] = &g1_points.a[0..3] {
                     assert_eq!(a - &(b - c), &(a - b) + c, "Subtraction is not associative");
                 }
@@ -384,7 +309,7 @@ mod tests {
 
             #[test]
             fn test_doubling() {
-                load_g1_reference_data!(g1_points);
+                let g1_points = &*G1_REFERENCE_DATA;
                 for i in &g1_points.a {
                     assert_eq!(i.double(), i + i, "Doubling failed");
                 }
@@ -392,7 +317,7 @@ mod tests {
 
             #[test]
             fn test_scalar_mul() {
-                load_g1_reference_data!(g1_points);
+                let g1_points = &*G1_REFERENCE_DATA;
                 let three = Fp::from(3);
                 for i in &g1_points.a {
                     assert_eq!(i + &(i + i), i * &three, "Multiplication failed");
@@ -408,13 +333,13 @@ mod tests {
             }
             #[test]
             fn test_multiplication_cases() {
-                load_g1_reference_data!(g1_points);
-                let expected = g1_points.mul;
+                let g1_points = &*G1_REFERENCE_DATA;
+                let expected = &g1_points.mul;
                 for (i, (a, r)) in g1_points.a.iter().zip(&g1_points.r).enumerate() {
                     let result = a * r;
                     assert_eq!(result, expected[i], "Simple multiplication failed");
                 }
-                let expected = g1_points.dbl;
+                let expected = &g1_points.dbl;
                 for (i, a) in g1_points.a.iter().enumerate() {
                     let result = a.double();
                     assert_eq!(result, expected[i], "Simple doubling failed");
@@ -460,7 +385,7 @@ mod tests {
 
             #[test]
             fn test_svdw() {
-                load_g1_reference_data!(g1_points);
+                let g1_points = &*G1_REFERENCE_DATA;
 
                 if let Ok(d) = SvdW::precompute_constants(
                     Fp::ZERO,
@@ -486,19 +411,20 @@ mod tests {
 
             #[test]
             fn test_generation_and_conversion() {
-                load_g2_reference_data!(_g2_points, _g2_invalids);
+                let _g2_points = &*G2_REFERENCE_DATA;
             }
             #[test]
             #[should_panic(expected = "g2 failed: NotInSubgroup")]
             fn invalid_subgroup_check() {
-                load_g2_reference_data!(_g2_points, g2_invalids);
+                let _g2_points = &*G2_REFERENCE_DATA;
+                let g2_invalids = &*G2_INVALIDS;
                 let _p: Vec<G2Projective> =
                     g2_invalids.iter().map(convert_to_g2projective).collect();
             }
             #[test]
             #[should_panic(expected = "Endomorphism failed: NotOnCurve")]
             fn test_malformed_points() {
-                load_g2_reference_data!(g2_points, _g2_invalids);
+                let g2_points = &*G2_REFERENCE_DATA;
                 for a in &g2_points.a {
                     let mut x = a.x;
                     let y = a.y;
@@ -547,7 +473,7 @@ mod tests {
 
             #[test]
             fn test_addition_closure() {
-                load_g2_reference_data!(g2_points, _g2_invalids);
+                let g2_points = &*G2_REFERENCE_DATA;
                 for i in &g2_points.a[1..] {
                     let _ = i + &g2_points.a[0];
                 }
@@ -555,7 +481,7 @@ mod tests {
 
             #[test]
             fn test_addition_associativity_commutativity() {
-                load_g2_reference_data!(g2_points, _g2_invalids);
+                let g2_points = &*G2_REFERENCE_DATA;
                 if let [a, b, c] = &g2_points.a[0..3] {
                     assert_eq!(&(a + b) + c, a + &(b + c), "Addition is not associative");
                     assert_eq!(a + b, b + a, "Addition is not commutative");
@@ -563,8 +489,8 @@ mod tests {
             }
             #[test]
             fn test_addition_cases() {
-                load_g2_reference_data!(g2_points, _g2_invalids);
-                let expected = g2_points.add;
+                let g2_points = &*G2_REFERENCE_DATA;
+                let expected = &g2_points.add;
                 for (i, (a, b)) in g2_points.a.iter().zip(&g2_points.b).enumerate() {
                     let result = a + b;
                     assert_eq!(result, expected[i], "Simple addition failed");
@@ -572,7 +498,7 @@ mod tests {
             }
             #[test]
             fn test_addition_edge_cases() {
-                load_g2_reference_data!(g2_points, _g2_invalids);
+                let g2_points = &*G2_REFERENCE_DATA;
                 let zero = &G2Projective::zero();
                 assert_eq!(zero + &g2_points.a[0], g2_points.a[0], "Adding zero failed");
             }
@@ -581,7 +507,7 @@ mod tests {
             use super::*;
             #[test]
             fn test_subtraction_closure() {
-                load_g2_reference_data!(g2_points, _g2_invalids);
+                let g2_points = &*G2_REFERENCE_DATA;
                 let a = &g2_points.a[0];
                 for i in &g2_points.a {
                     let _ = i - a;
@@ -591,7 +517,7 @@ mod tests {
             }
             #[test]
             fn test_subtraction_associativity() {
-                load_g2_reference_data!(g2_points, _g2_invalids);
+                let g2_points = &*G2_REFERENCE_DATA;
                 if let [a, b, c] = &g2_points.a[0..3] {
                     assert_eq!(a - &(b - c), &(a - b) + c, "Subtraction is not associative");
                 }
@@ -603,7 +529,7 @@ mod tests {
 
             #[test]
             fn test_doubling() {
-                load_g2_reference_data!(g2_points, _g2_invalids);
+                let g2_points = &*G2_REFERENCE_DATA;
                 for i in &g2_points.a {
                     assert_eq!(i.double(), i + i, "Doubling failed");
                 }
@@ -611,7 +537,7 @@ mod tests {
 
             #[test]
             fn test_scalar_mul() {
-                load_g2_reference_data!(g2_points, _g2_invalids);
+                let g2_points = &*G2_REFERENCE_DATA;
                 let three = Fp::from(3);
                 for i in &g2_points.a {
                     assert_eq!(i + &(i + i), i * &three, "Multiplication failed");
@@ -619,13 +545,13 @@ mod tests {
             }
             #[test]
             fn test_multiplication_cases() {
-                load_g2_reference_data!(g2_points, _g2_invalids);
-                let expected = g2_points.mul;
+                let g2_points = &*G2_REFERENCE_DATA;
+                let expected = &g2_points.mul;
                 for (i, (a, r)) in g2_points.a.iter().zip(&g2_points.r).enumerate() {
                     let result = a * r;
                     assert_eq!(result, expected[i], "Simple multiplication failed");
                 }
-                let expected = g2_points.dbl;
+                let expected = &g2_points.dbl;
                 for (i, a) in g2_points.a.iter().enumerate() {
                     let result = a.double();
                     assert_eq!(result, expected[i], "Simple doubling failed");
@@ -645,8 +571,8 @@ mod tests {
 
             #[test]
             fn test_psi() {
-                load_g2_reference_data!(g2_points, _g2_invalids);
-                let expected = g2_points.psi;
+                let g2_points = &*G2_REFERENCE_DATA;
+                let expected = &g2_points.psi;
                 for (i, a) in g2_points.a.iter().enumerate() {
                     let result = a.endomorphism();
                     assert_eq!(result, expected[i], "Endomorphic mapping failed");
