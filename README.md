@@ -1,16 +1,16 @@
-# sylow
+![Logo](./sylow.png)
 
 [![License](https://img.shields.io/crates/l/sylow)](https://choosealicense.com/licenses/mit/)
 [![Crates.io](https://img.shields.io/crates/v/sylow)](https://crates.io/crates/sylow)
 [![Docs](https://img.shields.io/crates/v/sylow?color=blue&label=docs)](https://docs.rs/sylow/)
 ![CI](https://github.com/warlock-labs/sylow/actions/workflows/CI.yml/badge.svg)
 
-sylow is a Rust library implementing the BLS (Boneh-Lynn-Shacham) signature scheme using the alt-bn128 (BN254) elliptic curve. It provides threshold signing capabilities and associated utilities, initially developed for use in the Warlock Chaos product.
+Sylow (*[ˈsyːlɔv]*) is a Rust library providing functionality for signature generation and verification using 
+the alt-bn128 (BN 254) elliptic curve, initially developed for use in the Warlock Chaos product. It provides a 
+general finite field implementation, and extends it for usage into groups on the relevant elliptic curves of alt-bn128.
 
 ## Features
 
-- Implementation of BLS signatures on the alt-bn128 (BN254) curve
-- Support for threshold signatures
 - Efficient pairing operations leveraging the alt-bn128 curve's properties
 - Utilities for key generation, signing, and verification
 - Compatibility with Ethereum's precompiled contracts for alt-bn128 operations
@@ -45,9 +45,10 @@ For more examples and usage details, see the [API documentation](https://docs.rs
 
 ## Core Concepts
 
-- **BLS Signatures**: A signature scheme allowing for signature aggregation and threshold signing.
+- **Finite fields**: These serve as the backbone of modern cryptography, allowing for secure signature schemes.
 - **alt-bn128 (BN254) Curve**: An elliptic curve with efficient pairing operations, widely used in zkSNARKs and supported by Ethereum precompiles.
-- **Threshold Signatures**: A cryptographic primitive allowing a subset of parties to collaboratively sign messages.
+- **Optimal ate pairing**: A cryptographic primitive allowing for efficient computation to verify the validity of a 
+  cryptographic signature.
 
 ## Performance
 
@@ -57,11 +58,9 @@ The alt-bn128 curve is chosen for its efficiency and widespread support, particu
 
 The following features and improvements are planned for future releases:
 
-- [ ] Basic BLS signature implementation
-- [ ] Key generation utilities
-- [ ] Signature aggregation
-- [ ] Threshold signature scheme
-- [ ] Optimizations for common operations
+- [x] Basic signature implementation
+- [x] Key generation utilities
+- [x] Optimizations for common operations
 - [ ] Extended test suite and benchmarks
 - [ ] Support for serialization formats used in blockchain contexts
 
@@ -74,6 +73,10 @@ Contributions are welcome! Please feel free to submit issues, feature requests, 
 This project is licensed under the [MIT License](https://choosealicense.com/licenses/mit/).
 
 ## Contact
+
+This project is maintained by:
+- Tristan Britt [tristan@warlock.xyz](mailto:tristan@warlock.xyz)
+- 0xAlcibiades [alcibiades@warlock.xyz](mailto:alcibiades@warlock.xyz)
 
 Warlock Labs - [https://github.com/warlock-labs](https://github.com/warlock-labs)
 
