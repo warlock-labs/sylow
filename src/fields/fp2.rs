@@ -66,7 +66,7 @@ impl Fp2 {
     }
 
     pub fn residue_mul(&self) -> Self {
-        *self * FP2_QUADRATIC_NON_RESIDUE
+        self * &FP2_QUADRATIC_NON_RESIDUE
     }
     pub fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp2: &[Fp; 2] = &[
@@ -155,7 +155,6 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
     fn curve_constant() -> Self {
         // this is the curve constant for the twist curve in Fp2. In short Weierstrass form the
         // curve over the twist is $y'^2 = x'^3 + b$, where $b=3/(9+u)$, which is the below.
-        // Self::THREE / FP2_QUADRATIC_NON_RESIDUE
         FP2_TWIST_CURVE_CONSTANT
     }
 }

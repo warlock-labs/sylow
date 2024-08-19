@@ -141,10 +141,6 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
         }
         Err(GroupError::CannotHashToGroup)
     }
-    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
-    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
-    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
-    /// directly be instantiated as a struct
     fn frobenius(&self, exponent: usize) -> Self {
         let vec: Vec<Fp> = [self.x, self.y, self.z]
             .iter()

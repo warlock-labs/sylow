@@ -54,6 +54,10 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError>;
     fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: F) -> Result<Self, GroupError>;
+    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
+    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
+    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
+    /// directly be instantiated as a struct
     fn frobenius(&self, exponent: usize) -> Self;
 }
 

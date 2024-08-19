@@ -23,6 +23,8 @@ use crypto_bigint::U256;
 use num_traits::{One, Zero};
 use subtle::{Choice, ConstantTimeEq};
 
+/// This is the X coordinate of the generator for the r-torsion of the twist curve, generated 
+/// directly from sage
 const G2_X: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
         5106727233969649389,
@@ -38,6 +40,7 @@ const G2_X: Fp2 = Fp2::new(&[
     ])),
 ]);
 
+/// Likewise, this is the y coordinate of the generator for the r-torsion on the twist curve
 const G2_Y: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
         5541340697920699818,
@@ -160,10 +163,6 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
     ) -> Result<Self, GroupError> {
         unimplemented!()
     }
-    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
-    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
-    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
-    /// directly be instantiated as a struct
     fn frobenius(&self, exponent: usize) -> Self {
         let vec: Vec<Fp2> = [self.x, self.y]
             .iter()

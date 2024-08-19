@@ -215,7 +215,6 @@ impl Fp6 {
 }
 impl FieldExtensionTrait<6, 3> for Fp6 {
     fn quadratic_non_residue() -> Self {
-        // Self::new(&[Fp2::zero(), Fp2::one(), Fp2::zero()])
         FP6_QUADRATIC_NON_RESIDUE
     }
 
