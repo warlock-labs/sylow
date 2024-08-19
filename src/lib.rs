@@ -20,7 +20,7 @@ mod hasher;
 mod pairing;
 mod svdw;
 
-use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
+pub use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
 use crate::groups::g1::G1Projective;
 use crate::groups::g2::G2Projective;
 use crate::groups::group::{GroupError, GroupTrait};
