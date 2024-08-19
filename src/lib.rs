@@ -24,6 +24,7 @@ pub use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
 pub use crate::groups::g1::{G1Affine, G1Projective};
 pub use crate::groups::g2::G2Projective;
 pub use crate::groups::group::{GroupError, GroupTrait};
+pub use crate::groups::gt::Gt;
 use crate::hasher::XMDExpander;
 pub use crate::pairing::{pairing, G2PreComputed, glued_miller_loop};
 use crypto_bigint::rand_core::OsRng;

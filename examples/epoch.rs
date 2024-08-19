@@ -2,7 +2,7 @@
 //! reuse the same G2 element in the pairing in repeated verifications. 
 use crypto_bigint::rand_core::OsRng;
 use subtle::ConstantTimeEq;
-use sylow::{pairing, FieldExtensionTrait, Fp, Fr, G1Affine, G1Projective, G2Projective, GroupTrait, glued_miller_loop};
+use sylow::{pairing, FieldExtensionTrait, Fp, Fr, G1Affine, G1Projective, G2Projective, GroupTrait};
 
 fn main() {
     // First, let's generate a shared secret ...
