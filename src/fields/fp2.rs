@@ -68,7 +68,7 @@ impl Fp2 {
     pub(crate) fn residue_mul(&self) -> Self {
         self * &FP2_QUADRATIC_NON_RESIDUE
     }
-    pub(crate) fn frobenius(&self, exponent: usize) -> Self {
+    pub fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp2: &[Fp; 2] = &[
             // Fp::quadratic_non_residue()**(((p^0) - 1) / 2)
             Fp::ONE,

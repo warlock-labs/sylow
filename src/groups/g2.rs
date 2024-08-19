@@ -86,13 +86,6 @@ pub(crate) const EPS_EXP1: Fp2 = Fp2::new(&[
     ])),
 ]);
 
-// the cofactor of $\mathbb{G}_2$
-const C2: Fp = Fp::new(U256::from_words([
-    17887900258952609094,
-    8020209761171036667,
-    0,
-    0,
-]));
 // the parameter that generates this member of the BN family
 pub(crate) const BLS_X: Fp = Fp::new(U256::from_words([4965661367192848881, 0, 0, 0]));
 
@@ -193,6 +186,13 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     /// through the `new` constructor to ensure that the random value does indeed pass the curve
     /// and subgroup checks
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
+        // the cofactor of $\mathbb{G}_2$
+        const C2: Fp = Fp::new(U256::from_words([
+            17887900258952609094,
+            8020209761171036667,
+            0,
+            0,
+        ]));
         let rando = Fp::new(Fr::rand(rng).value());
         let mut tmp = Self::generator() * rando;
 
@@ -259,7 +259,7 @@ impl G2Projective {
     /// The pub(crate) lic entrypoint to making a value in $\mathbb{G}_2$. This takes the (x,y,z) values
     /// from the user, and passes them through a subgroup and curve check to ensure validity.
     /// Values returned from this function are guaranteed to be on the curve and in the r-torsion.
-    pub(crate) fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
+    pub fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
         let _g2projective_is_on_curve = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
             let y2 = y.square();
             let x2 = x.square();

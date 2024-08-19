@@ -90,7 +90,7 @@ pub trait FieldExtensionTrait<const D: usize, const N: usize>:
 
     fn curve_constant() -> Self;
 }
-pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
+pub trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
 where
     UintType: ConcatMixed<MixedOutput = Uint<DLIMBS>>,
@@ -397,7 +397,7 @@ impl From<Fr> for Fp {
     }
 }
 impl Fp {
-    pub(crate) fn frobenius(&self, exponent: usize) -> Self {
+    pub fn frobenius(&self, exponent: usize) -> Self {
         // this function is inherently expensive, and we never call it on the base field, but if
         // we did, it's only defined for p=1. Specialized versions exist for all extensions which
         // will require the frobenius transformation

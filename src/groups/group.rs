@@ -43,7 +43,7 @@ pub enum GroupError {
 // projective, or mixed addition, and therefore cannot be defined for all instances satisfying
 // a group trait
 
-pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
+pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
     Sized + Copy + Clone + std::fmt::Debug + Neg + ConstantTimeEq + ConditionallySelectable + PartialEq
 {
     /// this is how we'll make more elements of the field from a scalar value
