@@ -405,10 +405,7 @@ pub fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
 /// * `g2s` - an array of G2 points
 /// # Returns
 /// * the result of the pairing, doing each one individually and then aggregating their result
-pub fn glued_miller_loop(
-    g2_precomps: &[G2PreComputed],
-    g1s: &[G1Affine],
-) -> MillerLoopResult {
+pub fn glued_miller_loop(g2_precomps: &[G2PreComputed], g1s: &[G1Affine]) -> MillerLoopResult {
     let mut f = Fp12::one();
     let mut idx = 0;
     for i in ATE_LOOP_COUNT_NAF.iter() {
