@@ -58,6 +58,18 @@ impl DealerSecret {
             commitments,
         }
     }
+    fn new_bad(quorum: u32, round_id: u64) -> Self {
+        let coefficients = from_vec_u32(vec![42; quorum as usize]);
+        let secret = coefficients[0].clone();
+        let commitments = from_vec_u32(vec![42; quorum as usize]);
+        DealerSecret {
+            quorum,
+            round_id,
+            coefficients,
+            secret,
+            commitments,
+        }
+    }
 }
 struct DealerShare {
     round_id: u64,
@@ -121,6 +133,7 @@ impl Default for MyConfig {
 }
 
 fn do_round(round_id: u64, quorum: u32) {
+    event!(Level::INFO, "Begin round {round_id}");
     let mut round_data = Round {
         round_id,
         quorum,
@@ -128,12 +141,16 @@ fn do_round(round_id: u64, quorum: u32) {
     };
 
     // set up participants
-    let n_participants: u64 = (quorum + 1) as u64;
+    let n_participants: u64 = (quorum + 2) as u64;
     for participant_id in 0u64..n_participants {
         let participant = Participant {
             participant_id,
             host: "todo".to_string(),
-            dealer_secret: DealerSecret::new(quorum, round_id),
+            dealer_secret: if participant_id != (quorum + 1) as u64 {
+                DealerSecret::new(quorum, round_id)
+            } else {
+                DealerSecret::new_bad(quorum, round_id)
+            },
             dealer_shares: HashMap::new(),
         };
         round_data.participants.insert(participant_id, participant);
@@ -144,6 +161,7 @@ fn do_round(round_id: u64, quorum: u32) {
         let dealer_secret = &dealer.dealer_secret;
         let x_shares = from_vec_u32(generate_distinct_random_values(quorum as usize, MIN_COEFFICIENT, MAX_COEFFICIENT));
         let recipient_index = 0;
+        let mut complaint_count = 0;
         for (recipient_id, recipient) in round_data.participants.iter() {
             let x_share = x_shares[recipient_index];
             let y_share = dealer_secret.eval_polynomial(x_share);
@@ -155,9 +173,16 @@ fn do_round(round_id: u64, quorum: u32) {
                 y: y_share,
             };
             let share_valid = share.is_valid();
+            if !share_valid {
+                complaint_count += 1;
+            }
             event!(Level::INFO, "round_id: {round_id} dealer_id: {dealer_id} recipient_id: {recipient_id} share_valid: {share_valid}");
         }
+        if complaint_count >= n_participants / 2 {
+            event!(Level::ERROR, "round_id: {round_id} dealer_id: {dealer_id} kicked for {complaint_count}/{n_participants} complaints");
+        }
     }
+    event!(Level::INFO, "End round {round_id}");
 }
 
 #[test]
