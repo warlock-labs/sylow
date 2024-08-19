@@ -22,10 +22,10 @@ mod svdw;
 
 pub use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
 pub use crate::groups::g1::{G1Affine, G1Projective};
-pub use crate::groups::g2::{G2Affine, G2Projective};
+pub use crate::groups::g2::G2Projective;
 pub use crate::groups::group::{GroupError, GroupTrait};
 use crate::hasher::XMDExpander;
-pub use crate::pairing::{pairing, G2PreComputed};
+pub use crate::pairing::{pairing, G2PreComputed, glued_miller_loop};
 use crypto_bigint::rand_core::OsRng;
 use sha3::Keccak256;
 use subtle::ConstantTimeEq;

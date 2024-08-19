@@ -243,7 +243,7 @@ impl MillerLoopResult {
 /// doubling step. Further, there are 9 `1` digits (each with an addition step), and 12 `3`
 /// digits, each also with an addition step. After the loop, there are 2 more addition steps, so
 /// the total number of coefficients we need to store is 64+9+12+2 = 87.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Copy, Clone)]
 pub struct G2PreComputed {
     pub(crate) q: G2Affine,
     pub(crate) coeffs: [Ell; 87],
@@ -281,6 +281,11 @@ impl G2PreComputed {
         f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
 
         MillerLoopResult(f)
+    }
+}
+impl G2Projective {
+    pub fn precompute(&self) -> G2PreComputed {
+        G2Affine::from(self).precompute()
     }
 }
 impl G2Affine {
@@ -400,7 +405,7 @@ pub fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
 /// * `g2s` - an array of G2 points
 /// # Returns
 /// * the result of the pairing, doing each one individually and then aggregating their result
-pub(crate) fn glued_miller_loop(
+pub fn glued_miller_loop(
     g2_precomps: &[G2PreComputed],
     g1s: &[G1Affine],
 ) -> MillerLoopResult {

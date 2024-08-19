@@ -71,7 +71,7 @@ impl G1Affine {
     // and therefore no subgroup check is required in G1.
     // # Arguments
     // * `v` - a tuple of field elements that represent the x and y coordinates of the point
-    pub fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
+    fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
         let _g1affine_is_on_curve = |x: &Fp, y: &Fp, z: &Choice| -> Choice {
             let y2 = y.square();
             let x2 = x.square();
@@ -163,7 +163,8 @@ impl G1Projective {
     /// the curve check, since the r-torsion of the curve on the base field is the entire curve.
     /// # Arguments
     /// * `v` - a tuple of field elements that represent the x, y, and z coordinates of the point
-    pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
+    #[allow(dead_code)]
+    pub(crate) fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let _g1projective_is_on_curve = |x: &Fp, y: &Fp, z: &Fp| -> Choice {
             let y2 = y.square();
             let x2 = x.square();
