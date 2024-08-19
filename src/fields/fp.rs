@@ -86,11 +86,11 @@ pub trait FieldExtensionTrait<const D: usize, const N: usize>:
     /// multiplication in a field extension is dictated heavily such a value below,
     /// so we define the quadratic non-residue here
     fn quadratic_non_residue() -> Self;
-    /// generate a random value in the field extension based on the random number generator from 
+    /// generate a random value in the field extension based on the random number generator from
     /// `crypto_bigint`
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
-    /// because each extension is directly used in a j-invariant 0 curve, we define the constant 
-    /// of that curve over the extension field. Namely, it is the value `b` in the equation 
+    /// because each extension is directly used in a j-invariant 0 curve, we define the constant
+    /// of that curve over the extension field. Namely, it is the value `b` in the equation
     /// `y^2=x^3+b`.
     fn curve_constant() -> Self;
 }
@@ -134,8 +134,8 @@ macro_rules! define_finite_prime_field {
         //special struct for const-time arithmetic on montgomery form integers mod p
         type $output = crypto_bigint::modular::ConstMontyForm<$mod_struct, { $mod_struct::LIMBS }>;
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
-        /// This is the actual struct that serves as our finite field implementation, containing 
-        /// the modulus of the field, as well as the output type that contains the internal 
+        /// This is the actual struct that serves as our finite field implementation, containing
+        /// the modulus of the field, as well as the output type that contains the internal
         /// Montgomery arithmetic logic
         pub struct $wrapper_name($mod_struct, $output);
 
@@ -438,7 +438,7 @@ impl From<Fr> for Fp {
     }
 }
 impl Fp {
-    /// This determines the frobenius mapping of the element in the base field, aka x^p. This 
+    /// This determines the frobenius mapping of the element in the base field, aka x^p. This
     /// function is inherently expensive, and we never call it on the base field, but if
     /// we did, it's only defined for p=1. Specialized versions exist for all extensions which
     /// will require the frobenius transformation.

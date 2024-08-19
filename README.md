@@ -5,7 +5,7 @@
 [![Docs](https://img.shields.io/crates/v/sylow?color=blue&label=docs)](https://docs.rs/sylow/)
 ![CI](https://github.com/warlock-labs/sylow/actions/workflows/CI.yml/badge.svg)
 
-Sylow (*[ˈsyːlɔv]*) is a Rust library providing functionality for signature generation and verification using 
+Sylow (*ˈsyːlɔv*) is a Rust library providing functionality for signature generation and verification using 
 the alt-bn128 (BN 254) elliptic curve, initially developed for use in the Warlock Chaos product. It provides a 
 general finite field implementation, and extends it for usage into groups on the relevant elliptic curves of alt-bn128.
 

@@ -8,8 +8,8 @@ use crypto_bigint::{Encoding, NonZero, U256, U512};
 use sha3::digest::crypto_common::BlockSizeUser;
 use sha3::digest::{ExtendableOutput, FixedOutput};
 use std::array::TryFromSliceError;
-#[derive(Debug)]
-pub(crate) enum HashError {
+#[derive(Debug, Copy, Clone)]
+pub enum HashError {
     CastToField,
     ExpandMessage,
     ConvertInt,
@@ -32,7 +32,7 @@ fn i2osp(val: u64, length: usize) -> Result<Vec<u8>, HashError> {
 /// called message expansion, as described by RFC 9380, see
 /// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message>. This is a trait that
 /// must be satisfied for any version of this standard.
-pub(crate) trait Expander {
+pub trait Expander {
     // If the domain separation tag is above 255 characters, then this prefix must be added as
     // required by the standard.
     const OVERSIZE_DST_PREFIX: &'static [u8] = b"H2C-OVERSIZE-DST-";

@@ -106,7 +106,7 @@ const GT: Fp12 = Fp12::new(&[
 ]);
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct Gt(pub(crate) Fp12);
+pub struct Gt(pub(crate) Fp12);
 
 impl<'a> Neg for &'a Gt {
     type Output = Gt;

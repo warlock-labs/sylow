@@ -26,14 +26,17 @@ use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use std::ops::{Add, Mul, Neg, Sub};
 
+/// This is a simple error struct that specifies the three errors
+/// that are expected for the generation of a point on the curve.
+/// Either, the coordinates given are not even on the curve,
+/// or they are not in the correct subgroup, aka the r-torsion.
 #[derive(Debug, Copy, Clone)]
 pub enum GroupError {
-    /// This is a simple error struct that specifies the three errors
-    /// that are expected for the generation of a point on the curve.
-    /// Either, the coordinates given are not even on the curve,
-    /// or they are not in the correct subgroup, aka the r-torsion.
+    /// if the point is not on the curve
     NotOnCurve,
+    /// if the point is not in the r-torsion subgroup
     NotInSubgroup,
+    /// if the point cannot be hashed to the group
     CannotHashToGroup,
 }
 

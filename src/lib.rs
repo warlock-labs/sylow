@@ -21,11 +21,11 @@ mod pairing;
 mod svdw;
 
 pub use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
-use crate::groups::g1::G1Projective;
-use crate::groups::g2::G2Projective;
-use crate::groups::group::{GroupError, GroupTrait};
+pub use crate::groups::g1::{G1Affine, G1Projective};
+pub use crate::groups::g2::{G2Affine, G2Projective};
+pub use crate::groups::group::{GroupError, GroupTrait};
 use crate::hasher::XMDExpander;
-use crate::pairing::pairing;
+pub use crate::pairing::{pairing, G2PreComputed};
 use crypto_bigint::rand_core::OsRng;
 use sha3::Keccak256;
 use subtle::ConstantTimeEq;

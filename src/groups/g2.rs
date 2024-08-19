@@ -89,8 +89,9 @@ pub(crate) const EPS_EXP1: Fp2 = Fp2::new(&[
 // the parameter that generates this member of the BN family
 pub(crate) const BLS_X: Fp = Fp::new(U256::from_words([4965661367192848881, 0, 0, 0]));
 
-pub(crate) type G2Affine = GroupAffine<2, 2, Fp2>;
-
+/// type alias for affine representation on quadratic extension field
+pub type G2Affine = GroupAffine<2, 2, Fp2>;
+/// type alias for projective representation on quadratic extension field
 pub type G2Projective = GroupProjective<2, 2, Fp2>;
 
 impl GroupTrait<2, 2, Fp2> for G2Affine {

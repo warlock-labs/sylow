@@ -28,7 +28,7 @@ const ATE_LOOP_COUNT_NAF: [i8; 64] = [
 /// multiplication. And semantically, this just helps me keep straight all the different values,
 /// base fields, groups, etc., that are involved here. Arithmetic defined by reference.
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct MillerLoopResult(pub(crate) Fp12);
+pub struct MillerLoopResult(pub(crate) Fp12);
 impl Default for MillerLoopResult {
     fn default() -> Self {
         MillerLoopResult(Fp12::one())
@@ -75,7 +75,7 @@ impl<'b> MulAssign<&'b MillerLoopResult> for MillerLoopResult {
 /// which is very, very sparse, resulting in many unnecessary multiplications and additions by
 /// zero, which is not ideal. We therefore only keep the 3 nonzero coefficients returned by these
 /// evaluations. These nonzero coeffs are stored in the struct below.
-#[derive(PartialEq, Default, Clone, Copy)]
+#[derive(PartialEq, Default, Clone, Copy, Debug)]
 pub(crate) struct Ell(Fp2, Fp2, Fp2);
 
 impl MillerLoopResult {
@@ -91,7 +91,7 @@ impl MillerLoopResult {
     /// in a code comment. See <https://eprint.iacr.org/2009/565.pdf> for more context.
     ///
     /// This returns an element in the target group, which is the r-th roots of unity in Fp12.
-    pub(crate) fn final_exponentiation(&self) -> Gt {
+    pub fn final_exponentiation(&self) -> Gt {
         /// As part of the cyclotomic acceleration of the final exponentiation step, there is a
         /// shortcut to take when using multiplication in Fp4. We built the tower of extensions using
         /// degrees 2, 6, and 12, but there is an additional way to write Fp12:
@@ -243,8 +243,8 @@ impl MillerLoopResult {
 /// doubling step. Further, there are 9 `1` digits (each with an addition step), and 12 `3`
 /// digits, each also with an addition step. After the loop, there are 2 more addition steps, so
 /// the total number of coefficients we need to store is 64+9+12+2 = 87.
-#[derive(PartialEq)]
-pub(crate) struct G2PreComputed {
+#[derive(PartialEq, Debug)]
+pub struct G2PreComputed {
     pub(crate) q: G2Affine,
     pub(crate) coeffs: [Ell; 87],
 }
@@ -256,7 +256,7 @@ impl G2PreComputed {
     /// * `g1` - the G1 point at which to evaluate the line
     /// # Returns
     /// * the result of the miller loop evaluation
-    pub(crate) fn miller_loop(&self, g1: &G1Affine) -> MillerLoopResult {
+    pub fn miller_loop(&self, g1: &G1Affine) -> MillerLoopResult {
         let mut f = Fp12::one();
 
         let mut idx = 0;
@@ -285,7 +285,7 @@ impl G2PreComputed {
 }
 impl G2Affine {
     /// For a given G2 coordinate, compute the coefficients of every line involved for that point.
-    fn precompute(&self) -> G2PreComputed {
+    pub fn precompute(&self) -> G2PreComputed {
         let mut r = G2Projective::from(self);
 
         let mut coeffs = [Ell::default(); 87];
@@ -381,7 +381,7 @@ impl G2Projective {
 /// * `q` - the G2 point
 /// # Returns
 /// * the result of the pairing
-pub(crate) fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
+pub fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
     let p = &G1Affine::from(p);
     let q = &G2Affine::from(q);
     let either_zero = Choice::from((p.is_zero() | q.is_zero()) as u8);
@@ -392,8 +392,8 @@ pub(crate) fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
     tmp.final_exponentiation()
 }
 
-/// There are many times when we need to evaluate many pairings at the same time. This simply 
-/// provides the ability to execute an array of pairings as succinctly as possible, for example 
+/// There are many times when we need to evaluate many pairings at the same time. This simply
+/// provides the ability to execute an array of pairings as succinctly as possible, for example
 /// in the context of threshold signature verification.
 /// # Arguments
 /// * `g1s` - an array of G1 points
