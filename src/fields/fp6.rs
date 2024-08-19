@@ -230,20 +230,26 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
         Self::from(3)
     }
 }
-impl Mul for Fp6 {
-    type Output = Self;
-    fn mul(self, other: Self) -> Self::Output {
+impl<'a, 'b> Mul<&'b Fp6> for &'a Fp6 {
+    type Output = Fp6;
+    fn mul(self, other: &'b Fp6) -> Self::Output {
         // This is the exact same strategy as multiplication in Fp2
         // see the doc string there for more details
         let t0 = self.0[0] * other.0[0];
         let t1 = self.0[1] * other.0[1];
         let t2 = self.0[2] * other.0[2];
 
-        Self([
+        Self::Output::new(&[
             ((self.0[1] + self.0[2]) * (other.0[1] + other.0[2]) - t1 - t2).residue_mul() + t0,
             (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1 + t2.residue_mul(),
             (self.0[0] + self.0[2]) * (other.0[0] + other.0[2]) - t0 + t1 - t2,
         ])
+    }
+}
+impl Mul for Fp6 {
+    type Output = Self;
+    fn mul(self, other: Self) -> Self::Output {
+        (&self).mul(&other)
     }
 }
 impl MulAssign for Fp6 {

@@ -123,8 +123,6 @@ macro_rules! define_finite_prime_field {
             pub const fn new(value: $uint_type) -> Self {
                 Self($mod_struct, $output::new(&value))
             }
-            // this is indeed used in the test cases, which are ignored by
-            // the linter
             pub fn new_from_str(value: &str) -> Option<Self> {
                 let ints: Vec<_> = {
                     let mut acc = Self::zero();

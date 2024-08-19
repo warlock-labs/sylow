@@ -85,7 +85,6 @@ impl MillerLoopResult {
         /// This implements algorithm 9 from https://eprint.iacr.org/2010/354.pdf, with the notable
         /// difference that instead of passing an element of Fp4 (which I did not implement), we pass
         /// in only the two components from Fp2 that comprise the Fp4 element.
-        #[must_use]
         fn fp4_square(a: Fp2, b: Fp2) -> (Fp2, Fp2) {
             // Line 1
             let t0 = a.square();
@@ -104,7 +103,6 @@ impl MillerLoopResult {
         /// This implements efficient squaring of an element of Fp12 in the cyclotomic subgroup
         /// C_{\phi^6}. It is what's called "Granger-Scott" squaring, and is an implementation of
         /// algorithm 5.5.4 (listing 21) from https://www.math.u-bordeaux.fr/~damienrobert/csi/book/book.pdf
-        #[must_use]
         fn cyclotomic_squared(f: Fp12) -> Fp12 {
             // Lines 3-8
             let mut z0 = f.0[0].0[0];
@@ -221,7 +219,10 @@ impl MillerLoopResult {
 /// time. Again, because of the sparse nature of the returned Fp12 from the doubling and addition
 /// steps, we store only the 3 non-zero coefficients in an arr of EllCoeffs
 ///
-/// But 87? There's 64 total iterations through the NAF representation, each one incurring a
+/// There's two components to this struct. First, is the original value at which we are 
+/// computing the line. Second, is an array of the coefficients we determine by the generation 
+/// of the line, stored as an array. But an array of 87 elements is very specific, no?  
+/// There's 64 total iterations through the NAF representation, each one incurring a
 /// doubling step. Further, there are 9 `1` digits (each with an addition step), and 12 `3`
 /// digits, each also with an addition step. After the loop, there are 2 more addition steps, so
 /// the total number of coefficients we need to store is 64+9+12+2 = 87.
@@ -264,7 +265,7 @@ impl G2Affine {
 
         let mut coeffs = [Ell::default(); 87];
 
-        let q_neg = self.neg();
+        let q_neg = -self;
         // in order to get rid of all the idx's all over the place, you COULD do use a mut
         // iterator, but then you'll have coeffs.iter_mut().next().unwrap().expect("") all over,
         // which is worse ...

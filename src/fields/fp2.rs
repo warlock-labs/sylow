@@ -159,10 +159,10 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
         FP2_TWIST_CURVE_CONSTANT
     }
 }
-
-impl Mul for Fp2 {
-    type Output = Self;
-    fn mul(self, other: Self) -> Self::Output {
+impl<'a, 'b> Mul<&'b Fp2> for &'a Fp2
+{
+    type Output = Fp2;
+    fn mul(self, other: &'b Fp2) -> Self::Output {
         // This requires a bit more consideration. In Fp2,
         // in order to multiply, we must implement complex Karatsuba
         // multiplication.
@@ -171,10 +171,19 @@ impl Mul for Fp2 {
         let t0 = self.0[0] * other.0[0];
         let t1 = self.0[1] * other.0[1];
 
-        Self([
+        Self::Output::new(&[
             t1 * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() + t0,
             (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1,
         ])
+    }
+}
+impl Mul<Fp2> for Fp2
+{
+    type Output = Self;
+    fn mul(self, other: Fp2) -> Self::Output {
+        // TODO linter complains about this being a needless reference if I do &a * &b, so this 
+        // gets around it
+        (&self).mul(&other)
     }
 }
 impl MulAssign for Fp2 {
