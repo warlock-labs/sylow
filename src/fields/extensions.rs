@@ -17,9 +17,7 @@ use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 // since the underlying Mul, Add, etc., are not, and const traits are in the works
 // https://github.com/rust-lang/rust/issues/67792
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct FieldExtension<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>(
-    pub(crate) [F; N],
-);
+pub struct FieldExtension<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>(pub [F; N]);
 
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<u64>
     for FieldExtension<D, N, F>
@@ -30,12 +28,17 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<u64>
         Self::new(&retval)
     }
 }
-#[allow(dead_code)]
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtension<D, N, F> {
-    pub(crate) const fn new(c: &[F; N]) -> Self {
+    /// This is a const constructor that takes a slice of field elements and returns a field extension
+    /// The usage of the generics means that it is possible to instantiate any representation of
+    /// an extension need.
+    pub const fn new(c: &[F; N]) -> Self {
         Self(*c)
     }
-    pub(crate) fn scale(&self, factor: F) -> Self {
+    /// There is eventually a need to be able to perform multiplication across different field
+    /// extensions, and more or less this corresponds to a basic scaling, see
+    /// <https://eprint.iacr.org/2010/354.pdf>
+    pub fn scale(&self, factor: F) -> Self {
         let mut i = 0;
         let mut retval = [F::zero(); N];
         while i < N {
@@ -59,16 +62,27 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> ConstantTimeE
         retval
     }
 }
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add for FieldExtension<D, N, F> {
-    type Output = Self;
-    fn add(self, other: Self) -> Self {
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
+    Add<&'b FieldExtension<D, N, F>> for &'a FieldExtension<D, N, F>
+{
+    type Output = FieldExtension<D, N, F>;
+
+    fn add(self, other: &'b FieldExtension<D, N, F>) -> Self::Output {
         let mut i = 0;
         let mut retval = [F::zero(); N];
         while i < N {
             retval[i] = self.0[i] + other.0[i];
             i += 1;
         }
-        Self::new(&retval)
+        Self::Output::new(&retval)
+    }
+}
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add<FieldExtension<D, N, F>>
+    for FieldExtension<D, N, F>
+{
+    type Output = Self;
+    fn add(self, other: FieldExtension<D, N, F>) -> Self::Output {
+        &self + &other
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> AddAssign
@@ -78,16 +92,27 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> AddAssign
         *self = *self + other;
     }
 }
-impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Sub for FieldExtension<D, N, F> {
-    type Output = Self;
-    fn sub(self, other: Self) -> Self {
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
+    Sub<&'b FieldExtension<D, N, F>> for &'a FieldExtension<D, N, F>
+{
+    type Output = FieldExtension<D, N, F>;
+
+    fn sub(self, other: &'b FieldExtension<D, N, F>) -> Self::Output {
         let mut i = 0;
         let mut retval = [F::zero(); N];
         while i < N {
             retval[i] = self.0[i] - other.0[i];
             i += 1;
         }
-        Self::new(&retval)
+        Self::Output::new(&retval)
+    }
+}
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Sub<FieldExtension<D, N, F>>
+    for FieldExtension<D, N, F>
+{
+    type Output = Self;
+    fn sub(self, other: FieldExtension<D, N, F>) -> Self::Output {
+        &self - &other
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> SubAssign

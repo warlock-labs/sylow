@@ -1,3 +1,4 @@
+// TODO: to examples dir
 use crypto_bigint::U256;
 use std::collections::HashMap;
 use num_traits::{One, Pow, Zero};
@@ -42,6 +43,7 @@ struct DealerSecret {
     commitments: Vec<Fp>,
 }
 
+// TODO: random value generation in Fp
 impl DealerSecret {
     fn new(quorum: u32, round_id: u64) -> Self {
         let coefficients = from_vec_u32(generate_distinct_random_values(quorum as usize, MIN_COEFFICIENT, MAX_COEFFICIENT));
@@ -162,6 +164,7 @@ fn do_round(round_id: u64, quorum: u32) {
         let x_shares = from_vec_u32(generate_distinct_random_values(quorum as usize, MIN_COEFFICIENT, MAX_COEFFICIENT));
         let recipient_index = 0;
         let mut complaint_count = 0;
+        // TODO: exclude self
         for (recipient_id, recipient) in round_data.participants.iter() {
             let x_share = x_shares[recipient_index];
             let y_share = dealer_secret.eval_polynomial(x_share);
@@ -178,10 +181,12 @@ fn do_round(round_id: u64, quorum: u32) {
             }
             event!(Level::INFO, "round_id: {round_id} dealer_id: {dealer_id} recipient_id: {recipient_id} share_valid: {share_valid}");
         }
+        // TODO: complaint broadcast and validation here
         if complaint_count >= n_participants / 2 {
             event!(Level::ERROR, "round_id: {round_id} dealer_id: {dealer_id} kicked for {complaint_count}/{n_participants} complaints");
         }
     }
+    // TODO: print out computed public key
     event!(Level::INFO, "End round {round_id}");
 }
 
