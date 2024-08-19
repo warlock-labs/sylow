@@ -51,7 +51,7 @@ pub type Fp2 = FieldExtension<2, 2, Fp>;
 // helper functions for us on this specific extension, but
 // don't generalize to any extension.
 impl Fp2 {
-    pub(crate) fn pow(&self, by: &Fp) -> Self {
+    pub fn pow(&self, by: &Fp) -> Self {
         let bits = by.value().to_words();
         let mut res = Self::one();
         for e in bits.iter().rev() {
@@ -83,7 +83,7 @@ impl Fp2 {
             ]),
         }
     }
-    pub(crate) fn sqrt(&self) -> CtOption<Self> {
+    pub fn sqrt(&self) -> CtOption<Self> {
         let a1 = self.pow(&P_MINUS_3_OVER_4);
 
         let alpha = a1 * a1 * (*self);
@@ -102,7 +102,7 @@ impl Fp2 {
             CtOption::new(sqrt, sqrt.square().ct_eq(self))
         }
     }
-    pub(crate) fn square(&self) -> Self {
+    pub fn square(&self) -> Self {
         let t0 = self.0[0] * self.0[1];
         Self([
             (self.0[1] * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() + self.0[0])
@@ -112,7 +112,7 @@ impl Fp2 {
             t0 + t0,
         ])
     }
-    pub(crate) fn is_square(&self) -> Choice {
+    pub fn is_square(&self) -> Choice {
         let legendre = |x: &Fp| -> i32 {
             let res = x.pow(P_MINUS_1_OVER_2.value());
 
@@ -128,7 +128,7 @@ impl Fp2 {
             + <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() * (-self.0[0]).square();
         Choice::from((legendre(&sum) != -1) as u8)
     }
-    pub(crate) fn sgn0(&self) -> Choice {
+    pub fn sgn0(&self) -> Choice {
         let sign_0 = self.0[0].sgn0();
         let zero_0 = Choice::from(self.0[0].is_zero() as u8);
         let sign_1 = self.0[1].sgn0();

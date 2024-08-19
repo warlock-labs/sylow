@@ -406,7 +406,7 @@ impl Fp {
             _ => *self,
         }
     }
-    pub(crate) fn sqrt(&self) -> CtOption<Self> {
+    pub fn sqrt(&self) -> CtOption<Self> {
         // This is an instantiation of Shank's algorithm, which solves congruences of
         // the form $r^2\equiv n \mod p$, namely the sqrt of n. It does not work for
         // composite moduli (aka nonprime p), since that is the integer factorization
@@ -419,16 +419,16 @@ impl Fp {
         let sqrt = self.pow(arg);
         CtOption::new(sqrt, sqrt.square().ct_eq(self))
     }
-    pub(crate) fn square(&self) -> Self {
+    pub fn square(&self) -> Self {
         (*self) * (*self)
     }
-    pub(crate) fn is_square(&self) -> Choice {
+    pub fn is_square(&self) -> Choice {
         let p_minus_1_div_2 =
             ((Self::new(Self::characteristic()) - Self::from(1)) / Self::from(2)).value();
         let retval = self.pow(p_minus_1_div_2);
         Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
     }
-    pub(crate) fn sgn0(&self) -> Choice {
+    pub fn sgn0(&self) -> Choice {
         let a = *self % Self::from(2u64);
         if a.is_zero() {
             Choice::from(0u8)

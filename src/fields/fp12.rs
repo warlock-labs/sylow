@@ -262,19 +262,7 @@ impl Fp12 {
     pub(crate) fn unitary_inverse(&self) -> Self {
         Self::new(&[self.0[0], -self.0[1]])
     }
-    #[must_use]
-    fn pow(&self, arg: &[u64; 4]) -> Self {
-        let mut res = Self::one();
-        for e in arg.iter().rev() {
-            for i in (0..64).rev() {
-                res = res.square();
-                if ((*e >> i) & 1) == 1 {
-                    res *= *self;
-                }
-            }
-        }
-        res
-    }
+
     /// Due to the efficiency considerations of storing only the nonzero entries in the sparse
     /// Fp12, there is a need to implement sparse multiplication on Fp12, which is what the
     /// madness below is. It is an amalgamation of Algs 21-25 of <https://eprint.iacr.org/2010/354.pdf>

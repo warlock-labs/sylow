@@ -8,7 +8,7 @@ use crate::fields::fp2::Fp2;
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
-use subtle::{Choice, CtOption};
+use subtle::Choice;
 
 // the following values are a bit difficult to compute. The reason
 // is that they involve operations up to p^11, which occupy a U4096
@@ -184,11 +184,7 @@ impl Fp6 {
             self.0[2].frobenius(exponent) * FROBENIUS_COEFF_FP6_C2[exponent % 6],
         ])
     }
-
-    pub(crate) fn sqrt(&self) -> CtOption<Self> {
-        unimplemented!()
-    }
-
+    
     // this is simply the same as the multiplication below
     // however, there are some simple algebraic reductions
     // you can do with squaring. this just implements that,

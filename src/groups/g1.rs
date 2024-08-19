@@ -71,7 +71,7 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
 impl G1Affine {
     /// this needs to be defined in order to have user interaction, but currently
     /// is only visible in tests, and therefore is seen by the linter as unused
-    pub(crate) fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
+    pub fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
         let _g1affine_is_on_curve = |x: &Fp, y: &Fp, z: &Choice| -> Choice {
             let y2 = y.square();
             let x2 = x.square();
@@ -154,7 +154,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
     }
 }
 impl G1Projective {
-    pub(crate) fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
+    pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let _g1projective_is_on_curve = |x: &Fp, y: &Fp, z: &Fp| -> Choice {
             let y2 = y.square();
             let x2 = x.square();
