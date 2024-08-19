@@ -58,6 +58,7 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
     /// Therefore, these points must bypass curve membership and torsion checks, and therefore
     /// directly be instantiated as a struct
+    #[allow(dead_code)]
     fn frobenius(&self, exponent: usize) -> Self;
 }
 
