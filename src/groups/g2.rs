@@ -14,7 +14,7 @@
 //! All public facing methods here implement the subgroup check to ensure that the user cannot
 //! input a value in $E^\prime(F_{p^2})$ that is not in the r-torsion.
 
-use crate::fields::fp::{FieldExtensionTrait, Fp};
+use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
 use crate::fields::fp2::Fp2;
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
@@ -23,6 +23,8 @@ use crypto_bigint::U256;
 use num_traits::{One, Zero};
 use subtle::{Choice, ConstantTimeEq};
 
+/// This is the X coordinate of the generator for the r-torsion of the twist curve, generated
+/// directly from sage
 const G2_X: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
         5106727233969649389,
@@ -38,22 +40,23 @@ const G2_X: Fp2 = Fp2::new(&[
     ])),
 ]);
 
+/// Likewise, this is the y coordinate of the generator for the r-torsion on the twist curve
 const G2_Y: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
-        17238020247068508061,
-        12947711663081912081,
-        7900672974501844941,
-        2133562512332108350,
+        5541340697920699818,
+        16416156555105522555,
+        5380518976772849807,
+        1353435754470862315,
     ])),
     Fp::new(U256::from_words([
-        16605811113834735084,
-        15795875818799774617,
-        14677701815642170567,
-        2836639542672469939,
+        6173549831154472795,
+        13567992399387660019,
+        17050234209342075797,
+        650358724130500725,
     ])),
 ]);
 // the first constant of the endomorphism, $\xi^((p-1)/3)$, see below
-const EPS_EXP0: Fp2 = Fp2::new(&[
+pub const EPS_EXP0: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
         11088870908804158781,
         13226160682434769676,
@@ -68,7 +71,7 @@ const EPS_EXP0: Fp2 = Fp2::new(&[
     ])),
 ]);
 // the second constant of the endomorphism, $\xi^((p-1)/2)$, see below
-const EPS_EXP1: Fp2 = Fp2::new(&[
+pub const EPS_EXP1: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
         15876315988453495642,
         15828711151707445656,
@@ -90,11 +93,12 @@ const C2: Fp = Fp::new(U256::from_words([
     0,
     0,
 ]));
+// the parameter that generates this member of the BN family
+pub const BLS_X: Fp = Fp::new(U256::from_words([4965661367192848881, 0, 0, 0]));
 
-#[allow(dead_code)]
-pub(crate) type G2Affine = GroupAffine<2, 2, Fp2>;
-#[allow(dead_code)]
-pub(crate) type G2Projective = GroupProjective<2, 2, Fp2>;
+pub type G2Affine = GroupAffine<2, 2, Fp2>;
+
+pub type G2Projective = GroupProjective<2, 2, Fp2>;
 
 impl GroupTrait<2, 2, Fp2> for G2Affine {
     // This is the generator of $E^\prime(F_{p^2})$, and NOT of the r-torsion. This is because we
@@ -135,8 +139,8 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
         if self.is_zero() {
             return *self;
         }
-        let x_frob = <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.x, 1);
-        let y_frob = <Fp2 as FieldExtensionTrait<2, 2>>::frobenius(&self.y, 1);
+        let x_frob = self.x.frobenius(1);
+        let y_frob = self.y.frobenius(1);
 
         let x_endo = EPS_EXP0 * x_frob;
         let y_endo = EPS_EXP1 * y_frob;
@@ -159,6 +163,17 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
     ) -> Result<Self, GroupError> {
         unimplemented!()
     }
+    fn frobenius(&self, exponent: usize) -> Self {
+        let vec: Vec<Fp2> = [self.x, self.y]
+            .iter()
+            .map(|x| x.frobenius(exponent))
+            .collect();
+        Self {
+            x: vec[0],
+            y: vec[1],
+            infinity: self.infinity,
+        }
+    }
 }
 impl GroupTrait<2, 2, Fp2> for G2Projective {
     fn generator() -> Self {
@@ -178,15 +193,13 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     /// through the `new` constructor to ensure that the random value does indeed pass the curve
     /// and subgroup checks
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
-        let rando = <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
-            .value()
-            .to_le_bytes();
-        let mut tmp = &Self::generator() * &rando;
+        let rando = Fp::new(Fr::rand(rng).value());
+        let mut tmp = Self::generator() * rando;
 
         // multiplying an element of the larger base field by the cofactor of a prime-ordered
         // subgroup will return an element in the prime-order subgroup, see
         // <https://crypto.stackexchange.com/a/101736> for a nice little explainer
-        tmp = &tmp * &C2.value().to_le_bytes(); //this is cofactor clearing
+        tmp = tmp * C2; //this is cofactor clearing
         Self::new([tmp.x, tmp.y, tmp.z]).expect("Generator failed to make new value in torsion")
     }
     fn hash_to_curve<E: Expander>(_exp: &E, _msg: &[u8]) -> Result<Self, GroupError> {
@@ -199,6 +212,21 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     ) -> Result<Self, GroupError> {
         unimplemented!()
     }
+    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
+    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
+    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
+    /// directly be instantiated as a struct
+    fn frobenius(&self, exponent: usize) -> Self {
+        let vec: Vec<Fp2> = [self.x, self.y, self.z]
+            .iter()
+            .map(|x| x.frobenius(exponent))
+            .collect();
+        Self {
+            x: vec[0],
+            y: vec[1],
+            z: vec[2],
+        }
+    }
 }
 impl G2Affine {
     /// This method is used internally for rapid, low overhead, conversion of types when there
@@ -209,8 +237,8 @@ impl G2Affine {
     /// DON'T USE THIS METHOD UNLESS YOU KNOW WHAT YOU'RE DOING
     fn new_unchecked(v: [Fp2; 2]) -> Result<Self, GroupError> {
         let _g2affine_is_on_curve = |x: &Fp2, y: &Fp2, z: &Choice| -> Choice {
-            let y2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(y);
-            let x2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(x);
+            let y2 = y.square();
+            let x2 = x.square();
             let lhs = y2 - (x2 * (*x));
             let rhs = <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
             lhs.ct_eq(&rhs) | *z
@@ -231,14 +259,13 @@ impl G2Projective {
     /// The public entrypoint to making a value in $\mathbb{G}_2$. This takes the (x,y,z) values
     /// from the user, and passes them through a subgroup and curve check to ensure validity.
     /// Values returned from this function are guaranteed to be on the curve and in the r-torsion.
-    pub(crate) fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
+    pub fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
         let _g2projective_is_on_curve = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
-            let y2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(y);
-            let x2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(x);
-            let z2 = <Fp2 as FieldExtensionTrait<2, 2>>::square(z);
+            let y2 = y.square();
+            let x2 = x.square();
+            let z2 = z.square();
             let lhs = y2 * (*z);
             let rhs = x2 * (*x) + z2 * (*z) * <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
-            // println!("{:?}, {:?}", lhs.value(), rhs.value());
             lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
         };
         // This method is where the magic happens. In a naïve approach, in order to check for
@@ -270,13 +297,12 @@ impl G2Projective {
                 y: *y,
                 z: *z,
             };
-            let x = Fp::from(4965661367192848881);
-            let mut a = &tmp * &x.value().to_le_bytes(); // xQ
+            let mut a = tmp * BLS_X; // xQ
             let b = a.endomorphism(); // ψ(xQ)
-            a = &a + &tmp; // (x+1)Q
+            a = a + tmp; // (x+1)Q
             let mut rhs = b.endomorphism(); // ψ^2(xQ)
-            let lhs = &rhs + &(&b + &a); // ψ^2(xQ) + ψ(xQ) + (x+1)Q
-            rhs = &rhs.endomorphism().double() - &lhs; // ψ^3(2xQ) - (ψ^2(xQ) + ψ(xQ) + (x+1)Q)
+            let lhs = rhs + b + a; // ψ^2(xQ) + ψ(xQ) + (x+1)Q
+            rhs = rhs.endomorphism().double() - lhs; // ψ^3(2xQ) - (ψ^2(xQ) + ψ(xQ) + (x+1)Q)
 
             // we do two checks: one is to verify that the result is indeed a point at infinity,
             // but we need a second check to verify that it is OUR point at infinity, namely for

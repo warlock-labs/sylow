@@ -14,11 +14,10 @@ use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::fields::fp2::Fp2;
 use crate::fields::fp6::Fp6;
-use crate::fields::utils::u256_to_u4096;
-use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256, U4096};
+use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
-use subtle::{Choice, CtOption};
+use subtle::Choice;
 const FROBENIUS_COEFF_FP12_C1: &[Fp2; 12] = &[
     // Fp2::quadratic_non_residue().pow( ( p^0 - 1) / 6)
     Fp2::new(&[Fp::ONE, Fp::ZERO]),
@@ -163,43 +162,25 @@ const FROBENIUS_COEFF_FP12_C1: &[Fp2; 12] = &[
         ])),
     ]),
 ];
-pub(crate) type Fp12 = FieldExtension<12, 2, Fp6>;
+const FP12_QUADRATIC_NON_RESIDUE: Fp12 = Fp12::new(&[
+    Fp6::new(&[
+        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+    ]),
+    Fp6::new(&[
+        Fp2::new(&[Fp::ONE, Fp::ZERO]),
+        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+    ]),
+]);
 
-impl Fp12 {
-    // we have no need to define a residue multiplication since this
-    // is the top of our tower extension
-    #[allow(dead_code)]
-    fn characteristic() -> U4096 {
-        let wide_p = u256_to_u4096(&Fp::characteristic());
-        let wide_p2 = wide_p * wide_p;
-        let wide_p6 = wide_p2 * wide_p2 * wide_p2;
-        wide_p6 * wide_p6
-    }
-}
+pub type Fp12 = FieldExtension<12, 2, Fp6>;
 
 impl FieldExtensionTrait<12, 2> for Fp12 {
     fn quadratic_non_residue() -> Self {
-        Self::new(&[Fp6::zero(), Fp6::one()])
-    }
-    fn frobenius(&self, exponent: usize) -> Self {
-        // TODO: integrate generic D into struct to not hardcode degrees
-        Self::new(&[
-            <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&self.0[0], exponent),
-            <Fp6 as FieldExtensionTrait<6, 3>>::frobenius(&self.0[1], exponent)
-                .scale(FROBENIUS_COEFF_FP12_C1[exponent % 12]),
-        ])
-    }
-    fn sqrt(&self) -> CtOption<Self> {
-        unimplemented!()
-    }
-    fn square(&self) -> Self {
-        let tmp = self.0[0] * self.0[1];
-        Self::new(&[
-            (self.0[1].residue_mul() + self.0[0]) * (self.0[0] + self.0[1])
-                - tmp
-                - tmp.residue_mul(),
-            tmp + tmp,
-        ])
+        // Self::new(&[Fp6::zero(), Fp6::one()])
+        FP12_QUADRATIC_NON_RESIDUE
     }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self([
@@ -207,29 +188,29 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
             <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng),
         ])
     }
-    fn is_square(&self) -> Choice {
-        unimplemented!()
-    }
-    fn sgn0(&self) -> Choice {
-        unimplemented!()
-    }
     fn curve_constant() -> Self {
         unimplemented!()
     }
 }
 
-impl Mul for Fp12 {
-    type Output = Self;
-    fn mul(self, other: Self) -> Self::Output {
+impl<'a, 'b> Mul<&'b Fp12> for &'a Fp12 {
+    type Output = Fp12;
+    fn mul(self, other: &'b Fp12) -> Self::Output {
         // this is again simple Karatsuba multiplication
         // see comments in Fp2 impl of `Mul` trait
         let t0 = self.0[0] * other.0[0];
         let t1 = self.0[1] * other.0[1];
 
-        Self([
+        Self::Output::new(&[
             t1.residue_mul() + t0,
             (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1,
         ])
+    }
+}
+impl Mul for Fp12 {
+    type Output = Self;
+    fn mul(self, other: Self) -> Self::Output {
+        (&self).mul(&other)
     }
 }
 impl MulAssign for Fp12 {
@@ -240,9 +221,7 @@ impl MulAssign for Fp12 {
 impl Inv for Fp12 {
     type Output = Self;
     fn inv(self) -> Self::Output {
-        let tmp = (<Fp6 as FieldExtensionTrait<6, 3>>::square(&self.0[0])
-            - (<Fp6 as FieldExtensionTrait<6, 3>>::square(&self.0[1]).residue_mul()))
-        .inv();
+        let tmp = (self.0[0].square() - (self.0[1].square().residue_mul())).inv();
         Self([self.0[0] * tmp, -(self.0[1] * tmp)])
     }
 }
@@ -276,6 +255,133 @@ impl ConditionallySelectable for Fp12 {
             Fp6::conditional_select(&a.0[0], &b.0[0], choice),
             Fp6::conditional_select(&a.0[1], &b.0[1], choice),
         ])
+    }
+}
+/// Below are additional functions needed on Fp12 for the pairing operations
+impl Fp12 {
+    pub fn unitary_inverse(&self) -> Self {
+        Self::new(&[self.0[0], -self.0[1]])
+    }
+    pub fn pow(&self, arg: &[u64; 4]) -> Self {
+        let mut res = Self::one();
+        for e in arg.iter().rev() {
+            for i in (0..64).rev() {
+                res = res.square();
+                if ((*e >> i) & 1) == 1 {
+                    res *= *self;
+                }
+            }
+        }
+        res
+    }
+    /// Due to the efficiency considerations of storing only the nonzero entries in the sparse
+    /// Fp12, there is a need to implement sparse multiplication on Fp12, which is what the
+    /// madness below is. It is an amalgamation of Algs 21-25 of <https://eprint.iacr.org/2010/354.pdf>
+    /// and is really just un-sparsing the value, and doing the multiplication manually. In order
+    /// to get around all the zeros that would arise if we just instantiated the full Fp12,
+    /// we have to manually implement all the required multiplication as far down the tower as
+    /// we can go.
+    ///
+    /// The following code relies on a separate representation of an element in Fp12.
+    /// Namely, hereunto we have defined Fp12 as a pair of Fp6 elements. However, it is just as
+    /// valid to define Fp12 as a pair of Fp2 elements. For f\in Fp12, f = g+hw, where g, h \in Fp6,
+    /// with g = g_0 + g_1v + g_2v^2, and h = h_0 + h_1v + h_2v^2, we can then write:
+    ///
+    /// f = g_0 + h_0w + g_1w^2 + h_1w^3 + g_2w^4 + h_2w^5
+    ///
+    /// where the representation of Fp12 is not Fp12 = Fp2(w)/(w^6-(9+u))
+    ///
+    /// This is a massive headache to get correct, and relied on existing implementations tbh.
+    /// Unfortunately for me, the performance boost is noticeable by early estimates (100s us).
+    /// Therefore, worth it.
+    ///
+    /// The function below is called by `zcash`, `bn`, and `arkworks` as `mul_by_024`, referring to
+    /// the indices of the non-zero elements in the 6x Fp2 representation above for the
+    /// multiplication.
+    pub fn sparse_mul(&self, ell_0: Fp2, ell_vw: Fp2, ell_vv: Fp2) -> Fp12 {
+        let z0 = self.0[0].0[0];
+        let z1 = self.0[0].0[1];
+        let z2 = self.0[0].0[2];
+        let z3 = self.0[1].0[0];
+        let z4 = self.0[1].0[1];
+        let z5 = self.0[1].0[2];
+
+        let x0 = ell_0;
+        let x2 = ell_vv;
+        let x4 = ell_vw;
+
+        let d0 = z0 * x0;
+        let d2 = z2 * x2;
+        let d4 = z4 * x4;
+        let t2 = z0 + z4;
+        let t1 = z0 + z2;
+        let s0 = z1 + z3 + z5;
+
+        let s1 = z1 * x2;
+        let t3 = s1 + d4;
+        let t4 = t3.residue_mul() + d0;
+        let z0 = t4;
+
+        let t3 = z5 * x4;
+        let s1 = s1 + t3;
+        let t3 = t3 + d2;
+        let t4 = t3.residue_mul();
+        let t3 = z1 * x0;
+        let s1 = s1 + t3;
+        let t4 = t4 + t3;
+        let z1 = t4;
+
+        let t0 = x0 + x2;
+        let t3 = t1 * t0 - d0 - d2;
+        let t4 = z3 * x4;
+        let s1 = s1 + t4;
+        let t3 = t3 + t4;
+
+        let t0 = z2 + z4;
+        let z2 = t3;
+
+        let t1 = x2 + x4;
+        let t3 = t0 * t1 - d2 - d4;
+        let t4 = t3.residue_mul();
+        let t3 = z3 * x0;
+        let s1 = s1 + t3;
+        let t4 = t4 + t3;
+        let z3 = t4;
+
+        let t3 = z5 * x2;
+        let s1 = s1 + t3;
+        let t4 = t3.residue_mul();
+        let t0 = x0 + x4;
+        let t3 = t2 * t0 - d0 - d4;
+        let t4 = t4 + t3;
+        let z4 = t4;
+
+        let t0 = x0 + x2 + x4;
+        let t3 = s0 * t0 - s1;
+        let z5 = t3;
+
+        Fp12::new(&[Fp6::new(&[z0, z1, z2]), Fp6::new(&[z3, z4, z5])])
+    }
+    pub fn frobenius(&self, exponent: usize) -> Self {
+        Self::new(&[
+            self.0[0].frobenius(exponent),
+            self.0[1]
+                .frobenius(exponent)
+                .scale(FROBENIUS_COEFF_FP12_C1[exponent % 12]),
+        ])
+    }
+    pub fn square(&self) -> Self {
+        // For F_{p^{12}} = F_{p^6}(w)/(w^2-\gamma), and A=a_0 + a_1*w \in F_{p^{12}},
+        // we determine C=c_0+c_1*w = A^2\in F_{p^{12}}
+        // Alg 22 from <https://eprint.iacr.org/2010/354.pdf>
+        let c0 = self.0[0] - self.0[1];
+        let c3 = self.0[0] - self.0[1].residue_mul();
+        let c2 = self.0[0] * self.0[1];
+        let c0 = c0 * c3 + c2;
+        let c1 = c2 + c2;
+        let c2 = c2.residue_mul();
+        let c0 = c0 + c2;
+        Self::new(&[c0, c1])
     }
 }
 #[cfg(test)]

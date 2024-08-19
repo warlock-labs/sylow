@@ -20,14 +20,14 @@
 //! 2. <https://eprint.iacr.org/2015/1060.pdf>.
 //! 3. <https://marcjoye.github.io/papers/BJ02espa.pdf>
 
-use crate::fields::fp::FieldExtensionTrait;
+use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::hasher::Expander;
 use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use std::ops::{Add, Mul, Neg, Sub};
 
-#[derive(Debug)]
-pub(crate) enum GroupError {
+#[derive(Debug, Copy, Clone)]
+pub enum GroupError {
     /// This is a simple error struct that specifies the three errors
     /// that are expected for the generation of a point on the curve.
     /// Either, the coordinates given are not even on the curve,
@@ -42,8 +42,8 @@ pub(crate) enum GroupError {
 /// without addition, which is very specific to the choice of affine,
 // projective, or mixed addition, and therefore cannot be defined for all instances satisfying
 // a group trait
-#[allow(dead_code)]
-pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
+
+pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
     Sized + Copy + Clone + std::fmt::Debug + Neg + ConstantTimeEq + ConditionallySelectable + PartialEq
 {
     /// this is how we'll make more elements of the field from a scalar value
@@ -54,18 +54,23 @@ pub(crate) trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTra
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError>;
     fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: F) -> Result<Self, GroupError>;
+    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
+    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
+    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
+    /// directly be instantiated as a struct
+    fn frobenius(&self, exponent: usize) -> Self;
 }
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct GroupAffine<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
+pub struct GroupAffine<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     /// this is the implementation of a point on the curve in affine coordinates. It is not possible
     /// to directly input a pair of x, y such that infinity is True, since the point at infinity
     /// has no unique representation in this form. Generation of the point at infinity is accomplished
     /// either by calling the `zero` method, or by applying binary operations to 'normal' points to
     /// reach the point at infinity with arithmetic.
-    pub(crate) x: F,
-    pub(crate) y: F,
-    pub(crate) infinity: Choice,
+    pub x: F,
+    pub y: F,
+    pub infinity: Choice,
 }
 /// this is the beginning of Rust lifetime magic. The issue is that when we implement
 /// the arithmetic, we need to explicitly state the lifetime of each operand
@@ -136,20 +141,20 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
     }
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D, N, F> {
-    pub(crate) fn zero() -> Self {
+    pub fn zero() -> Self {
         Self {
             x: F::zero(),
             y: F::one(),
             infinity: Choice::from(1u8),
         }
     }
-    #[allow(dead_code)]
-    pub(crate) fn is_zero(&self) -> bool {
+
+    pub fn is_zero(&self) -> bool {
         bool::from(self.infinity)
     }
 }
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct GroupProjective<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
+pub struct GroupProjective<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     /// We now define the projective representation of a point on the curve. Here, the point(s) at
     /// infinity is (are) indicated by `z=0`. This allows the user to therefore directly generate
     /// such a point with the associated `new` method. Affine coordinates are those indicated by `z=1`.
@@ -160,24 +165,24 @@ pub(crate) struct GroupProjective<const D: usize, const N: usize, F: FieldExtens
     /// projective coords, or (iii) have mixed representations. For security, due to the uniqueness of
     /// the representation of the point at infinity, we therefore opt to have
     /// all arithmetic done in projective coordinates.
-    pub(crate) x: F,
-    pub(crate) y: F,
-    pub(crate) z: F,
+    pub x: F,
+    pub y: F,
+    pub z: F,
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjective<D, N, F> {
     /// This is the point at infinity! This object really is the additive identity of the group,
     /// when the group law is addition, which it is here. It satisfies the properties that
     /// $zero+a=a$ for some $a$ in the group, as well as $a+(-a)=zero$, which means that the
     /// convention zero makes the most sense to me here.
-    pub(crate) fn zero() -> Self {
+    pub fn zero() -> Self {
         Self {
             x: F::zero(),
             y: F::one(),
             z: F::zero(),
         }
     }
-    #[allow(dead_code)]
-    pub(crate) fn is_zero(&self) -> bool {
+
+    pub fn is_zero(&self) -> bool {
         self.z.is_zero()
     }
 
@@ -187,7 +192,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
     /// Complexity:
     ///        `6M`(ultiplications) + `2S`(quarings)
     ///      + `1m`(ultiplication by scalar) + `9A`(dditions)
-    pub(crate) fn double(&self) -> Self {
+    pub fn double(&self) -> Self {
         let t0 = self.y * self.y;
         let z3 = t0 + t0;
         let z3 = z3 + z3;
@@ -397,6 +402,15 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         }
     }
 }
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add<GroupProjective<D, N, F>>
+    for GroupProjective<D, N, F>
+{
+    type Output = Self;
+    fn add(self, rhs: GroupProjective<D, N, F>) -> Self::Output {
+        &self + &rhs
+    }
+}
+
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     Sub<&'b GroupProjective<D, N, F>> for &'a GroupProjective<D, N, F>
@@ -406,9 +420,17 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         self + &(-other)
     }
 }
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Sub<GroupProjective<D, N, F>>
+    for GroupProjective<D, N, F>
+{
+    type Output = Self;
+    fn sub(self, rhs: GroupProjective<D, N, F>) -> Self::Output {
+        &self - &rhs
+    }
+}
 
 #[allow(clippy::suspicious_arithmetic_impl)]
-impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&'b [u8; 32]>
+impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&'b Fp>
     for &'a GroupProjective<D, N, F>
 {
     /// This is simply the `double-and-add` algorithm for multiplication, which is the ECC
@@ -416,9 +438,10 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&
     ///
     /// <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
     type Output = GroupProjective<D, N, F>;
-    fn mul(self, other: &'b [u8; 32]) -> Self::Output {
+    fn mul(self, other: &'b Fp) -> Self::Output {
+        let bits = other.value().to_le_bytes();
         let mut res = Self::Output::zero();
-        for bit in other.iter().rev() {
+        for bit in bits.iter().rev() {
             for i in (0..8).rev() {
                 res = res.double();
                 if (bit & (1 << i)) != 0 {
@@ -427,5 +450,14 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&
             }
         }
         res
+    }
+}
+
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<Fp>
+    for GroupProjective<D, N, F>
+{
+    type Output = Self;
+    fn mul(self, rhs: Fp) -> Self::Output {
+        &self * &rhs
     }
 }

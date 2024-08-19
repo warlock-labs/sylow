@@ -1,6 +1,7 @@
-mod g1;
-mod g2;
-pub(crate) mod group;
+pub mod g1;
+pub mod g2;
+pub mod group;
+pub mod gt;
 
 /// This test suite takes time, the biggest culprit of which is the multiplication. Really the
 /// biggest bottleneck is assuredly the loading of the reference data from disk. The
@@ -290,7 +291,6 @@ mod tests {
             }
         }
         mod special_point_tests {
-            use crate::fields::fp::{FieldExtensionTrait, Fp};
             use crate::groups::g1::G1Projective;
             use crate::groups::group::GroupTrait;
 
@@ -312,11 +312,9 @@ mod tests {
 
                 let mut d = G1Projective::generator();
                 for _ in 0..5 {
-                    d = &d + &G1Projective::generator();
+                    d = d + G1Projective::generator();
                 }
                 assert_eq!(j, d, "Generator multiplication not valid");
-                let c2 = <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue();
-                println!("{:?}", c2.value().to_words());
             }
         }
         mod addition_tests {
@@ -397,11 +395,7 @@ mod tests {
                 load_g1_reference_data!(g1_points);
                 let three = Fp::from(3);
                 for i in &g1_points.a {
-                    assert_eq!(
-                        i + &(i + i),
-                        i * &three.value().to_le_bytes(),
-                        "Multiplication failed"
-                    );
+                    assert_eq!(i + &(i + i), i * &three, "Multiplication failed");
                 }
             }
             #[test]
@@ -417,7 +411,7 @@ mod tests {
                 load_g1_reference_data!(g1_points);
                 let expected = g1_points.mul;
                 for (i, (a, r)) in g1_points.a.iter().zip(&g1_points.r).enumerate() {
-                    let result = a * &r.value().to_le_bytes();
+                    let result = a * r;
                     assert_eq!(result, expected[i], "Simple multiplication failed");
                 }
                 let expected = g1_points.dbl;
@@ -440,9 +434,7 @@ mod tests {
             #[test]
             fn test_closure() {
                 let expander = XMDExpander::<Sha256>::new(DST, K);
-                if let Ok(d) = G1Projective::hash_to_curve(&expander, MSG) {
-                    println!("{:?}", d)
-                }
+                if let Ok(_d) = G1Projective::hash_to_curve(&expander, MSG) {}
             }
 
             #[test]
@@ -470,7 +462,10 @@ mod tests {
             fn test_svdw() {
                 load_g1_reference_data!(g1_points);
 
-                if let Ok(d) = SvdW::<1, 1, Fp>::precompute_constants(Fp::from(0), Fp::from(3)) {
+                if let Ok(d) = SvdW::precompute_constants(
+                    Fp::ZERO,
+                    <Fp as FieldExtensionTrait<1, 1>>::curve_constant(),
+                ) {
                     for s in g1_points.svdw.iter() {
                         let r = s.i;
                         let p = s.p;
@@ -542,7 +537,7 @@ mod tests {
 
                 let mut d = G2Projective::generator();
                 for _ in 0..5 {
-                    d = &d + &G2Projective::generator();
+                    d = d + G2Projective::generator();
                 }
                 assert_eq!(j, d, "Generator multiplication not valid");
             }
@@ -619,11 +614,7 @@ mod tests {
                 load_g2_reference_data!(g2_points, _g2_invalids);
                 let three = Fp::from(3);
                 for i in &g2_points.a {
-                    assert_eq!(
-                        i + &(i + i),
-                        i * &three.value().to_le_bytes(),
-                        "Multiplication failed"
-                    );
+                    assert_eq!(i + &(i + i), i * &three, "Multiplication failed");
                 }
             }
             #[test]
@@ -631,7 +622,7 @@ mod tests {
                 load_g2_reference_data!(g2_points, _g2_invalids);
                 let expected = g2_points.mul;
                 for (i, (a, r)) in g2_points.a.iter().zip(&g2_points.r).enumerate() {
-                    let result = a * &r.value().to_le_bytes();
+                    let result = a * r;
                     assert_eq!(result, expected[i], "Simple multiplication failed");
                 }
                 let expected = g2_points.dbl;

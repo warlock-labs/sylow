@@ -2,12 +2,12 @@
 authors = ["Tristan Britt <hello@tbritt.xyz>", "0xAlcibiades <alcibiades.eth@protonmail.com>"]
 categories = ["cryptography", "mathematics"]
 description = "Implementation of the BLS signature scheme using the alt-bn128 curve."
-homepage = "https://github.com/warlock-labs/alt-bn128-bls"
+homepage = "https://github.com/warlock-labs/sylow"
 keywords = ["alt-bn128", "bls", "cryptography", "elliptic-curve", "pairing"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/warlock-labs/alt-bn128-bls.git"
-name = "alt-bn128-bls"
+repository = "https://github.com/warlock-labs/sylow.git"
+name = "sylow"
 version = "0.0.1"
 edition = "2021"
 
@@ -20,8 +20,6 @@ subtle = "2.6.1"
 crypto-bigint = "0.6.0-rc.2"
 sha3 = "0.11.0-pre.4"
 
-[lib]
-proc-macro = true
 
 [dev-dependencies]
 serde = { version = "1.0.204", features = ["derive"] }

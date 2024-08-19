@@ -43,17 +43,23 @@ use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use subtle::CtOption;
 
-const FP_QUADRATIC_NON_RESIDUE: Fp = Fp::new(U256::from_words([
-    4332616871279656262,
-    10917124144477883021,
-    13281191951274694749,
-    3486998266802970665,
+pub const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
+    0x3C208C16D87CFD47,
+    0x97816A916871CA8D,
+    0xB85045B68181585D,
+    0x30644E72E131A029,
 ]));
 /// This defines the key properties of a field extension. Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
 /// that are purely relevant to the task at hand here.
-pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
+///
+/// There are two generic elements that describe the particular field extension one generates:
+/// (i) the degree of the extension (what is the highest degree of an element in the ring that is
+/// used to generate the quotient field F(x)/f(x)), D, and (ii) the number of elements
+/// required for a unique representation of an element in the extension, N. An extension can have
+/// many different representations, so it is key to allow this flexibility.
+pub trait FieldExtensionTrait<const D: usize, const N: usize>:
     Sized
     + Copy
     + Clone
@@ -79,25 +85,12 @@ pub(crate) trait FieldExtensionTrait<const D: usize, const N: usize>:
     // multiplication in a field extension is dictated
     // heavily such a value below
     fn quadratic_non_residue() -> Self;
-    // this endomorphism is key for twist operations
-    #[allow(dead_code)]
-    fn frobenius(&self, exponent: usize) -> Self;
-    // specialized algorithms exist in each extension
-    // for sqrt and square, simply helper functions really
-    #[allow(dead_code)]
-    fn sqrt(&self) -> CtOption<Self>;
-    fn square(&self) -> Self;
 
-    #[allow(dead_code)]
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
-
-    fn is_square(&self) -> Choice;
-
-    fn sgn0(&self) -> Choice;
 
     fn curve_constant() -> Self;
 }
-pub(crate) trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
+pub trait FinitePrimeField<const DLIMBS: usize, UintType, const D: usize, const N: usize>:
     FieldExtensionTrait<D, N> + Rem<Output = Self> + Euclid + Pow<U256> + From<u64>
 where
     UintType: ConcatMixed<MixedOutput = Uint<DLIMBS>>,
@@ -112,24 +105,25 @@ where
 
 #[allow(unused_macros)]
 macro_rules! define_finite_prime_field {
-    ($wrapper_name:ident, $uint_type:ty, $limbs:expr, $modulus:expr, $degree:expr, $nreps:expr) => {
-        impl_modulus!(ModulusStruct, $uint_type, $modulus);
+    ($wrapper_name:ident, $mod_struct:ident, $output:ident, $uint_type:ty, $limbs:expr,
+    $modulus:expr,
+    $degree:expr,
+    $nreps:expr) => {
+        impl_modulus!($mod_struct, $uint_type, $modulus);
 
         //special struct for const-time arithmetic on montgomery form integers mod p
-        type Output =
-            crypto_bigint::modular::ConstMontyForm<ModulusStruct, { ModulusStruct::LIMBS }>;
+        type $output = crypto_bigint::modular::ConstMontyForm<$mod_struct, { $mod_struct::LIMBS }>;
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
-        pub(crate) struct $wrapper_name(ModulusStruct, Output);
-        #[allow(dead_code)]
+        pub struct $wrapper_name($mod_struct, $output);
+
         impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {}
+
         impl $wrapper_name {
             // builder structure to create elements in the base field of a given value
-            pub(crate) const fn new(value: $uint_type) -> Self {
-                Self(ModulusStruct, Output::new(&value))
+            pub const fn new(value: $uint_type) -> Self {
+                Self($mod_struct, $output::new(&value))
             }
-            #[allow(dead_code)] // this is indeed used in the test cases, which are ignored by
-                                // the linter
-            pub(crate) fn new_from_str(value: &str) -> Option<Self> {
+            pub fn new_from_str(value: &str) -> Option<Self> {
                 let ints: Vec<_> = {
                     let mut acc = Self::zero();
                     (0..11)
@@ -153,11 +147,11 @@ macro_rules! define_finite_prime_field {
                 Some(res)
             }
             // take the element and convert it to "normal" form from montgomery form
-            pub(crate) const fn value(&self) -> $uint_type {
+            pub const fn value(&self) -> $uint_type {
                 self.1.retrieve()
             }
-            pub(crate) fn characteristic() -> $uint_type {
-                <$uint_type>::from(ModulusStruct::MODULUS.as_nz_ref().get())
+            pub fn characteristic() -> $uint_type {
+                <$uint_type>::from($mod_struct::MODULUS.as_nz_ref().get())
             }
             pub const ZERO: Self = Self::new(<$uint_type>::from_words([0x0; 4]));
             pub const ONE: Self = Self::new(<$uint_type>::from_words([0x1, 0x0, 0x0, 0x0]));
@@ -173,50 +167,13 @@ macro_rules! define_finite_prime_field {
             fn quadratic_non_residue() -> Self {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
                 // = -1
-                FP_QUADRATIC_NON_RESIDUE
-            }
-            fn frobenius(&self, _exponent: usize) -> Self {
-                Self::zero()
-            }
-            fn sqrt(&self) -> CtOption<Self> {
-                // This is an instantiation of Shank's algorithm, which solves congruences of
-                // the form $r^2\equiv n \mod p$, namely the sqrt of n. It does not work for
-                // composite moduli (aka nonprime p), since that is the integer factorization
-                // problem. The full algorithm is not necessary here, and has the additional
-                // simpication that we can exploit in our case. Namely, the BN254 curve has a
-                // prime that is congruent to 3 mod 4. In this case, the sqrt only has the
-                // possible solution of $\pm pow(n, \frac{p+1}{4})$, which is where this magic
-                // number below comes from ;)
-                let arg =
-                    ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
-                let sqrt = self.pow(arg);
-                CtOption::new(
-                    sqrt,
-                    <Self as FieldExtensionTrait<$degree, $nreps>>::square(&sqrt).ct_eq(self),
-                )
-            }
-            fn square(&self) -> Self {
-                (*self) * (*self)
+                Self::new((-Self::ONE).1.retrieve())
             }
             fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
                 Self::new(<$uint_type>::random_mod(
                     rng,
-                    ModulusStruct::MODULUS.as_nz_ref(),
+                    $mod_struct::MODULUS.as_nz_ref(),
                 ))
-            }
-            fn is_square(&self) -> Choice {
-                let p_minus_1_div_2 =
-                    ((Self::new(Self::characteristic()) - Self::from(1)) / Self::from(2)).value();
-                let retval = self.pow(p_minus_1_div_2);
-                Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
-            }
-            fn sgn0(&self) -> Choice {
-                let a = *self % Self::from(2u64);
-                if a.is_zero() {
-                    Choice::from(0u8)
-                } else {
-                    Choice::from(1u8)
-                }
             }
             /// this is the constant of the j-invariant curve defined over this base field.
             /// Namely, the short Weierstrass curve is of the form $y^2 = x^3 + b$, and the below
@@ -227,7 +184,7 @@ macro_rules! define_finite_prime_field {
         }
         impl From<u64> for $wrapper_name {
             fn from(value: u64) -> Self {
-                Self(ModulusStruct, Output::new(&<$uint_type>::from_u64(value)))
+                Self($mod_struct, $output::new(&<$uint_type>::from_u64(value)))
             }
         }
         /// We now implement binary operations on the base field. This more or less
@@ -407,7 +364,79 @@ macro_rules! define_finite_prime_field {
 }
 
 const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
-define_finite_prime_field!(Fp, U256, 8, BN254_MOD_STRING, 1, 1);
+const BN254_SUBGROUP_MOD_STRING: &str =
+    "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001";
+define_finite_prime_field!(
+    Fp,
+    FpModStruct,
+    FpOutputType,
+    U256,
+    8,
+    BN254_MOD_STRING,
+    1,
+    1
+);
+define_finite_prime_field!(
+    Fr,
+    FrModStruct,
+    FrOutputType,
+    U256,
+    8,
+    BN254_SUBGROUP_MOD_STRING,
+    1,
+    1
+);
+impl<'a> From<&'a Fr> for Fp {
+    fn from(value: &'a Fr) -> Self {
+        Fp::new(value.value())
+    }
+}
+impl From<Fr> for Fp {
+    fn from(value: Fr) -> Self {
+        Fp::from(&value)
+    }
+}
+impl Fp {
+    pub fn frobenius(&self, exponent: usize) -> Self {
+        // this function is inherently expensive, and we never call it on the base field, but if
+        // we did, it's only defined for p=1. Specialized versions exist for all extensions which
+        // will require the frobenius transformation
+        match exponent {
+            1 => self.pow(BN254_FP_MODULUS.value()),
+            _ => *self,
+        }
+    }
+    pub fn sqrt(&self) -> CtOption<Self> {
+        // This is an instantiation of Shank's algorithm, which solves congruences of
+        // the form $r^2\equiv n \mod p$, namely the sqrt of n. It does not work for
+        // composite moduli (aka nonprime p), since that is the integer factorization
+        // problem. The full algorithm is not necessary here, and has the additional
+        // simpication that we can exploit in our case. Namely, the BN254 curve has a
+        // prime that is congruent to 3 mod 4. In this case, the sqrt only has the
+        // possible solution of $\pm pow(n, \frac{p+1}{4})$, which is where this magic
+        // number below comes from ;)
+        let arg = ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
+        let sqrt = self.pow(arg);
+        CtOption::new(sqrt, sqrt.square().ct_eq(self))
+    }
+    pub fn square(&self) -> Self {
+        (*self) * (*self)
+    }
+    pub fn is_square(&self) -> Choice {
+        let p_minus_1_div_2 =
+            ((Self::new(Self::characteristic()) - Self::from(1)) / Self::from(2)).value();
+        let retval = self.pow(p_minus_1_div_2);
+        Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
+    }
+    pub fn sgn0(&self) -> Choice {
+        let a = *self % Self::from(2u64);
+        if a.is_zero() {
+            Choice::from(0u8)
+        } else {
+            Choice::from(1u8)
+        }
+    }
+}
 /// the code below makes the base field "visible" to higher
 /// order extensions. The issue is really the fact that generic
 /// traits cannot enforce arithmetic relations, such as the
@@ -421,24 +450,8 @@ impl FieldExtensionTrait<2, 2> for Fp {
     fn quadratic_non_residue() -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()
     }
-    fn frobenius(&self, exponent: usize) -> Self {
-        <Fp as FieldExtensionTrait<1, 1>>::frobenius(self, exponent)
-    }
-    fn sqrt(&self) -> CtOption<Self> {
-        <Fp as FieldExtensionTrait<1, 1>>::sqrt(self)
-    }
-    fn square(&self) -> Self {
-        <Fp as FieldExtensionTrait<1, 1>>::square(self)
-    }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
-    }
-
-    fn is_square(&self) -> Choice {
-        <Fp as FieldExtensionTrait<1, 1>>::is_square(self)
-    }
-    fn sgn0(&self) -> Choice {
-        <Fp as FieldExtensionTrait<1, 1>>::sgn0(self)
     }
     fn curve_constant() -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::curve_constant()
@@ -450,24 +463,9 @@ impl FieldExtensionTrait<2, 2> for Fp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const MODULUS: [u64; 4] = [
-        0x3C208C16D87CFD47,
-        0x97816A916871CA8D,
-        0xB85045B68181585D,
-        0x30644E72E131A029,
-    ];
 
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
-    }
-    mod test_modulus_conversion {
-        use super::*;
-        #[test]
-        fn test_modulus() {
-            for i in U256::from_be_hex(BN254_MOD_STRING).as_limbs() {
-                println!("{:X}", i.0);
-            }
-        }
     }
     mod addition_tests {
         use super::*;
@@ -512,7 +510,7 @@ mod tests {
             );
 
             // Addition that wraps around the modulus
-            let e = create_field(MODULUS);
+            let e = BN254_FP_MODULUS;
             let f = create_field([1, 0, 0, 0]);
             assert_eq!(
                 (e + f).value(),
@@ -600,7 +598,7 @@ mod tests {
             );
 
             // Subtraction resulting in zero
-            let g = create_field(MODULUS);
+            let g = BN254_FP_MODULUS;
             assert_eq!(
                 (g - g).value(),
                 U256::from_words([0, 0, 0, 0]),
@@ -916,18 +914,15 @@ mod tests {
         fn test_square() {
             for _ in 0..100 {
                 let a = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng);
-                let b = <Fp as FieldExtensionTrait<1, 1>>::square(&a);
-                assert!(
-                    bool::from(<Fp as FieldExtensionTrait<1, 1>>::is_square(&b)),
-                    "Is square failed"
-                );
+                let b = a.square();
+                assert!(bool::from(b.is_square()), "Is square failed");
             }
         }
         #[test]
         fn test_sqrt() {
             for i in 0..100 {
                 let a = create_field([i, 2 * i, 3 * i, 4 * i]);
-                let b = <Fp as FieldExtensionTrait<1, 1>>::sqrt(&a);
+                let b = a.sqrt();
                 match b.into_option() {
                     Some(d) => {
                         assert_eq!(d * d, a, "Sqrt failed")

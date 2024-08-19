@@ -18,10 +18,9 @@ use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::Zero;
 use subtle::{Choice, ConstantTimeEq};
 
-#[allow(dead_code)]
-pub(crate) type G1Affine = GroupAffine<1, 1, Fp>;
-#[allow(dead_code)]
-pub(crate) type G1Projective = GroupProjective<1, 1, Fp>;
+pub type G1Affine = GroupAffine<1, 1, Fp>;
+
+pub type G1Projective = GroupProjective<1, 1, Fp>;
 
 impl GroupTrait<1, 1, Fp> for G1Affine {
     fn generator() -> Self {
@@ -52,18 +51,32 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
             Err(e) => Err(e),
         }
     }
+    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
+    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
+    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
+    /// directly be instantiated as a struct
+    fn frobenius(&self, exponent: usize) -> Self {
+        let vec: Vec<Fp> = [self.x, self.y]
+            .iter()
+            .map(|x| x.frobenius(exponent))
+            .collect();
+        Self {
+            x: vec[0],
+            y: vec[1],
+            infinity: self.infinity,
+        }
+    }
 }
-#[allow(dead_code)]
+
 impl G1Affine {
     /// this needs to be defined in order to have user interaction, but currently
     /// is only visible in tests, and therefore is seen by the linter as unused
-    pub(crate) fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
+    pub fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
         let _g1affine_is_on_curve = |x: &Fp, y: &Fp, z: &Choice| -> Choice {
-            let y2 = <Fp as FieldExtensionTrait<1, 1>>::square(y);
-            let x2 = <Fp as FieldExtensionTrait<1, 1>>::square(x);
+            let y2 = y.square();
+            let x2 = x.square();
             let lhs = y2 - (x2 * (*x));
             let rhs = <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
-            // println!("{:?}, {:?}", lhs, rhs);
             lhs.ct_eq(&rhs) | *z
         };
 
@@ -74,7 +87,6 @@ impl G1Affine {
         let is_on_curve: Choice = _g1affine_is_on_curve(&v[0], &v[1], &Choice::from(0u8));
         match bool::from(is_on_curve) {
             true => {
-                // println!("Is on curve!");
                 let is_in_torsion: Choice =
                     _g1affine_is_torsion_free(&v[0], &v[1], &Choice::from(0u8));
                 match bool::from(is_in_torsion) {
@@ -98,10 +110,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
         Self::generator()
     }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
-        &Self::generator()
-            * &<Fp as FieldExtensionTrait<1, 1>>::rand(rng)
-                .value()
-                .to_le_bytes()
+        Self::generator() * <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
     }
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError> {
         const COUNT: usize = 2;
@@ -109,7 +118,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
         let scalars = exp
             .hash_to_field(msg, COUNT, L)
             .expect("Hashing to base field failed");
-        match SvdW::<1, 1, Fp>::precompute_constants(Fp::from(0), Fp::from(3)) {
+        match SvdW::precompute_constants(Fp::from(0), Fp::from(3)) {
             Ok(bn254_g1_svdw) => {
                 let a = G1Projective::from(
                     bn254_g1_svdw
@@ -121,28 +130,37 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
                         .unchecked_map_to_point(scalars[1])
                         .expect("Failed to hash"),
                 );
-                Ok(&a + &b)
+                Ok(a + b)
             }
             _ => Err(GroupError::CannotHashToGroup),
         }
     }
     fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: Fp) -> Result<Self, GroupError> {
         if let Ok(d) = Self::hash_to_curve(exp, msg) {
-            return Ok(&d * &private_key.value().to_le_bytes());
+            return Ok(d * private_key);
         }
         Err(GroupError::CannotHashToGroup)
     }
+    fn frobenius(&self, exponent: usize) -> Self {
+        let vec: Vec<Fp> = [self.x, self.y, self.z]
+            .iter()
+            .map(|x| x.frobenius(exponent))
+            .collect();
+        Self {
+            x: vec[0],
+            y: vec[1],
+            z: vec[2],
+        }
+    }
 }
 impl G1Projective {
-    #[allow(dead_code)]
-    pub(crate) fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
+    pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let _g1projective_is_on_curve = |x: &Fp, y: &Fp, z: &Fp| -> Choice {
-            let y2 = <Fp as FieldExtensionTrait<1, 1>>::square(y);
-            let x2 = <Fp as FieldExtensionTrait<1, 1>>::square(x);
-            let z2 = <Fp as FieldExtensionTrait<1, 1>>::square(z);
+            let y2 = y.square();
+            let x2 = x.square();
+            let z2 = z.square();
             let lhs = y2 * (*z);
             let rhs = x2 * (*x) + z2 * (*z) * <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
-            // println!("{:?}, {:?}", lhs.value(), rhs.value());
             lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
         };
         let _g1projective_is_torsion_free =
@@ -150,7 +168,6 @@ impl G1Projective {
         let is_on_curve: Choice = _g1projective_is_on_curve(&v[0], &v[1], &v[2]);
         match bool::from(is_on_curve) {
             true => {
-                // println!("Is on curve!");
                 let is_in_torsion: Choice = _g1projective_is_torsion_free(&v[0], &v[1], &v[2]);
                 match bool::from(is_in_torsion) {
                     true => Ok(Self {
