@@ -184,7 +184,7 @@ impl Fp6 {
             self.0[2].frobenius(exponent) * FROBENIUS_COEFF_FP6_C2[exponent % 6],
         ])
     }
-    
+
     // this is simply the same as the multiplication below
     // however, there are some simple algebraic reductions
     // you can do with squaring. this just implements that,
