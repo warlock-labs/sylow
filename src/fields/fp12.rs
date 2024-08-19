@@ -197,7 +197,7 @@ impl<'a, 'b> Mul<&'b Fp12> for &'a Fp12 {
     type Output = Fp12;
     fn mul(self, other: &'b Fp12) -> Self::Output {
         // this is again simple Karatsuba multiplication
-        // see comments in Fp2 impl of `Mul` trait, or otherwise see Alg 20 of 
+        // see comments in Fp2 impl of `Mul` trait, or otherwise see Alg 20 of
         // <https://eprint.iacr.org/2010/354.pdf>
         let t0 = self.0[0] * other.0[0];
         let t1 = self.0[1] * other.0[1];
@@ -289,12 +289,12 @@ impl Fp12 {
     /// The function below is called by `zcash`, `bn`, and `arkworks` as `mul_by_024`, referring to
     /// the indices of the non-zero elements in the 6x Fp2 representation above for the
     /// multiplication.
-    /// 
+    ///
     /// # Arguments
     /// * `ell_0` - Fp2, the first entry of the sparse element
     /// * `ell_vw` - Fp2, the second entry of the sparse element
     /// * `ell_vv` - Fp2, the third entry of the sparse element
-    /// 
+    ///
     /// # Returns
     /// * A dense Fp12 element
     pub(crate) fn sparse_mul(&self, ell_0: Fp2, ell_vw: Fp2, ell_vv: Fp2) -> Fp12 {

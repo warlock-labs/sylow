@@ -65,8 +65,8 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
 }
 
 impl G1Affine {
-    // Instantiate a new element in affine coordinates in G1. The input values must simply pass 
-    // the curve check, since the r-torsion of the curve on the base field is the entire curve 
+    // Instantiate a new element in affine coordinates in G1. The input values must simply pass
+    // the curve check, since the r-torsion of the curve on the base field is the entire curve
     // and therefore no subgroup check is required in G1.
     // # Arguments
     // * `v` - a tuple of field elements that represent the x and y coordinates of the point
@@ -112,9 +112,9 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
         Self::generator() * <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
     }
     /// There are two steps in the process of taking a byte array and putting it to an element in
-    /// the group. First, hash the array to a string into two elements from the base field using 
+    /// the group. First, hash the array to a string into two elements from the base field using
     /// the `expand_msg` standard, and map each of these to an element of the group, and then add
-    /// those group elements to arrive at the final hash, see `hasher.rs` and `svdw.rs` for more 
+    /// those group elements to arrive at the final hash, see `hasher.rs` and `svdw.rs` for more
     /// details.
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError> {
         const COUNT: usize = 2;

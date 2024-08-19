@@ -1,9 +1,9 @@
 use crypto_bigint::{Encoding, U256, U512};
 
 /// This function is used to convert a smaller byte array to a larger one
-/// It's mainly useful for upcasting arithmetic. For example, in order to compute p^2 in 
-/// non-modular arithmetic, having p as a U256 will cause overflow in p^2, so we up-cast it toa 
-/// U512, and then do the squaring to contain the result. The below simply does this conversion 
+/// It's mainly useful for upcasting arithmetic. For example, in order to compute p^2 in
+/// non-modular arithmetic, having p as a U256 will cause overflow in p^2, so we up-cast it toa
+/// U512, and then do the squaring to contain the result. The below simply does this conversion
 /// for a given input and output dimension.
 /// # Generics
 /// * `N` - the size of the input slice

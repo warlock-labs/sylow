@@ -40,7 +40,7 @@ pub(crate) trait SvdWTrait: Sized {
     /// * `a` - the A coefficient of the curve
     /// * `b` - the B coefficient of the curve
     /// # Returns
-    /// * `Result<SvdW, MapError>` - the struct containing the constants for the SvdW algorithm, 
+    /// * `Result<SvdW, MapError>` - the struct containing the constants for the SvdW algorithm,
     ///                                 or an error otherwise
     fn find_z_svdw(a: Fp, b: Fp) -> Fp {
         let g = |x: &Fp| -> Fp { (*x) * (*x) * (*x) + a * (*x) + b };
@@ -66,7 +66,14 @@ pub(crate) trait SvdWTrait: Sized {
             ctr += 1;
         }
     }
-
+    /// There are a few constants in the SvdW algorithm, and this subroutine actually determines
+    /// them for the given curve, see Ref 1 for more details.
+    /// # Arguments
+    /// * `a` - the A coefficient of the curve
+    /// * `b` - the B coefficient of the curve
+    /// # Returns
+    /// * `Result<SvdW, MapError>` - the struct containing the constants for the SvdW algorithm,
+    /// or an error otherwise
     fn precompute_constants(a: Fp, b: Fp) -> Result<SvdW, MapError> {
         let g = |x: &Fp| -> Fp { (*x) * (*x) * (*x) + a * (*x) + b };
         let z = Self::find_z_svdw(a, b);
@@ -98,6 +105,16 @@ pub(crate) trait SvdWTrait: Sized {
             z,
         })
     }
+    /// Having determined the constants for the SvdW algorithm, we actually perform the mapping
+    /// to an element of the group. The issue here is that we do not explicitly check the result
+    /// of this operation to verify that it satisfies the curve equation, since that
+    /// functionality is nearly contained in `groups.rs` etc. Therefore, this private method is
+    /// called by `g1.rs` etc., which then calls its `new` method to perform the subgroup and
+    /// curve checks, meaning that it is ok for those checks to not occur here.
+    /// # Arguments
+    /// * `u` - the scalar to be mapped to a point on the curve
+    /// # Returns
+    /// * `Result<[Fp; 2], MapError>` - the point on the curve, or an error otherwise
     fn unchecked_map_to_point(&self, u: Fp) -> Result<[Fp; 2], MapError>;
 }
 impl SvdWTrait for SvdW {

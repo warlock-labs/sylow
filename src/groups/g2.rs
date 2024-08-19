@@ -105,7 +105,7 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
             infinity: Choice::from(0u8),
         }
     }
-    
+
     fn endomorphism(&self) -> Self {
         if self.is_zero() {
             return *self;
@@ -123,7 +123,7 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
         Self::from(G2Projective::rand(rng))
     }
 
-    /// Being able to implement a "G1/G2 swap" is in development, where we then will hash a byte 
+    /// Being able to implement a "G1/G2 swap" is in development, where we then will hash a byte
     /// array to G2 (private key + signature in G2), while retaining a public key in G1, which is
     /// why the following two methods are unimplemented for the moment.
     fn hash_to_curve<E: Expander>(_exp: &E, _msg: &[u8]) -> Result<Self, GroupError> {
@@ -212,7 +212,7 @@ impl G2Affine {
     /// therefore this method is not exposed publicly.
     ///
     /// DON'T USE THIS METHOD UNLESS YOU KNOW WHAT YOU'RE DOING
-    /// 
+    ///
     /// # Arguments
     /// * `v` - a tuple of field elements that represent the x and y coordinates of the point
     fn new_unchecked(v: [Fp2; 2]) -> Result<Self, GroupError> {
@@ -239,7 +239,7 @@ impl G2Projective {
     /// The public entrypoint to making a value in $\mathbb{G}_2$. This takes the (x,y,z) values
     /// from the user, and passes them through a subgroup and curve check to ensure validity.
     /// Values returned from this function are guaranteed to be on the curve and in the r-torsion.
-    /// 
+    ///
     /// # Arguments
     /// * `v` - a tuple of field elements that represent the x, y, and z coordinates of the point
     pub fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {

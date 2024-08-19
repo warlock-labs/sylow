@@ -54,8 +54,8 @@ impl Fp2 {
     /// A simple square and multipy algorithm for exponentiation
     /// # Arguments
     /// * `by` - Fp, the exponent to raise the element to
-    /// 
-    /// Note that the argument is required to be an element of the base field, and the expansion 
+    ///
+    /// Note that the argument is required to be an element of the base field, and the expansion
     /// of this element via `to_words()` always returns &[u64; 4], which lets this run constant time
     /// for any field element.
     pub fn pow(&self, by: &Fp) -> Self {

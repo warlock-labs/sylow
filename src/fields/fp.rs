@@ -118,7 +118,7 @@ where
 /// * `$limbs`: The number of limbs in the underlying unsigned integer type.
 /// * `$modulus`: The modulus of the field as a string.
 /// * `$degree`: The degree of the field extension.
-/// * `$nreps`: The number of elements required for a unique representation of an element in the 
+/// * `$nreps`: The number of elements required for a unique representation of an element in the
 /// extension.
 #[allow(unused_macros)]
 macro_rules! define_finite_prime_field {
@@ -142,7 +142,7 @@ macro_rules! define_finite_prime_field {
             pub const fn new(value: $uint_type) -> Self {
                 Self($mod_struct, $output::new(&value))
             }
-            /// builder structure to create elements in the base field from a string 
+            /// builder structure to create elements in the base field from a string
             /// representation of the value in base 10
             /// # Arguments
             /// * `value` - &str - the string representation of the value to create the element from
@@ -456,7 +456,7 @@ impl Fp {
         let retval = self.pow(p_minus_1_div_2);
         Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
     }
-    /// Determines the 'sign' of a value in the base field, 
+    /// Determines the 'sign' of a value in the base field,
     /// see <https://datatracker.ietf.org/doc/html/rfc9380#section-4.1> for more details
     pub fn sgn0(&self) -> Choice {
         let a = *self % Self::from(2u64);

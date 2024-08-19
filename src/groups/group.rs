@@ -73,7 +73,7 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     /// computationally efficient way. All of this fancy stuff equates simply, and remarkably,
     /// to the following:
     /// (x,y) |-> (x^p * \xi^((p-1)/3), y^p*\xi^((p-1)/2))
-    /// 
+    ///
     /// Note that this function will only be meaningful implemented to G2 elements.
     fn endomorphism(&self) -> Self;
     /// Generate a random point on the curve
@@ -81,10 +81,10 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     /// * `rng` - a cryptographic random number generator
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
     /// Hash a message to a point on the curve using the `expand_msg` and SvdW standards provided
-    /// by RFC 9380, see `hasher.rs` and `svdw.rs` for more details. Takes an input message, and 
+    /// by RFC 9380, see `hasher.rs` and `svdw.rs` for more details. Takes an input message, and
     /// expander, and returns an element in the group.
     /// # Arguments
-    /// * `exp` - an object that implements the `Expander` trait,  used to hash the message to a 
+    /// * `exp` - an object that implements the `Expander` trait,  used to hash the message to a
     ///             point on the curve
     /// * `msg` - a slice of bytes that is to be hashed to a point on the curve
     /// # Returns
@@ -92,7 +92,7 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError>;
     /// Take an input message, and produce a cryptographic signature on it in the group.
     /// # Arguments
-    /// * `exp` - an object that implements the `Expander` trait, used to hash the message to a 
+    /// * `exp` - an object that implements the `Expander` trait, used to hash the message to a
     ///             point on the curve
     /// * `msg` - a slice of bytes that is to be hashed to a point on the curve
     /// * `private_key` - a scalar in the base field that is used to sign the message
@@ -101,10 +101,10 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
     /// Therefore, these points must bypass curve membership and torsion checks, and therefore
     /// directly be instantiated as a struct
-    /// 
+    ///
     /// This performs the operation:
     /// (x,y) |-> (x^p, y^p)
-    /// 
+    ///
     /// # Arguments
     /// * `exponent` - usize, the exponent to raise the point to
     #[allow(dead_code)]

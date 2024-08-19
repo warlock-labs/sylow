@@ -29,11 +29,11 @@ fn i2osp(val: u64, length: usize) -> Result<Vec<u8>, HashError> {
 }
 
 /// The suggested way to generate a value in a base field from a byte array is to use a technique
-/// called message expansion, as described by RFC 9380, see 
-/// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message>. This is a trait that 
+/// called message expansion, as described by RFC 9380, see
+/// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message>. This is a trait that
 /// must be satisfied for any version of this standard.
 pub(crate) trait Expander {
-    // If the domain separation tag is above 255 characters, then this prefix must be added as 
+    // If the domain separation tag is above 255 characters, then this prefix must be added as
     // required by the standard.
     const OVERSIZE_DST_PREFIX: &'static [u8] = b"H2C-OVERSIZE-DST-";
 
@@ -45,8 +45,8 @@ pub(crate) trait Expander {
     // * a Result containing the expanded message or an error if the expansion fails
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError>;
     // This function is used to convert a byte array to a field element. The standard technically
-    // defines this function to work for any field extension degree, and allows for the 
-    // partitioning of the expanded message into multiple field elements. For our cases here, 
+    // defines this function to work for any field extension degree, and allows for the
+    // partitioning of the expanded message into multiple field elements. For our cases here,
     // we're interested in the base field (degree=1), and two elements of 48 bytes each.
     // # Arguments
     // * `msg` - the message to be expanded
@@ -69,15 +69,15 @@ pub(crate) trait Expander {
             let mut bs = [0u8; 64];
             bs[16..].copy_from_slice(tv);
 
-            // the next step requires taking the value of current chunk of bytes and modulo'ing 
+            // the next step requires taking the value of current chunk of bytes and modulo'ing
             // it by the base field order. However, because the slice of the expanded message was
-            // fit into a 64-byte array (bigger than the definition of our modulus = 256 = 32 
+            // fit into a 64-byte array (bigger than the definition of our modulus = 256 = 32
             // bytes), we have to up-cast our modulus to a U512 to perform the arithmetic
             let cast_value = U512::from_be_bytes(bs);
             let modulus = NonZero::<U512>::new(u256_to_u512(&Fp::characteristic())).unwrap();
 
-            // since the leading bytes of the expanded message slice are 0 anyway, the first 4 
-            // words of the value will ALWAYS be [0x0,0x0,0x0,0x0], so we can truncate safely to 
+            // since the leading bytes of the expanded message slice are 0 anyway, the first 4
+            // words of the value will ALWAYS be [0x0,0x0,0x0,0x0], so we can truncate safely to
             // get the relevant values
             let scalar = U256::from_words(
                 (cast_value % modulus).to_words()[0..4]
@@ -102,7 +102,7 @@ pub(crate) struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
 
 impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
     /// Generate a new instance of the expander based on a domain separation tag, and desired bit
-    /// level of security. For BN254, this is in theory 128, but has been shown recently to be 
+    /// level of security. For BN254, this is in theory 128, but has been shown recently to be
     /// ~100, see <https://eprint.iacr.org/2015/1027.pdf>.
     /// # Arguments
     /// * `dst` - the domain separation tag
