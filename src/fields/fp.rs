@@ -107,6 +107,19 @@ where
 /// This means that we roll our implementation into a proc macro that
 /// provides all the needed functionality.
 
+/// This macro defines a finite prime field and implements various traits and methods for it.
+///
+/// # Parameters
+///
+/// * `$wrapper_name`: The name of the wrapper struct for the field.
+/// * `$mod_struct`: The name of the modulus struct.
+/// * `$output`: The name of the output type for Montgomery form.
+/// * `$uint_type`: The underlying unsigned integer type used for the field elements.
+/// * `$limbs`: The number of limbs in the underlying unsigned integer type.
+/// * `$modulus`: The modulus of the field as a string.
+/// * `$degree`: The degree of the field extension.
+/// * `$nreps`: The number of elements required for a unique representation of an element in the 
+/// extension.
 #[allow(unused_macros)]
 macro_rules! define_finite_prime_field {
     ($wrapper_name:ident, $mod_struct:ident, $output:ident, $uint_type:ty, $limbs:expr,
@@ -123,10 +136,16 @@ macro_rules! define_finite_prime_field {
         impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {}
 
         impl $wrapper_name {
-            // builder structure to create elements in the base field of a given value
+            /// builder structure to create elements in the base field
+            /// # Arguments
+            /// * `value` - $uint_type - the value to create the element from
             pub const fn new(value: $uint_type) -> Self {
                 Self($mod_struct, $output::new(&value))
             }
+            /// builder structure to create elements in the base field from a string 
+            /// representation of the value in base 10
+            /// # Arguments
+            /// * `value` - &str - the string representation of the value to create the element from
             pub fn new_from_str(value: &str) -> Option<Self> {
                 let ints: Vec<_> = {
                     let mut acc = Self::zero();
@@ -173,6 +192,9 @@ macro_rules! define_finite_prime_field {
                 // = -1
                 Self::new((-Self::ONE).1.retrieve())
             }
+            /// Generate a random value in the field
+            /// # Arguments
+            /// * `rng` - R: CryptoRngCore - the random number generator to use
             fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
                 Self::new(<$uint_type>::random_mod(
                     rng,
@@ -187,6 +209,8 @@ macro_rules! define_finite_prime_field {
             }
         }
         impl From<u64> for $wrapper_name {
+            // many often there is a need to create a simple value like `3` in the base field,
+            // which is what this accomplishes
             fn from(value: u64) -> Self {
                 Self($mod_struct, $output::new(&<$uint_type>::from_u64(value)))
             }
@@ -432,6 +456,8 @@ impl Fp {
         let retval = self.pow(p_minus_1_div_2);
         Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
     }
+    /// Determines the 'sign' of a value in the base field, 
+    /// see <https://datatracker.ietf.org/doc/html/rfc9380#section-4.1> for more details
     pub fn sgn0(&self) -> Choice {
         let a = *self % Self::from(2u64);
         if a.is_zero() {

@@ -36,7 +36,12 @@ pub(crate) trait SvdWTrait: Sized {
     /// This is the actual struct containing the relevant information. There are a few input
     /// constants, namely the coefficients A and B that define the curve in its short Weierstrass
     /// representation. The constants c1-c4 and Z are determined by the algorithm.
-
+    /// # Arguments
+    /// * `a` - the A coefficient of the curve
+    /// * `b` - the B coefficient of the curve
+    /// # Returns
+    /// * `Result<SvdW, MapError>` - the struct containing the constants for the SvdW algorithm, 
+    ///                                 or an error otherwise
     fn find_z_svdw(a: Fp, b: Fp) -> Fp {
         let g = |x: &Fp| -> Fp { (*x) * (*x) * (*x) + a * (*x) + b };
         let h = |x: &Fp| -> Fp { -(Fp::THREE * (*x) * (*x) + Fp::FOUR * a) / (Fp::FOUR * g(x)) };

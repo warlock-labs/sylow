@@ -1,4 +1,4 @@
-//! we likewise define the specifics of the dodectic extension of
+//! We likewise define the specifics of the dodectic extension of
 //! bn254 here, defined by the tower F_{p^{12}} = F_{p^6}(w) / (w^2 - v)
 //! Now, there is some flexibility in how we define this. Why?
 //! Well, we can either represent an element of F_{p^{12}} as 2 elements
@@ -189,7 +189,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
         ])
     }
     fn curve_constant() -> Self {
-        unimplemented!()
+        Self::from(3)
     }
 }
 
@@ -197,7 +197,8 @@ impl<'a, 'b> Mul<&'b Fp12> for &'a Fp12 {
     type Output = Fp12;
     fn mul(self, other: &'b Fp12) -> Self::Output {
         // this is again simple Karatsuba multiplication
-        // see comments in Fp2 impl of `Mul` trait
+        // see comments in Fp2 impl of `Mul` trait, or otherwise see Alg 20 of 
+        // <https://eprint.iacr.org/2010/354.pdf>
         let t0 = self.0[0] * other.0[0];
         let t1 = self.0[1] * other.0[1];
 
@@ -221,6 +222,7 @@ impl MulAssign for Fp12 {
 impl Inv for Fp12 {
     type Output = Self;
     fn inv(self) -> Self::Output {
+        // Implements Alg 23 of <https://eprint.iacr.org/2010/354.pdf>
         let tmp = (self.0[0].square() - (self.0[1].square().residue_mul())).inv();
         Self([self.0[0] * tmp, -(self.0[1] * tmp)])
     }
@@ -287,6 +289,14 @@ impl Fp12 {
     /// The function below is called by `zcash`, `bn`, and `arkworks` as `mul_by_024`, referring to
     /// the indices of the non-zero elements in the 6x Fp2 representation above for the
     /// multiplication.
+    /// 
+    /// # Arguments
+    /// * `ell_0` - Fp2, the first entry of the sparse element
+    /// * `ell_vw` - Fp2, the second entry of the sparse element
+    /// * `ell_vv` - Fp2, the third entry of the sparse element
+    /// 
+    /// # Returns
+    /// * A dense Fp12 element
     pub(crate) fn sparse_mul(&self, ell_0: Fp2, ell_vw: Fp2, ell_vv: Fp2) -> Fp12 {
         let z0 = self.0[0].0[0];
         let z1 = self.0[0].0[1];

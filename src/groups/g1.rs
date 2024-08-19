@@ -51,10 +51,6 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
             Err(e) => Err(e),
         }
     }
-    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
-    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
-    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
-    /// directly be instantiated as a struct
     fn frobenius(&self, exponent: usize) -> Self {
         let vec: Vec<Fp> = [self.x, self.y]
             .iter()
@@ -69,8 +65,11 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
 }
 
 impl G1Affine {
-    /// this needs to be defined in order to have user interaction, but currently
-    /// is only visible in tests, and therefore is seen by the linter as unused
+    // Instantiate a new element in affine coordinates in G1. The input values must simply pass 
+    // the curve check, since the r-torsion of the curve on the base field is the entire curve 
+    // and therefore no subgroup check is required in G1.
+    // # Arguments
+    // * `v` - a tuple of field elements that represent the x and y coordinates of the point
     pub fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
         let _g1affine_is_on_curve = |x: &Fp, y: &Fp, z: &Choice| -> Choice {
             let y2 = y.square();
@@ -112,6 +111,11 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self::generator() * <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
     }
+    /// There are two steps in the process of taking a byte array and putting it to an element in
+    /// the group. First, hash the array to a string into two elements from the base field using 
+    /// the `expand_msg` standard, and map each of these to an element of the group, and then add
+    /// those group elements to arrive at the final hash, see `hasher.rs` and `svdw.rs` for more 
+    /// details.
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError> {
         const COUNT: usize = 2;
         const L: usize = 48;
@@ -154,6 +158,10 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
     }
 }
 impl G1Projective {
+    /// Instantiate a new element in projective coordinates in G1. The input values must simply pass
+    /// the curve check, since the r-torsion of the curve on the base field is the entire curve.
+    /// # Arguments
+    /// * `v` - a tuple of field elements that represent the x, y, and z coordinates of the point
     pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let _g1projective_is_on_curve = |x: &Fp, y: &Fp, z: &Fp| -> Choice {
             let y2 = y.square();

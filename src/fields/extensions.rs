@@ -34,12 +34,16 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtensio
     /// This is a const constructor that takes a slice of field elements and returns a field extension
     /// The usage of the generics means that it is possible to instantiate any representation of
     /// an extension need.
+    /// # Arguments
+    /// * `c` - a slice of field elements
     pub(crate) const fn new(c: &[F; N]) -> Self {
         Self(*c)
     }
     /// There is eventually a need to be able to perform multiplication across different field
     /// extensions, and more or less this corresponds to a basic scaling, see
     /// <https://eprint.iacr.org/2010/354.pdf>
+    /// # Arguments
+    /// * `factor` - a field element that is used to scale the extension element
     pub(crate) fn scale(&self, factor: F) -> Self {
         let mut i = 0;
         let mut retval = [F::zero(); N];

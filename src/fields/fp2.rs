@@ -51,6 +51,13 @@ pub type Fp2 = FieldExtension<2, 2, Fp>;
 // helper functions for us on this specific extension, but
 // don't generalize to any extension.
 impl Fp2 {
+    /// A simple square and multipy algorithm for exponentiation
+    /// # Arguments
+    /// * `by` - Fp, the exponent to raise the element to
+    /// 
+    /// Note that the argument is required to be an element of the base field, and the expansion 
+    /// of this element via `to_words()` always returns &[u64; 4], which lets this run constant time
+    /// for any field element.
     pub fn pow(&self, by: &Fp) -> Self {
         let bits = by.value().to_words();
         let mut res = Self::one();
@@ -68,6 +75,9 @@ impl Fp2 {
     pub(crate) fn residue_mul(&self) -> Self {
         self * &FP2_QUADRATIC_NON_RESIDUE
     }
+    /// Frobenius mapping of a quadratic extension element to a given power
+    /// # Arguments
+    /// * `exponent` - usize, the power to raise the element to
     pub fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp2: &[Fp; 2] = &[
             // Fp::quadratic_non_residue()**(((p^0) - 1) / 2)
