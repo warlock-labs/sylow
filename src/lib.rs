@@ -19,7 +19,6 @@ mod groups;
 mod hasher;
 mod pairing;
 mod svdw;
-mod dkg;
 
 use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
 use crate::groups::g1::G1Projective;

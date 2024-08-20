@@ -1,8 +1,7 @@
-// TODO: to examples dir
-use crypto_bigint::U256;
 use std::collections::HashMap;
+use crypto_bigint::U256;
 use num_traits::{One, Pow, Zero};
-use crate::fields::fp::Fp;
+use sylow::Fp;
 use tracing::{event, Level};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -164,8 +163,12 @@ fn do_round(round_id: u64, quorum: u32) {
         let x_shares = from_vec_u32(generate_distinct_random_values(quorum as usize, MIN_COEFFICIENT, MAX_COEFFICIENT));
         let recipient_index = 0;
         let mut complaint_count = 0;
-        // TODO: exclude self
+
         for (recipient_id, recipient) in round_data.participants.iter() {
+            if dealer_id == recipient_id {
+                continue;
+            }
+
             let x_share = x_shares[recipient_index];
             let y_share = dealer_secret.eval_polynomial(x_share);
             let share = DealerShare {
@@ -190,11 +193,10 @@ fn do_round(round_id: u64, quorum: u32) {
     event!(Level::INFO, "End round {round_id}");
 }
 
-#[test]
 fn main() -> Result<(), confy::ConfyError> {
     tracing_subscriber::fmt().init();
     event!(Level::INFO, "Begin dkg::main");
-    let config_path = PathBuf::from("dkg.toml");
+    let config_path = PathBuf::from("../dkg.toml");
     let cfg: MyConfig = confy::load_path(&config_path)?;
     event!(Level::INFO, "Loaded config: {:?}", cfg);
 
