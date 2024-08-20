@@ -23,9 +23,6 @@ systems.
   - Key generation 
   - BLS signature generation and verification
   - Hash-to-curve functionality
-- **Auxiliary Cryptographic Functions**:
-  - Pseudo-random number generation
-  - Constant-time operations for enhanced security
 - **Compatibility**: Designed to be compatible with Ethereum's precompiled contracts for BN254 operations.
 
 ## Installation
@@ -80,16 +77,26 @@ advanced usage details, see the [API documentation](https://docs.rs/sylow).
 ## Advanced Features
 
 - **Customizable Hashing**: Supports various hash functions through the `Expander` trait, such as the XMD and XOF 
-  algorithms on any hasher from `sha3`.
+  algorithms on any hasher from [sha3](https://github.com/RustCrypto/hashes/tree/master/sha3).
 - **Optimized Arithmetic**: Utilizes Montgomery form for efficient modular arithmetic.
 - **Constant-time Operations**: Implements algorithms resistant to timing attacks.
 - **Batch Verification**: Verify multiple signatures in a single operation for improved performance.
 
 ## Performance
 
-Sylow is designed with performance in mind, leveraging optimized algorithms for finite field arithmetic, elliptic curve 
-operations, and pairings, taking advantage of specialized algorithms for $j$-invariant zero curves, as well as the 
-optimal ate pairing for efficient signature verification. 
+Sylow is designed with performance in mind, leveraging optimized algorithms for $j$-invariant zero curves, the 
+optimal ate pairing for efficient signature verification, as well as multiprecision Montgomery arithmetic. 
+
+## Security
+
+In order to ensure the highest level of security, Sylow is designed in compliance with the recommendations set forth 
+by Cloudflare in [RFC 9380](https://datatracker.ietf.org/doc/html/rfc9380), especially in regard to hashing an 
+arbitrary byte array to an element of the curve. Namely, we provide multiple secure implementations of the 
+`hash_to_field` standard, as well as implement the Shallue-van de Woestijne encoding for elliptic curve points.
+
+Furthermore, the multiprecision arithmetic operations are implemented in constant time, ensuring resistance to side 
+channel attacks, and constant-time operations are used whenever possible. There are currently no variable-time 
+functions used in Sylow.
 
 ## Roadmap
 
