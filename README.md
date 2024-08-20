@@ -111,8 +111,7 @@ The following features and improvements are planned for future releases:
 ## Contributing
 
 We welcome contributions to Sylow! Whether it's bug reports, feature requests, or code contributions, please feel free 
-to engage with the project by submitting issues, feature requests, or pull requests on the [GitHub repository]
-(https://github.com/warlock-labs/sylow).
+to engage with the project by submitting issues, feature requests, or pull requests on the [GitHub repository](https://github.com/warlock-labs/sylow).
 
 ## License
 
