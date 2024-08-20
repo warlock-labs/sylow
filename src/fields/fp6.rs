@@ -170,7 +170,7 @@ const FP6_QUADRATIC_NON_RESIDUE: Fp6 = Fp6::new(&[
     Fp2::new(&[Fp::ONE, Fp::ZERO]),
     Fp2::new(&[Fp::ZERO, Fp::ZERO]),
 ]);
-
+/// type alias for the sextic extension of the base field
 pub type Fp6 = FieldExtension<6, 3, Fp2>;
 
 impl Fp6 {

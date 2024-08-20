@@ -175,6 +175,7 @@ const FP12_QUADRATIC_NON_RESIDUE: Fp12 = Fp12::new(&[
     ]),
 ]);
 
+/// type alias for dodectic extension in the representation a + bw for a,b\in Fp6
 pub type Fp12 = FieldExtension<12, 2, Fp6>;
 
 impl FieldExtensionTrait<12, 2> for Fp12 {
