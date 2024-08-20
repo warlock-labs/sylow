@@ -105,8 +105,9 @@ const GT: Fp12 = Fp12::new(&[
     ]),
 ]);
 
+/// A simple wrapper around the `Fp12` type, which represents the target group of the pairing
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct Gt(pub(crate) Fp12);
+pub struct Gt(pub(crate) Fp12);
 
 impl<'a> Neg for &'a Gt {
     type Output = Gt;
@@ -226,7 +227,7 @@ impl GroupTrait<12, 2, Fp12> for Gt {
 }
 impl Gt {
     /// Returns the group identity, which is $1$.
-    pub(crate) fn identity() -> Gt {
+    pub fn identity() -> Gt {
         Gt(Fp12::one())
     }
 

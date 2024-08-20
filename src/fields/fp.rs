@@ -83,12 +83,15 @@ pub trait FieldExtensionTrait<const D: usize, const N: usize>:
     + Inv<Output = Self>
     + From<u64>
 {
-    // multiplication in a field extension is dictated
-    // heavily such a value below
+    /// multiplication in a field extension is dictated heavily such a value below,
+    /// so we define the quadratic non-residue here
     fn quadratic_non_residue() -> Self;
-
+    /// generate a random value in the field extension based on the random number generator from
+    /// `crypto_bigint`
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
-
+    /// because each extension is directly used in a j-invariant 0 curve, we define the constant
+    /// of that curve over the extension field. Namely, it is the value `b` in the equation
+    /// `y^2=x^3+b`.
     fn curve_constant() -> Self;
 }
 /// Visibility settings in rust on macro exports make this seem as not use, even though its
@@ -107,6 +110,19 @@ where
 /// This means that we roll our implementation into a proc macro that
 /// provides all the needed functionality.
 
+/// This macro defines a finite prime field and implements various traits and methods for it.
+///
+/// # Parameters
+///
+/// * `$wrapper_name`: The name of the wrapper struct for the field.
+/// * `$mod_struct`: The name of the modulus struct.
+/// * `$output`: The name of the output type for Montgomery form.
+/// * `$uint_type`: The underlying unsigned integer type used for the field elements.
+/// * `$limbs`: The number of limbs in the underlying unsigned integer type.
+/// * `$modulus`: The modulus of the field as a string.
+/// * `$degree`: The degree of the field extension.
+/// * `$nreps`: The number of elements required for a unique representation of an element in the
+/// extension.
 #[allow(unused_macros)]
 macro_rules! define_finite_prime_field {
     ($wrapper_name:ident, $mod_struct:ident, $output:ident, $uint_type:ty, $limbs:expr,
@@ -118,15 +134,24 @@ macro_rules! define_finite_prime_field {
         //special struct for const-time arithmetic on montgomery form integers mod p
         type $output = crypto_bigint::modular::ConstMontyForm<$mod_struct, { $mod_struct::LIMBS }>;
         #[derive(Clone, Debug, Copy)] //to be used in const contexts
+        /// This is the actual struct that serves as our finite field implementation, containing
+        /// the modulus of the field, as well as the output type that contains the internal
+        /// Montgomery arithmetic logic
         pub struct $wrapper_name($mod_struct, $output);
 
         impl FinitePrimeField<$limbs, $uint_type, $degree, $nreps> for $wrapper_name {}
 
         impl $wrapper_name {
-            // builder structure to create elements in the base field of a given value
+            /// builder structure to create elements in the base field
+            /// # Arguments
+            /// * `value` - $uint_type - the value to create the element from
             pub const fn new(value: $uint_type) -> Self {
                 Self($mod_struct, $output::new(&value))
             }
+            /// builder structure to create elements in the base field from a string
+            /// representation of the value in base 10
+            /// # Arguments
+            /// * `value` - &str - the string representation of the value to create the element from
             pub fn new_from_str(value: &str) -> Option<Self> {
                 let ints: Vec<_> = {
                     let mut acc = Self::zero();
@@ -150,18 +175,25 @@ macro_rules! define_finite_prime_field {
                 }
                 Some(res)
             }
-            // take the element and convert it to "normal" form from montgomery form
+            /// take the element and convert it to "normal" form from montgomery form
             pub const fn value(&self) -> $uint_type {
                 self.1.retrieve()
             }
+            /// returns the value of the finite field modulus as a $uint_type
             pub fn characteristic() -> $uint_type {
                 <$uint_type>::from($mod_struct::MODULUS.as_nz_ref().get())
             }
+            /// the constant zero in the field
             pub const ZERO: Self = Self::new(<$uint_type>::from_words([0x0; 4]));
+            /// the constant one in the field
             pub const ONE: Self = Self::new(<$uint_type>::from_words([0x1, 0x0, 0x0, 0x0]));
+            /// the constant two in the field
             pub const TWO: Self = Self::new(<$uint_type>::from_words([0x2, 0x0, 0x0, 0x0]));
+            /// the constant three in the field
             pub const THREE: Self = Self::new(<$uint_type>::from_words([0x3, 0x0, 0x0, 0x0]));
+            /// the constant four in the field
             pub const FOUR: Self = Self::new(<$uint_type>::from_words([0x4, 0x0, 0x0, 0x0]));
+            /// the constant nine in the field
             pub const NINE: Self = Self::new(<$uint_type>::from_words([0x9, 0x0, 0x0, 0x0]));
         }
         // we make the base field an extension of the
@@ -173,6 +205,9 @@ macro_rules! define_finite_prime_field {
                 // = -1
                 Self::new((-Self::ONE).1.retrieve())
             }
+            /// Generate a random value in the field
+            /// # Arguments
+            /// * `rng` - R: CryptoRngCore - the random number generator to use
             fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
                 Self::new(<$uint_type>::random_mod(
                     rng,
@@ -187,6 +222,8 @@ macro_rules! define_finite_prime_field {
             }
         }
         impl From<u64> for $wrapper_name {
+            // many often there is a need to create a simple value like `3` in the base field,
+            // which is what this accomplishes
             fn from(value: u64) -> Self {
                 Self($mod_struct, $output::new(&<$uint_type>::from_u64(value)))
             }
@@ -401,37 +438,42 @@ impl From<Fr> for Fp {
     }
 }
 impl Fp {
+    /// This determines the frobenius mapping of the element in the base field, aka x^p. This
+    /// function is inherently expensive, and we never call it on the base field, but if
+    /// we did, it's only defined for p=1. Specialized versions exist for all extensions which
+    /// will require the frobenius transformation.
     pub fn frobenius(&self, exponent: usize) -> Self {
-        // this function is inherently expensive, and we never call it on the base field, but if
-        // we did, it's only defined for p=1. Specialized versions exist for all extensions which
-        // will require the frobenius transformation
         match exponent {
             1 => self.pow(BN254_FP_MODULUS.value()),
             _ => *self,
         }
     }
+    /// This is an instantiation of Shank's algorithm, which solves congruences of
+    /// the form $r^2\equiv n \mod p$, namely the sqrt of n. It does not work for
+    /// composite moduli (aka non-prime p), since that is the integer factorization
+    /// problem. The full algorithm is not necessary here, and has the additional
+    /// simplification that we can exploit in our case. Namely, the BN254 curve has a
+    /// prime that is congruent to 3 mod 4. In this case, the sqrt only has the
+    /// possible solution of $\pm pow(n, \frac{p+1}{4})$, which is where this magic
+    /// number below comes from ;)
     pub fn sqrt(&self) -> CtOption<Self> {
-        // This is an instantiation of Shank's algorithm, which solves congruences of
-        // the form $r^2\equiv n \mod p$, namely the sqrt of n. It does not work for
-        // composite moduli (aka nonprime p), since that is the integer factorization
-        // problem. The full algorithm is not necessary here, and has the additional
-        // simpication that we can exploit in our case. Namely, the BN254 curve has a
-        // prime that is congruent to 3 mod 4. In this case, the sqrt only has the
-        // possible solution of $\pm pow(n, \frac{p+1}{4})$, which is where this magic
-        // number below comes from ;)
         let arg = ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
         let sqrt = self.pow(arg);
         CtOption::new(sqrt, sqrt.square().ct_eq(self))
     }
+    /// Returns the square of the element in the base field
     pub fn square(&self) -> Self {
         (*self) * (*self)
     }
+    /// Determines if the element in the base field is a square of another element
     pub fn is_square(&self) -> Choice {
         let p_minus_1_div_2 =
             ((Self::new(Self::characteristic()) - Self::from(1)) / Self::from(2)).value();
         let retval = self.pow(p_minus_1_div_2);
         Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
     }
+    /// Determines the 'sign' of a value in the base field,
+    /// see <https://datatracker.ietf.org/doc/html/rfc9380#section-4.1> for more details
     pub fn sgn0(&self) -> Choice {
         let a = *self % Self::from(2u64);
         if a.is_zero() {

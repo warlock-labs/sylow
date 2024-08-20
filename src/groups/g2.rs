@@ -89,8 +89,9 @@ pub(crate) const EPS_EXP1: Fp2 = Fp2::new(&[
 // the parameter that generates this member of the BN family
 pub(crate) const BLS_X: Fp = Fp::new(U256::from_words([4965661367192848881, 0, 0, 0]));
 
-pub(crate) type G2Affine = GroupAffine<2, 2, Fp2>;
-
+/// type alias for affine representation on quadratic extension field
+pub type G2Affine = GroupAffine<2, 2, Fp2>;
+/// type alias for projective representation on quadratic extension field
 pub type G2Projective = GroupProjective<2, 2, Fp2>;
 
 impl GroupTrait<2, 2, Fp2> for G2Affine {
@@ -105,29 +106,7 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
             infinity: Choice::from(0u8),
         }
     }
-    /// This is deceptively simple, yet was tedious to get correct. This is the
-    /// "untwist-Frobenius-twist" endomorphism, ψ(q) = u o π o u⁻¹ where u:E'→E is the
-    /// isomorphism
-    /// from the twist to the curve E and π is the Frobenius map. This is a complicated
-    /// topic, and a full
-    /// description is out of scope for a code comment. Nonetheless, we require the usage of
-    /// an endomorphism for subgroup checks in $\mathbb{G}_2$. This one offers nice
-    /// computational
-    /// benefits, and can be decomposed as follows:
-    /// 1. twist:        this is the map u that takes (x', y') |-> (w^2,x', w^3y'), where
-    ///                  $w\in\mathbb{F_{p^{12}}$ is a root of $X^6-\xi$. This is an
-    ///                  injective map (that is not surjective), that maps the r-torsion to an
-    ///                  equivalent subgroup in the algebraic closure of the base field.
-    /// 2. Frobenius:    this is the map π that is difficult to succinctly explain, but more or
-    ///                  less identifies the kernel of the twist operation, namely those points
-    ///                  in the algebraic closure that satisfy rQ=0.
-    /// 3. untwist:      having identified the points in the closure that satisfy the r-torsion
-    ///                  requirement, we map them back to the curve in Fp2.
-    ///
-    /// This endomorphism therefore encodes the torsion of a point in a compact,
-    /// computationally efficient way. All of this fancy stuff equates simply, and remarkably,
-    /// to the following:
-    /// (x,y) |-> (x^p * \xi^((p-1)/3), y^p*\xi^((p-1)/2))
+
     fn endomorphism(&self) -> Self {
         if self.is_zero() {
             return *self;
@@ -145,6 +124,9 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
         Self::from(G2Projective::rand(rng))
     }
 
+    /// Being able to implement a "G1/G2 swap" is in development, where we then will hash a byte
+    /// array to G2 (private key + signature in G2), while retaining a public key in G1, which is
+    /// why the following two methods are unimplemented for the moment.
     fn hash_to_curve<E: Expander>(_exp: &E, _msg: &[u8]) -> Result<Self, GroupError> {
         unimplemented!()
     }
@@ -212,10 +194,6 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     ) -> Result<Self, GroupError> {
         unimplemented!()
     }
-    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
-    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
-    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
-    /// directly be instantiated as a struct
     fn frobenius(&self, exponent: usize) -> Self {
         let vec: Vec<Fp2> = [self.x, self.y, self.z]
             .iter()
@@ -232,9 +210,12 @@ impl G2Affine {
     /// This method is used internally for rapid, low overhead, conversion of types when there
     /// are formulae that don't have clean versions in projective coordinates. The 'unchecked'
     /// refers to the fact that these points are not subjected to a subgroup verification, and
-    /// therefore this method is not exposed pub(crate) licly.
+    /// therefore this method is not exposed publicly.
     ///
     /// DON'T USE THIS METHOD UNLESS YOU KNOW WHAT YOU'RE DOING
+    ///
+    /// # Arguments
+    /// * `v` - a tuple of field elements that represent the x and y coordinates of the point
     fn new_unchecked(v: [Fp2; 2]) -> Result<Self, GroupError> {
         let _g2affine_is_on_curve = |x: &Fp2, y: &Fp2, z: &Choice| -> Choice {
             let y2 = y.square();
@@ -256,10 +237,13 @@ impl G2Affine {
     }
 }
 impl G2Projective {
-    /// The pub(crate) lic entrypoint to making a value in $\mathbb{G}_2$. This takes the (x,y,z) values
+    /// The public entrypoint to making a value in $\mathbb{G}_2$. This takes the (x,y,z) values
     /// from the user, and passes them through a subgroup and curve check to ensure validity.
     /// Values returned from this function are guaranteed to be on the curve and in the r-torsion.
-    pub fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
+    ///
+    /// # Arguments
+    /// * `v` - a tuple of field elements that represent the x, y, and z coordinates of the point
+    pub(crate) fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
         let _g2projective_is_on_curve = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
             let y2 = y.square();
             let x2 = x.square();

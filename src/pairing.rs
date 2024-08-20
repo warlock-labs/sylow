@@ -22,8 +22,13 @@ const ATE_LOOP_COUNT_NAF: [i8; 64] = [
     1, 0, 0, -1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, -1, 0, -1, 0, 0, 1, 0, 0, 0, -1, 0, 0, -1, 0, 1, 0,
     1, 0, 0, 0,
 ];
+
+/// This is mainly a struct on convenience. The whole multiplicative versus additive notation for
+/// an element is confusing, so we just enforce that the results of miller loops are handled with
+/// multiplication. And semantically, this just helps me keep straight all the different values,
+/// base fields, groups, etc., that are involved here. Arithmetic defined by reference.
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct MillerLoopResult(pub(crate) Fp12);
+pub struct MillerLoopResult(pub(crate) Fp12);
 impl Default for MillerLoopResult {
     fn default() -> Self {
         MillerLoopResult(Fp12::one())
@@ -70,11 +75,23 @@ impl<'b> MulAssign<&'b MillerLoopResult> for MillerLoopResult {
 /// which is very, very sparse, resulting in many unnecessary multiplications and additions by
 /// zero, which is not ideal. We therefore only keep the 3 nonzero coefficients returned by these
 /// evaluations. These nonzero coeffs are stored in the struct below.
-#[derive(PartialEq, Default, Clone, Copy)]
+#[derive(PartialEq, Default, Clone, Copy, Debug)]
 pub(crate) struct Ell(Fp2, Fp2, Fp2);
 
 impl MillerLoopResult {
-    pub(crate) fn final_exponentiation(&self) -> Gt {
+    /// Indeed performs the final exponentiation step, which equates to f^((p^12-1)/r) in the
+    /// case of BN254. This is nasty to compute cleverly, since the naive approach is insane for
+    /// a value that large. Therefore, there are tricks that involve what are known as cyclotomic
+    /// subgroups that allow us to compute this value in two steps: (i) the "easy" part, and (ii)
+    /// the "hard" part. The easy part is determining the exponentiation of the value to:
+    /// (p^6-1)(p^2+1)
+    /// and the hard part is the exponentiation to:
+    /// (p^4-p^2+1)/r
+    /// The hard part is what relies on the cyclotomic subgroups, which is difficult to explain
+    /// in a code comment. See <https://eprint.iacr.org/2009/565.pdf> for more context.
+    ///
+    /// This returns an element in the target group, which is the r-th roots of unity in Fp12.
+    pub fn final_exponentiation(&self) -> Gt {
         /// As part of the cyclotomic acceleration of the final exponentiation step, there is a
         /// shortcut to take when using multiplication in Fp4. We built the tower of extensions using
         /// degrees 2, 6, and 12, but there is an additional way to write Fp12:
@@ -139,7 +156,7 @@ impl MillerLoopResult {
             z3 = z3 + z3 + t2;
             Fp12::new(&[Fp6::new(&[z0, z4, z3]), Fp6::new(&[z2, z1, z5])])
         }
-        /// This is a simple double and add algorithm for exponentiation. You can get more
+        /// This is a simple square and multiply algorithm for exponentiation. You can get more
         /// complicated algorithms if you go to a compressed representation, such as Algorithm
         /// 5.5.4, listing 27
         pub(crate) fn cyclotomic_exp(f: Fp12, exponent: &Fp) -> Fp12 {
@@ -155,7 +172,7 @@ impl MillerLoopResult {
             }
             res
         }
-        /// This is a helper function to determine f^z, where $z$ is the generator of this
+        /// This is a helper function to determine f^(-z), where $z$ is the generator of this
         /// particular member of the BN family
         pub(crate) fn exp_by_neg_z(f: Fp12) -> Fp12 {
             cyclotomic_exp(f, &BLS_X).unitary_inverse()
@@ -226,13 +243,20 @@ impl MillerLoopResult {
 /// doubling step. Further, there are 9 `1` digits (each with an addition step), and 12 `3`
 /// digits, each also with an addition step. After the loop, there are 2 more addition steps, so
 /// the total number of coefficients we need to store is 64+9+12+2 = 87.
-#[derive(PartialEq)]
-pub(crate) struct G2PreComputed {
+#[derive(PartialEq, Debug, Copy, Clone)]
+pub struct G2PreComputed {
     pub(crate) q: G2Affine,
     pub(crate) coeffs: [Ell; 87],
 }
 impl G2PreComputed {
-    pub(crate) fn miller_loop(&self, g1: &G1Affine) -> MillerLoopResult {
+    /// Evaluate the miller loop for the pre-determined line coefficients for a given G2 point at
+    /// the specified G1 coordinate. See <https://crypto.stanford.edu/miller/miller.pdf> for more
+    /// info on the formulation.
+    /// # Arguments
+    /// * `g1` - the G1 point at which to evaluate the line
+    /// # Returns
+    /// * the result of the miller loop evaluation
+    pub fn miller_loop(&self, g1: &G1Affine) -> MillerLoopResult {
         let mut f = Fp12::one();
 
         let mut idx = 0;
@@ -259,8 +283,14 @@ impl G2PreComputed {
         MillerLoopResult(f)
     }
 }
+impl G2Projective {
+    pub fn precompute(&self) -> G2PreComputed {
+        G2Affine::from(self).precompute()
+    }
+}
 impl G2Affine {
-    fn precompute(&self) -> G2PreComputed {
+    /// For a given G2 coordinate, compute the coefficients of every line involved for that point.
+    pub fn precompute(&self) -> G2PreComputed {
         let mut r = G2Projective::from(self);
 
         let mut coeffs = [Ell::default(); 87];
@@ -348,7 +378,15 @@ impl G2Projective {
         )
     }
 }
-pub(crate) fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
+/// Execute the optimal ate pairing on BN254 for a given input pair of (G1,G2) points. If either
+/// of these points are the point at infinity for their respective groups, then the code handles
+/// it gracefully.
+/// # Arguments
+/// * `p` - the G1 point
+/// * `q` - the G2 point
+/// # Returns
+/// * the result of the pairing
+pub fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
     let p = &G1Affine::from(p);
     let q = &G2Affine::from(q);
     let either_zero = Choice::from((p.is_zero() | q.is_zero()) as u8);
@@ -359,10 +397,15 @@ pub(crate) fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
     tmp.final_exponentiation()
 }
 
-pub(crate) fn glued_miller_loop(
-    g2_precomps: &[G2PreComputed],
-    g1s: &[G1Affine],
-) -> MillerLoopResult {
+/// There are many times when we need to evaluate many pairings at the same time. This simply
+/// provides the ability to execute an array of pairings as succinctly as possible, for example
+/// in the context of threshold signature verification.
+/// # Arguments
+/// * `g1s` - an array of G1 points
+/// * `g2s` - an array of G2 points
+/// # Returns
+/// * the result of the pairing, doing each one individually and then aggregating their result
+pub fn glued_miller_loop(g2_precomps: &[G2PreComputed], g1s: &[G1Affine]) -> MillerLoopResult {
     let mut f = Fp12::one();
     let mut idx = 0;
     for i in ATE_LOOP_COUNT_NAF.iter() {
@@ -392,6 +435,12 @@ pub(crate) fn glued_miller_loop(
     }
     MillerLoopResult(f)
 }
+/// The driver code for the glued miller loop execution, see comments above.
+/// # Arguments
+/// * `g1s` - an array of G1 points
+/// * `g2s` - an array of G2 points
+/// # Returns
+/// * the result of the pairing, doing each one individually and then aggregating their result
 #[allow(dead_code)]
 pub(crate) fn glued_pairing(g1s: &[G1Projective], g2s: &[G2Projective]) -> Gt {
     let g1s = g1s.iter().map(G1Affine::from).collect::<Vec<G1Affine>>();

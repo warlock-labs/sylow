@@ -254,6 +254,7 @@ impl MulAssign for Fp6 {
 impl Inv for Fp6 {
     type Output = Self;
     fn inv(self) -> Self::Output {
+        // Implements a low-overhead version of Alg 17 of <https://eprint.iacr.org/2010/354.pdf>
         let t0 = self.0[0].square() - self.0[1] * self.0[2].residue_mul();
         let t1 = self.0[2].square().residue_mul() - self.0[0] * self.0[1];
         let t2 = self.0[1].square() - self.0[0] * self.0[2];
