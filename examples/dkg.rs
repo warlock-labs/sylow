@@ -18,7 +18,8 @@ fn generate_distinct_random_values(count: usize, min: u64, max: u64) -> Vec<Fp> 
     let mut values = HashSet::new();
 
     while values.len() < count {
-        let value = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng) % Fp::from(max) + Fp::from(min);
+        let value =
+            <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng) % Fp::from(max) + Fp::from(min);
         values.insert(value.value());
     }
 
@@ -36,11 +37,8 @@ struct DealerSecret {
 
 impl DealerSecret {
     fn new(quorum: u32, round_id: u64) -> Self {
-        let coefficients = generate_distinct_random_values(
-            quorum as usize,
-            MIN_COEFFICIENT,
-            MAX_COEFFICIENT,
-        );
+        let coefficients =
+            generate_distinct_random_values(quorum as usize, MIN_COEFFICIENT, MAX_COEFFICIENT);
         let secret = coefficients[0].clone();
         let commitments = coefficients
             .iter()
@@ -159,11 +157,8 @@ fn do_round(round_id: u64, quorum: u32) {
     // iterate through dealers
     for (dealer_id, dealer) in round_data.participants.iter() {
         let dealer_secret = &dealer.dealer_secret;
-        let x_shares = generate_distinct_random_values(
-            quorum as usize,
-            MIN_COEFFICIENT,
-            MAX_COEFFICIENT,
-        );
+        let x_shares =
+            generate_distinct_random_values(quorum as usize, MIN_COEFFICIENT, MAX_COEFFICIENT);
         let recipient_index = 0;
         let mut complaint_count = 0;
 
