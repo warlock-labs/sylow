@@ -3,7 +3,7 @@
 // //! and convert it into an element in the base field.
 
 use crate::fields::fp::Fp;
-use crate::fields::utils::u256_to_u512;
+use crate::utils::u256_to_u512;
 use crypto_bigint::{Encoding, NonZero, U256, U512};
 use sha3::digest::crypto_common::BlockSizeUser;
 use sha3::digest::{ExtendableOutput, FixedOutput};

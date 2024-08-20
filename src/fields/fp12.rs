@@ -175,7 +175,7 @@ const FP12_QUADRATIC_NON_RESIDUE: Fp12 = Fp12::new(&[
     ]),
 ]);
 
-pub(crate) type Fp12 = FieldExtension<12, 2, Fp6>;
+pub type Fp12 = FieldExtension<12, 2, Fp6>;
 
 impl FieldExtensionTrait<12, 2> for Fp12 {
     fn quadratic_non_residue() -> Self {

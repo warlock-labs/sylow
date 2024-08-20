@@ -164,7 +164,7 @@ impl G1Projective {
     /// # Arguments
     /// * `v` - a tuple of field elements that represent the x, y, and z coordinates of the point
     #[allow(dead_code)]
-    pub(crate) fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
+    pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let _g1projective_is_on_curve = |x: &Fp, y: &Fp, z: &Fp| -> Choice {
             let y2 = y.square();
             let x2 = x.square();
