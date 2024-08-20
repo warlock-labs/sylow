@@ -6,17 +6,14 @@ use group::g2::*;
 
 mod field;
 use field::fp::*;
+use field::fp12::*;
 use field::fp2::*;
 use field::fp6::*;
-use field::fp12::*;
 
 mod pairing;
 use pairing::*;
 
-criterion_group!(
-    pairing_benches,
-    test_pairing,
-);
+criterion_group!(pairing_benches, test_pairing,);
 
 criterion_group!(
     g1_benches,
@@ -33,7 +30,6 @@ criterion_group!(
     test_g2projective_addition,
     test_g2projective_multiplication
 );
-
 
 criterion_group!(
     fp_benches,

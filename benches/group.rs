@@ -83,8 +83,12 @@ pub mod g2 {
     }
     pub fn test_g2projective_valid_generation(c: &mut Criterion) {
         c.bench_function("test_g2projective_generation", |b| {
-            b.iter(|| G2Projective::new([KNOWN_X, KNOWN_Y, KNOWN_Z]).expect("Failed to create \
-            G2Projective"))
+            b.iter(|| {
+                G2Projective::new([KNOWN_X, KNOWN_Y, KNOWN_Z]).expect(
+                    "Failed to create \
+            G2Projective",
+                )
+            })
         });
     }
     pub fn test_g2projective_addition(c: &mut Criterion) {
@@ -110,5 +114,3 @@ pub mod g2 {
         });
     }
 }
-
-
