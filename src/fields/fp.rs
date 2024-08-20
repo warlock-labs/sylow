@@ -133,7 +133,7 @@ macro_rules! define_finite_prime_field {
 
         //special struct for const-time arithmetic on montgomery form integers mod p
         type $output = crypto_bigint::modular::ConstMontyForm<$mod_struct, { $mod_struct::LIMBS }>;
-        #[derive(Clone, Copy)] //to be used in const contexts
+        #[derive(Clone, Copy, Eq)] //to be used in const contexts
         /// This is the actual struct that serves as our finite field implementation, containing
         /// the modulus of the field, as well as the output type that contains the internal
         /// Montgomery arithmetic logic
@@ -406,6 +406,11 @@ macro_rules! define_finite_prime_field {
                 f.debug_struct(stringify!($wrapper_name))
                     .field(stringify!($uint_type), &self.value())
                     .finish()
+            }
+        }
+        impl std::hash::Hash for $wrapper_name {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                self.value().hash(state);
             }
         }
     };

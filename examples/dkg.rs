@@ -20,10 +20,10 @@ fn generate_distinct_random_values(count: usize, min: u64, max: u64) -> Vec<Fp> 
     while values.len() < count {
         let value =
             <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng) % Fp::from(max) + Fp::from(min);
-        values.insert(value.value());
+        values.insert(value);
     }
 
-    values.into_iter().map(Fp::new).collect()
+    values.into_iter().collect()
 }
 
 #[allow(dead_code)]
