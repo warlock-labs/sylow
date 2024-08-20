@@ -1,39 +1,31 @@
-use std::collections::HashMap;
+use crypto_bigint::rand_core::OsRng;
 use crypto_bigint::U256;
 use num_traits::{One, Pow, Zero};
-use sylow::Fp;
-use tracing::{event, Level};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use rand::Rng;
+use std::collections::HashMap;
 use std::collections::HashSet;
+use std::path::PathBuf;
+use sylow::{FieldExtensionTrait, Fp};
+use tracing::{event, Level};
 
 const GENERATOR: Fp = Fp::new(U256::from_u64(3u64));
 
 // TODO: Bounding coefficients until we address exponent modulo arithmetic
-const MIN_COEFFICIENT: u32 = 1;
-const MAX_COEFFICIENT: u32 = 1000;
+const MIN_COEFFICIENT: u64 = 1;
+const MAX_COEFFICIENT: u64 = 1000;
 
-fn generate_distinct_random_values(count: usize, min: u32, max: u32) -> Vec<u32> {
-    let mut rng = rand::thread_rng();
+fn generate_distinct_random_values(count: usize, min: u64, max: u64) -> Vec<Fp> {
     let mut values = HashSet::new();
 
     while values.len() < count {
-        let value = rng.gen_range(min..=max);
-        values.insert(value);
+        let value = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng) % Fp::from(max) + Fp::from(min);
+        values.insert(value.value());
     }
 
-    values.into_iter().collect()
+    values.into_iter().map(|n| Fp::new(n)).collect()
 }
 
-fn from_u32(n: u32) -> Fp {
-    Fp::new(U256::from_u64(n as u64))
-}
-
-fn from_vec_u32(v: Vec<u32>) -> Vec<Fp> {
-    v.iter().map(|n| from_u32(*n)).collect()
-}
-
+#[allow(dead_code)]
 struct DealerSecret {
     quorum: u32,
     round_id: u64,
@@ -42,10 +34,13 @@ struct DealerSecret {
     commitments: Vec<Fp>,
 }
 
-// TODO: random value generation in Fp
 impl DealerSecret {
     fn new(quorum: u32, round_id: u64) -> Self {
-        let coefficients = from_vec_u32(generate_distinct_random_values(quorum as usize, MIN_COEFFICIENT, MAX_COEFFICIENT));
+        let coefficients = generate_distinct_random_values(
+            quorum as usize,
+            MIN_COEFFICIENT,
+            MAX_COEFFICIENT,
+        );
         let secret = coefficients[0].clone();
         let commitments = coefficients
             .iter()
@@ -60,9 +55,9 @@ impl DealerSecret {
         }
     }
     fn new_bad(quorum: u32, round_id: u64) -> Self {
-        let coefficients = from_vec_u32(vec![42; quorum as usize]);
+        let coefficients = vec![Fp::from(42u64); quorum as usize];
         let secret = coefficients[0].clone();
-        let commitments = from_vec_u32(vec![42; quorum as usize]);
+        let commitments = vec![Fp::from(42u64); quorum as usize];
         DealerSecret {
             quorum,
             round_id,
@@ -72,6 +67,8 @@ impl DealerSecret {
         }
     }
 }
+
+#[allow(dead_code)]
 struct DealerShare {
     round_id: u64,
     dealer_id: u64,
@@ -80,6 +77,7 @@ struct DealerShare {
     y: Fp,
 }
 
+#[allow(dead_code)]
 struct Participant {
     participant_id: u64,
     host: String,
@@ -87,6 +85,7 @@ struct Participant {
     dealer_shares: HashMap<u64, DealerShare>,
 }
 
+#[allow(dead_code)]
 struct Round {
     round_id: u64,
     quorum: u32,
@@ -127,9 +126,7 @@ struct MyConfig {
 
 impl Default for MyConfig {
     fn default() -> Self {
-        Self {
-            quorum: 0,
-        }
+        Self { quorum: 0 }
     }
 }
 
@@ -146,7 +143,7 @@ fn do_round(round_id: u64, quorum: u32) {
     for participant_id in 0u64..n_participants {
         let participant = Participant {
             participant_id,
-            host: "todo".to_string(),
+            host: "some_host".to_string(),
             dealer_secret: if participant_id != (quorum + 1) as u64 {
                 DealerSecret::new(quorum, round_id)
             } else {
@@ -157,14 +154,20 @@ fn do_round(round_id: u64, quorum: u32) {
         round_data.participants.insert(participant_id, participant);
     }
 
+    let mut public_key = Fp::one();
+
     // iterate through dealers
     for (dealer_id, dealer) in round_data.participants.iter() {
         let dealer_secret = &dealer.dealer_secret;
-        let x_shares = from_vec_u32(generate_distinct_random_values(quorum as usize, MIN_COEFFICIENT, MAX_COEFFICIENT));
+        let x_shares = generate_distinct_random_values(
+            quorum as usize,
+            MIN_COEFFICIENT,
+            MAX_COEFFICIENT,
+        );
         let recipient_index = 0;
         let mut complaint_count = 0;
 
-        for (recipient_id, recipient) in round_data.participants.iter() {
+        for (recipient_id, _recipient) in round_data.participants.iter() {
             if dealer_id == recipient_id {
                 continue;
             }
@@ -180,16 +183,20 @@ fn do_round(round_id: u64, quorum: u32) {
             };
             let share_valid = share.is_valid();
             if !share_valid {
+                // complaint broadcast and validation would go here
                 complaint_count += 1;
             }
             event!(Level::INFO, "round_id: {round_id} dealer_id: {dealer_id} recipient_id: {recipient_id} share_valid: {share_valid}");
         }
-        // TODO: complaint broadcast and validation here
+
         if complaint_count >= n_participants / 2 {
             event!(Level::ERROR, "round_id: {round_id} dealer_id: {dealer_id} kicked for {complaint_count}/{n_participants} complaints");
+        } else {
+            public_key *= dealer.dealer_secret.commitments[0];
         }
     }
-    // TODO: print out computed public key
+
+    event!(Level::INFO, "Aggregate public key: {}", public_key.value());
     event!(Level::INFO, "End round {round_id}");
 }
 
