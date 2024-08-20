@@ -17,10 +17,10 @@ pub(crate) mod gt;
 /// this means each group operation takes sub millisecond time, which is nice.
 #[cfg(test)]
 mod tests {
-    #[allow(unused_imports)]
-    use std::{fs, path::Path};
     use lazy_static::lazy_static;
     use serde::{Deserialize, Serialize};
+    #[allow(unused_imports)]
+    use std::{fs, path::Path};
 
     use crate::fields::fp::{FieldExtensionTrait, Fp};
     use crate::fields::fp2::Fp2;
@@ -168,25 +168,89 @@ mod tests {
             serde_json::from_str(&file_content).expect("Failed to parse JSON")
         };
         static ref G1_REFERENCE_DATA: G1ReferenceData = G1ReferenceData {
-            a: REFERENCE_DATA.g1.a.iter().map(convert_to_g1projective).collect(),
-            b: REFERENCE_DATA.g1.b.iter().map(convert_to_g1projective).collect(),
+            a: REFERENCE_DATA
+                .g1
+                .a
+                .iter()
+                .map(convert_to_g1projective)
+                .collect(),
+            b: REFERENCE_DATA
+                .g1
+                .b
+                .iter()
+                .map(convert_to_g1projective)
+                .collect(),
             r: REFERENCE_DATA.g1.r.iter().map(convert_to_fp).collect(),
-            add: REFERENCE_DATA.g1.add.iter().map(convert_to_g1projective).collect(),
-            dbl: REFERENCE_DATA.g1.dbl.iter().map(convert_to_g1projective).collect(),
-            mul: REFERENCE_DATA.g1.mul.iter().map(convert_to_g1projective).collect(),
-            svdw: REFERENCE_DATA.g1.svdw.iter().map(convert_to_g1svdw).collect(),
+            add: REFERENCE_DATA
+                .g1
+                .add
+                .iter()
+                .map(convert_to_g1projective)
+                .collect(),
+            dbl: REFERENCE_DATA
+                .g1
+                .dbl
+                .iter()
+                .map(convert_to_g1projective)
+                .collect(),
+            mul: REFERENCE_DATA
+                .g1
+                .mul
+                .iter()
+                .map(convert_to_g1projective)
+                .collect(),
+            svdw: REFERENCE_DATA
+                .g1
+                .svdw
+                .iter()
+                .map(convert_to_g1svdw)
+                .collect(),
         };
         static ref G2_REFERENCE_DATA: G2ReferenceData = G2ReferenceData {
-            a: REFERENCE_DATA.g2.a.iter().map(convert_to_g2projective).collect(),
-            b: REFERENCE_DATA.g2.b.iter().map(convert_to_g2projective).collect(),
+            a: REFERENCE_DATA
+                .g2
+                .a
+                .iter()
+                .map(convert_to_g2projective)
+                .collect(),
+            b: REFERENCE_DATA
+                .g2
+                .b
+                .iter()
+                .map(convert_to_g2projective)
+                .collect(),
             r: REFERENCE_DATA.g2.r.iter().map(convert_to_fp).collect(),
-            add: REFERENCE_DATA.g2.add.iter().map(convert_to_g2projective).collect(),
-            dbl: REFERENCE_DATA.g2.dbl.iter().map(convert_to_g2projective).collect(),
-            mul: REFERENCE_DATA.g2.mul.iter().map(convert_to_g2projective).collect(),
-            psi: REFERENCE_DATA.g2.psi.iter().map(convert_to_g2projective).collect(),
+            add: REFERENCE_DATA
+                .g2
+                .add
+                .iter()
+                .map(convert_to_g2projective)
+                .collect(),
+            dbl: REFERENCE_DATA
+                .g2
+                .dbl
+                .iter()
+                .map(convert_to_g2projective)
+                .collect(),
+            mul: REFERENCE_DATA
+                .g2
+                .mul
+                .iter()
+                .map(convert_to_g2projective)
+                .collect(),
+            psi: REFERENCE_DATA
+                .g2
+                .psi
+                .iter()
+                .map(convert_to_g2projective)
+                .collect(),
         };
-        static ref G2_INVALIDS: Vec<_G2Projective> = REFERENCE_DATA.g2.invalid.iter().map(|x| (*x)
-            .clone()).collect();
+        static ref G2_INVALIDS: Vec<_G2Projective> = REFERENCE_DATA
+            .g2
+            .invalid
+            .iter()
+            .map(|x| (*x).clone())
+            .collect();
     }
 
     mod g1 {
