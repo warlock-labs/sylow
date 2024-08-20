@@ -23,7 +23,7 @@ fn generate_distinct_random_values(count: usize, min: u64, max: u64) -> Vec<Fp> 
         values.insert(value.value());
     }
 
-    values.into_iter().map(|n| Fp::new(n)).collect()
+    values.into_iter().map(Fp::new).collect()
 }
 
 #[allow(dead_code)]
@@ -39,7 +39,7 @@ impl DealerSecret {
     fn new(quorum: u32, round_id: u64) -> Self {
         let coefficients =
             generate_distinct_random_values(quorum as usize, MIN_COEFFICIENT, MAX_COEFFICIENT);
-        let secret = coefficients[0].clone();
+        let secret = coefficients[0];
         let commitments = coefficients
             .iter()
             .map(|c| GENERATOR.pow(c.value()))
@@ -54,7 +54,7 @@ impl DealerSecret {
     }
     fn new_bad(quorum: u32, round_id: u64) -> Self {
         let coefficients = vec![Fp::from(42u64); quorum as usize];
-        let secret = coefficients[0].clone();
+        let secret = coefficients[0];
         let commitments = vec![Fp::from(42u64); quorum as usize];
         DealerSecret {
             quorum,
@@ -117,15 +117,9 @@ impl DealerShare {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 struct MyConfig {
     quorum: u32,
-}
-
-impl Default for MyConfig {
-    fn default() -> Self {
-        Self { quorum: 0 }
-    }
 }
 
 fn do_round(round_id: u64, quorum: u32) {
