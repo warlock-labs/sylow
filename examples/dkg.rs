@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use sylow::{FieldExtensionTrait, Fp};
 use tracing::{event, Level};
 
-const GENERATOR: Fp = Fp::new(U256::from_u64(3u64));
+const GENERATOR: Fp = Fp::THREE;
 
 // TODO: Bounding coefficients until we address exponent modulo arithmetic
 const MIN_COEFFICIENT: u64 = 1;
@@ -109,7 +109,7 @@ impl DealerShare {
     }
 
     fn eval_commitments(&self) -> Fp {
-        let mut val = Fp::one();
+        let mut val = Fp::ONE;
         for (j, cmt_j) in self.commitments.iter().enumerate() {
             val *= cmt_j.pow(self.x.pow(U256::from_u64(j as u64)).value());
         }
