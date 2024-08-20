@@ -26,14 +26,17 @@ use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use std::ops::{Add, Mul, Neg, Sub};
 
+/// This is a simple error struct that specifies the three errors
+/// that are expected for the generation of a point on the curve.
+/// Either, the coordinates given are not even on the curve,
+/// or they are not in the correct subgroup, aka the r-torsion.
 #[derive(Debug, Copy, Clone)]
 pub enum GroupError {
-    /// This is a simple error struct that specifies the three errors
-    /// that are expected for the generation of a point on the curve.
-    /// Either, the coordinates given are not even on the curve,
-    /// or they are not in the correct subgroup, aka the r-torsion.
+    /// if the point is not on the curve
     NotOnCurve,
+    /// if the point is not in the r-torsion subgroup
     NotInSubgroup,
+    /// if the point cannot be hashed to the group
     CannotHashToGroup,
 }
 
@@ -47,17 +50,66 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     Sized + Copy + Clone + std::fmt::Debug + Neg + ConstantTimeEq + ConditionallySelectable + PartialEq
 {
     /// this is how we'll make more elements of the field from a scalar value
+    /// The value returned by this will be a hard-coded compile-time constant that will depend on
+    /// the specific group
     fn generator() -> Self;
-    /// required for subgroup checks
+    /// This is deceptively simple, yet was tedious to get correct. This is the
+    /// "untwist-Frobenius-twist" endomorphism, ψ(q) = u o π o u⁻¹ where u:E'→E is the
+    /// isomorphism
+    /// from the twist to the curve E and π is the Frobenius map. This is a complicated
+    /// topic, and a full
+    /// description is out of scope for a code comment. Nonetheless, we require the usage of
+    /// an endomorphism for subgroup checks in $\mathbb{G}_2$. This one offers nice
+    /// computational
+    /// benefits, and can be decomposed as follows:
+    /// 1. twist:        this is the map u that takes (x', y') |-> (w^2,x', w^3y'), where
+    ///                  $w\in\mathbb{F_{p^{12}}$ is a root of $X^6-\xi$. This is an
+    ///                  injective map (that is not surjective), that maps the r-torsion to an
+    ///                  equivalent subgroup in the algebraic closure of the base field.
+    /// 2. Frobenius:    this is the map π that is difficult to succinctly explain, but more or
+    ///                  less identifies the kernel of the twist operation, namely those points
+    ///                  in the algebraic closure that satisfy rQ=0.
+    /// 3. untwist:      having identified the points in the closure that satisfy the r-torsion
+    ///                  requirement, we map them back to the curve in Fp2.
+    ///
+    /// This endomorphism therefore encodes the torsion of a point in a compact,
+    /// computationally efficient way. All of this fancy stuff equates simply, and remarkably,
+    /// to the following:
+    /// (x,y) |-> (x^p * \xi^((p-1)/3), y^p*\xi^((p-1)/2))
+    ///
+    /// Note that this function will only be meaningful implemented to G2 elements.
     fn endomorphism(&self) -> Self;
-    /// generate a random point on the curve
+    /// Generate a random point on the curve
+    /// # Arguments
+    /// * `rng` - a cryptographic random number generator
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
+    /// Hash a message to a point on the curve using the `expand_msg` and SvdW standards provided
+    /// by RFC 9380, see `hasher.rs` and `svdw.rs` for more details. Takes an input message, and
+    /// expander, and returns an element in the group.
+    /// # Arguments
+    /// * `exp` - an object that implements the `Expander` trait,  used to hash the message to a
+    ///             point on the curve
+    /// * `msg` - a slice of bytes that is to be hashed to a point on the curve
+    /// # Returns
+    /// * `Result<Self, GroupError>` - a point on the curve, otherwise an error
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError>;
+    /// Take an input message, and produce a cryptographic signature on it in the group.
+    /// # Arguments
+    /// * `exp` - an object that implements the `Expander` trait, used to hash the message to a
+    ///             point on the curve
+    /// * `msg` - a slice of bytes that is to be hashed to a point on the curve
+    /// * `private_key` - a scalar in the base field that is used to sign the message
     fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: F) -> Result<Self, GroupError>;
     /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
     /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
     /// Therefore, these points must bypass curve membership and torsion checks, and therefore
     /// directly be instantiated as a struct
+    ///
+    /// This performs the operation:
+    /// (x,y) |-> (x^p, y^p)
+    ///
+    /// # Arguments
+    /// * `exponent` - usize, the exponent to raise the point to
     #[allow(dead_code)]
     fn frobenius(&self, exponent: usize) -> Self;
 }
@@ -78,7 +130,8 @@ pub struct GroupAffine<const D: usize, const N: usize, F: FieldExtensionTrait<D,
 /// so that they can be dropped immediately after they're not needed for security.
 /// This subtle point requires that binary operations
 /// be defined for specific lifetimes, and then we must specialize them for typical
-/// usage with the symbolic operators (+, -, etc.).
+/// usage with the symbolic operators (+, -, etc.) so that all arithmetic is defined by reference
+/// and not by copy.
 ///
 /// One other final note is that we do all required curve and subgroup checks with the usage
 ///  of the `new` builder. In this case, the code will throw an error at the time of

@@ -2,7 +2,7 @@
 #![doc = include_str!("../README.md")]
 #![deny(unsafe_code)]
 #![deny(dead_code)]
-#![allow(clippy::needless_doctest_main)]
+#![allow(clippy::needless_doctest_main, clippy::doc_lazy_continuation)]
 #![warn(
     clippy::unwrap_used,
     missing_docs,
@@ -20,12 +20,13 @@ mod hasher;
 mod pairing;
 mod svdw;
 
-use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
-use crate::groups::g1::G1Projective;
-use crate::groups::g2::G2Projective;
-use crate::groups::group::{GroupError, GroupTrait};
+pub use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
+pub use crate::groups::g1::{G1Affine, G1Projective};
+pub use crate::groups::g2::G2Projective;
+pub use crate::groups::group::{GroupError, GroupTrait};
+pub use crate::groups::gt::Gt;
 use crate::hasher::XMDExpander;
-use crate::pairing::pairing;
+pub use crate::pairing::{glued_miller_loop, pairing, G2PreComputed};
 use crypto_bigint::rand_core::OsRng;
 use sha3::Keccak256;
 use subtle::ConstantTimeEq;

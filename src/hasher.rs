@@ -8,24 +8,52 @@ use crypto_bigint::{Encoding, NonZero, U256, U512};
 use sha3::digest::crypto_common::BlockSizeUser;
 use sha3::digest::{ExtendableOutput, FixedOutput};
 use std::array::TryFromSliceError;
-#[derive(Debug)]
-pub(crate) enum HashError {
+#[derive(Debug, Copy, Clone)]
+pub enum HashError {
     CastToField,
     ExpandMessage,
     ConvertInt,
 }
 
+/// This is a simple integer to octet representation of the given length conversion tool.
+/// # Arguments
+/// * `val` - the integer to be converted
+/// * `length` - the length of the output octet string
+/// # Returns
+/// * a Result containing the octet string or an error if the conversion fails
 fn i2osp(val: u64, length: usize) -> Result<Vec<u8>, HashError> {
-    // this is an integer to octet representation of the given length
     if val >= (1 << (8 * length)) {
         return Err(HashError::ConvertInt);
     }
     Ok(val.to_be_bytes()[8 - length..].to_vec())
 }
-pub(crate) trait Expander {
+
+/// The suggested way to generate a value in a base field from a byte array is to use a technique
+/// called message expansion, as described by RFC 9380, see
+/// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message>. This is a trait that
+/// must be satisfied for any version of this standard.
+pub trait Expander {
+    // If the domain separation tag is above 255 characters, then this prefix must be added as
+    // required by the standard.
     const OVERSIZE_DST_PREFIX: &'static [u8] = b"H2C-OVERSIZE-DST-";
 
+    // Actually performs the message expansion to the target length in bytes.
+    // # Arguments
+    // * `msg` - the message to be expanded
+    // * `len_in_bytes` - the length of the output in bytes
+    // # Returns
+    // * a Result containing the expanded message or an error if the expansion fails
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError>;
+    // This function is used to convert a byte array to a field element. The standard technically
+    // defines this function to work for any field extension degree, and allows for the
+    // partitioning of the expanded message into multiple field elements. For our cases here,
+    // we're interested in the base field (degree=1), and two elements of 48 bytes each.
+    // # Arguments
+    // * `msg` - the message to be expanded
+    // * `count` - the number of field elements to be returned
+    // * `size` - the size of each field element in bytes
+    // # Returns
+    // * a Result containing the field elements or an error if the conversion fails
     fn hash_to_field(&self, msg: &[u8], count: usize, size: usize) -> Result<[Fp; 2], HashError> {
         // const COUNT: usize = 2;
         // const L: usize = 48;
@@ -37,12 +65,20 @@ pub(crate) trait Expander {
         for (i, f) in retval.iter_mut().enumerate() {
             let elm_offset = size * i;
             let tv = &exp_msg[elm_offset..elm_offset + size];
+            // this just simply copies the relevant slice of bytes cleanly into a full 64-byte slice
             let mut bs = [0u8; 64];
             bs[16..].copy_from_slice(tv);
 
+            // the next step requires taking the value of current chunk of bytes and modulo'ing
+            // it by the base field order. However, because the slice of the expanded message was
+            // fit into a 64-byte array (bigger than the definition of our modulus = 256 = 32
+            // bytes), we have to up-cast our modulus to a U512 to perform the arithmetic
             let cast_value = U512::from_be_bytes(bs);
             let modulus = NonZero::<U512>::new(u256_to_u512(&Fp::characteristic())).unwrap();
 
+            // since the leading bytes of the expanded message slice are 0 anyway, the first 4
+            // words of the value will ALWAYS be [0x0,0x0,0x0,0x0], so we can truncate safely to
+            // get the relevant values
             let scalar = U256::from_words(
                 (cast_value % modulus).to_words()[0..4]
                     .try_into()
@@ -65,6 +101,12 @@ pub(crate) struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
 }
 
 impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
+    /// Generate a new instance of the expander based on a domain separation tag, and desired bit
+    /// level of security. For BN254, this is in theory 128, but has been shown recently to be
+    /// ~100, see <https://eprint.iacr.org/2015/1027.pdf>.
+    /// # Arguments
+    /// * `dst` - the domain separation tag
+    /// * `security_param` - the desired bit level of security
     pub(crate) fn new(dst: &[u8], security_param: u64) -> Self {
         let dst_prime = if dst.len() > 255 {
             let mut hasher = D::default();
