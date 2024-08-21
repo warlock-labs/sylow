@@ -412,11 +412,11 @@ mod tests {
         }
         mod hash_tests {
             use super::*;
+            use crate::groups::g1::get_bn254_svdw;
             use crate::groups::group::GroupTrait;
             use crate::hasher::XMDExpander;
             use crate::svdw::SvdWTrait;
             use sha2::Sha256;
-            use crate::groups::g1::get_bn254_svdw;
 
             const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
             const MSG: &[u8; 4] = &20_i32.to_be_bytes();

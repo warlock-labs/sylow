@@ -10,13 +10,13 @@
 //! Notice that there is not much here left to specialise to G1 on BN254! This abstraction should
 //! make the implementation of the more complicated G2 easier to handle.
 
-use std::sync::OnceLock;
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
 use crate::svdw::{MapError, SvdW, SvdWTrait};
 use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::Zero;
+use std::sync::OnceLock;
 use subtle::{Choice, ConstantTimeEq};
 
 /// type alias for affine representation on base field
@@ -24,12 +24,14 @@ pub type G1Affine = GroupAffine<1, 1, Fp>;
 /// type alias for projective representation on base field
 pub type G1Projective = GroupProjective<1, 1, Fp>;
 
+/// this just creates a static instance of the SvdW map for G1
 static BN254_SVDW: OnceLock<Result<SvdW, MapError>> = OnceLock::new();
 
+/// This function returns the SvdW map for G1 on BN254
 pub fn get_bn254_svdw() -> Result<&'static SvdW, &'static MapError> {
-    BN254_SVDW.get_or_init(|| {
-        SvdW::precompute_constants(Fp::ZERO, Fp::THREE)
-    }).as_ref()
+    BN254_SVDW
+        .get_or_init(|| SvdW::precompute_constants(Fp::ZERO, Fp::THREE))
+        .as_ref()
 }
 impl GroupTrait<1, 1, Fp> for G1Affine {
     fn generator() -> Self {
