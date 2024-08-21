@@ -13,7 +13,11 @@ use field::fp6::*;
 mod pairing;
 use pairing::*;
 
-criterion_group!(pairing_benches, test_pairing,);
+mod sig;
+use sig::*;
+
+criterion_group!(pairing_benches, test_pairing);
+criterion_group!(signature_benches, test_signing);
 
 criterion_group!(
     g1_benches,
@@ -75,5 +79,6 @@ criterion_main!(
     fp2_benches,
     fp6_benches,
     fp12_benches,
-    pairing_benches
+    pairing_benches,
+    signature_benches
 );

@@ -28,11 +28,10 @@ pub use crate::groups::group::{GroupError, GroupTrait};
 pub use crate::groups::gt::Gt;
 
 pub use crate::fields::fp12::Fp12;
-/// EVIL GLOBALS
 pub use crate::fields::fp2::Fp2;
 pub use crate::fields::fp6::Fp6;
 
-use crate::hasher::XMDExpander;
+pub use crate::hasher::{XMDExpander, XOFExpander};
 pub use crate::pairing::{glued_miller_loop, pairing, G2PreComputed};
 use crypto_bigint::rand_core::OsRng;
 use sha3::Keccak256;
