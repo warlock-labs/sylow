@@ -412,9 +412,10 @@ mod tests {
         }
         mod hash_tests {
             use super::*;
+            use crate::groups::g1::get_bn254_svdw;
             use crate::groups::group::GroupTrait;
             use crate::hasher::XMDExpander;
-            use crate::svdw::{SvdW, SvdWTrait};
+            use crate::svdw::SvdWTrait;
             use sha2::Sha256;
 
             const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
@@ -451,10 +452,7 @@ mod tests {
             fn test_svdw() {
                 let g1_points = &*G1_REFERENCE_DATA;
 
-                if let Ok(d) = SvdW::precompute_constants(
-                    Fp::ZERO,
-                    <Fp as FieldExtensionTrait<1, 1>>::curve_constant(),
-                ) {
+                if let Ok(d) = get_bn254_svdw() {
                     for s in g1_points.svdw.iter() {
                         let r = s.i;
                         let p = s.p;

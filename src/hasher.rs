@@ -3,7 +3,7 @@
 // //! and convert it into an element in the base field.
 
 use crate::fields::fp::Fp;
-use crate::fields::utils::u256_to_u512;
+use crate::utils::u256_to_u512;
 use crypto_bigint::{Encoding, NonZero, U256, U512};
 use sha3::digest::crypto_common::BlockSizeUser;
 use sha3::digest::{ExtendableOutput, FixedOutput};
@@ -90,11 +90,12 @@ pub trait Expander {
     }
 }
 
-pub(crate) struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
-    /// This implements the XMD function, which produces a uniformly random
-    /// byte string using a hash function that outputs b bits.
-    /// Usage of this function is recommended only with Sha2 and Sha3 hashes.
-    /// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message_xmd>
+/// This implements the XMD function, which produces a uniformly random
+/// byte string using a hash function that outputs b bits.
+/// Usage of this function is recommended only with Sha2 and Sha3 hashes.
+/// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message_xmd>
+#[derive(Debug)]
+pub struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
     dst_prime: Vec<u8>,
     hash_fn: std::marker::PhantomData<D>,
     security_param: u64,
@@ -107,7 +108,7 @@ impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
     /// # Arguments
     /// * `dst` - the domain separation tag
     /// * `security_param` - the desired bit level of security
-    pub(crate) fn new(dst: &[u8], security_param: u64) -> Self {
+    pub fn new(dst: &[u8], security_param: u64) -> Self {
         let dst_prime = if dst.len() > 255 {
             let mut hasher = D::default();
             hasher.update(Self::OVERSIZE_DST_PREFIX);
@@ -175,11 +176,12 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
     }
 }
 
-struct XOFExpander<D: Default + ExtendableOutput> {
-    /// This implements the XOF function, which produces a uniformly random
-    /// byte string using an extendable output function (XOF) H. In this instance,
-    /// the Shake XOF family are the only recommended choices.
-    /// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message_xof>
+/// This implements the XOF function, which produces a uniformly random
+/// byte string using an extendable output function (XOF) H. In this instance,
+/// the Shake XOF family are the only recommended choices.
+/// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message_xof>
+#[derive(Debug)]
+pub struct XOFExpander<D: Default + ExtendableOutput> {
     dst_prime: Vec<u8>,
     hash_fn: std::marker::PhantomData<D>,
 }

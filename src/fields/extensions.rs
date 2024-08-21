@@ -36,7 +36,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtensio
     /// an extension need.
     /// # Arguments
     /// * `c` - a slice of field elements
-    pub(crate) const fn new(c: &[F; N]) -> Self {
+    pub const fn new(c: &[F; N]) -> Self {
         Self(*c)
     }
     /// There is eventually a need to be able to perform multiplication across different field
