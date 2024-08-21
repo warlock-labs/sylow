@@ -117,6 +117,7 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
         let x_endo = EPS_EXP0 * x_frob;
         let y_endo = EPS_EXP1 * y_frob;
 
+        tracing::debug!(?x_frob, ?y_frob, ?x_endo, ?y_endo, "G2Affine::endomorphism");
         Self::new_unchecked([x_endo, y_endo]).expect("Endomorphism failed")
     }
 
@@ -177,6 +178,7 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
         ]));
         let rando = Fp::new(Fr::rand(rng).value());
         let mut tmp = Self::generator() * rando;
+        tracing::debug!(?rando, ?tmp, "G2Projective::rand");
 
         // multiplying an element of the larger base field by the cofactor of a prime-ordered
         // subgroup will return an element in the prime-order subgroup, see
@@ -222,6 +224,7 @@ impl G2Affine {
             let x2 = x.square();
             let lhs = y2 - (x2 * (*x));
             let rhs = <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
+            tracing::debug!(?y2, ?x2, ?lhs, ?rhs, "G2Affine::new_unchecked");
             lhs.ct_eq(&rhs) | *z
         };
 
@@ -250,6 +253,7 @@ impl G2Projective {
             let z2 = z.square();
             let lhs = y2 * (*z);
             let rhs = x2 * (*x) + z2 * (*z) * <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
+            tracing::debug!(?y2, ?x2, ?z2, ?lhs, ?rhs, "G2Projective::new");
             lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
         };
         // This method is where the magic happens. In a naïve approach, in order to check for
@@ -287,6 +291,7 @@ impl G2Projective {
             let mut rhs = b.endomorphism(); // ψ^2(xQ)
             let lhs = rhs + b + a; // ψ^2(xQ) + ψ(xQ) + (x+1)Q
             rhs = rhs.endomorphism().double() - lhs; // ψ^3(2xQ) - (ψ^2(xQ) + ψ(xQ) + (x+1)Q)
+            tracing::debug!(?x, ?y, ?z, ?a, ?b, ?lhs, ?rhs, "G2Projective::_g2projective_is_torsion_free");
 
             // we do two checks: one is to verify that the result is indeed a point at infinity,
             // but we need a second check to verify that it is OUR point at infinity, namely for

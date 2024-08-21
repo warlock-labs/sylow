@@ -101,6 +101,7 @@ impl Fp2 {
         if a0 == -Fp2::one() {
             return CtOption::new(Fp2::zero(), Choice::from(0u8));
         }
+        tracing::debug!(?alpha, ?a0, "Fp2::sqrt");
 
         if alpha == -Fp2::one() {
             let i = Fp2::new(&[Fp::ZERO, Fp::ONE]);
@@ -114,6 +115,7 @@ impl Fp2 {
     }
     pub fn square(&self) -> Self {
         let t0 = self.0[0] * self.0[1];
+        tracing::debug!(?t0, "Fp2::square");
         Self([
             (self.0[1] * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() + self.0[0])
                 * (self.0[0] + self.0[1])
@@ -136,6 +138,7 @@ impl Fp2 {
         };
         let sum = self.0[0].square()
             + <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() * (-self.0[0]).square();
+        tracing::debug!(?sum, "Fp2::is_square");
         Choice::from((legendre(&sum) != -1) as u8)
     }
     pub fn sgn0(&self) -> Choice {
