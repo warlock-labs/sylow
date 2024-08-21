@@ -133,7 +133,7 @@ macro_rules! define_finite_prime_field {
 
         //special struct for const-time arithmetic on montgomery form integers mod p
         type $output = crypto_bigint::modular::ConstMontyForm<$mod_struct, { $mod_struct::LIMBS }>;
-        #[derive(Clone, Debug, Copy)] //to be used in const contexts
+        #[derive(Clone, Copy, Eq)] //Clone and Copy to be used in const contexts
         /// This is the actual struct that serves as our finite field implementation, containing
         /// the modulus of the field, as well as the output type that contains the internal
         /// Montgomery arithmetic logic
@@ -393,12 +393,26 @@ macro_rules! define_finite_prime_field {
                     .1
                     .retrieve()
                     .div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
+                tracing::debug!(?_q, ?_r, "finite_prime_field::rem_euclid");
 
                 if self.1.retrieve().bit(255).into() {
                     // _q = _q - <$uint_type>::ONE;
                     _r = other.1.retrieve() - _r;
+                    tracing::debug!(?_r, "finite_prime_field::rem_euclid high bit");
                 }
                 Self::new(_r)
+            }
+        }
+        impl std::fmt::Debug for $wrapper_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_struct(stringify!($wrapper_name))
+                    .field(stringify!($uint_type), &self.value())
+                    .finish()
+            }
+        }
+        impl std::hash::Hash for $wrapper_name {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                self.value().hash(state);
             }
         }
     };
@@ -459,6 +473,7 @@ impl Fp {
     pub fn sqrt(&self) -> CtOption<Self> {
         let arg = ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
         let sqrt = self.pow(arg);
+        tracing::debug!(?arg, ?sqrt, "Fp::sqrt");
         CtOption::new(sqrt, sqrt.square().ct_eq(self))
     }
     /// Returns the square of the element in the base field
@@ -470,12 +485,14 @@ impl Fp {
         let p_minus_1_div_2 =
             ((Self::new(Self::characteristic()) - Self::from(1)) / Self::from(2)).value();
         let retval = self.pow(p_minus_1_div_2);
+        tracing::debug!(?p_minus_1_div_2, ?retval, "Fp::is_square");
         Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
     }
     /// Determines the 'sign' of a value in the base field,
     /// see <https://datatracker.ietf.org/doc/html/rfc9380#section-4.1> for more details
     pub fn sgn0(&self) -> Choice {
         let a = *self % Self::from(2u64);
+        tracing::debug!(?a, "Fp::sgn0");
         if a.is_zero() {
             Choice::from(0u8)
         } else {

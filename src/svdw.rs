@@ -161,6 +161,24 @@ impl SvdWTrait for SvdW {
         };
         let e3 = Choice::from((bool::from(u.sgn0()) == bool::from(y.sgn0())) as u8);
         let y = cmov(&(-y), &y, &e3); // Select correct sign of y;
+        tracing::debug!(
+            ?tv1,
+            ?tv2,
+            ?tv3,
+            ?tv4,
+            ?x1,
+            ?gx1,
+            ?e1,
+            ?x2,
+            ?gx2,
+            ?e2,
+            ?x3,
+            ?x,
+            ?gx,
+            ?y,
+            ?e3,
+            "SvdW::unchecked_map_to_point"
+        );
         Ok([x, y])
     }
 }

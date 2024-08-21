@@ -70,7 +70,7 @@ pub fn sign(k: &Fp, msg: &[u8]) -> Result<G1Projective, GroupError> {
     }
 }
 
-/// This takes a pub lic key, message, and a signature, and verifies that the signature is valid
+/// This takes a public key, message, and a signature, and verifies that the signature is valid
 pub fn verify(pubkey: &G2Projective, msg: &[u8], sig: &G1Projective) -> Result<bool, GroupError> {
     let expander = XMDExpander::<Keccak256>::new(DST, SECURITY_BITS);
     match G1Projective::hash_to_curve(&expander, msg) {

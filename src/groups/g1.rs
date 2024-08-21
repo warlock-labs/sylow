@@ -87,6 +87,7 @@ impl G1Affine {
             let x2 = x.square();
             let lhs = y2 - (x2 * (*x));
             let rhs = <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
+            tracing::debug!(?y2, ?x2, ?lhs, ?rhs, "G1Affine::new");
             lhs.ct_eq(&rhs) | *z
         };
 
@@ -95,10 +96,12 @@ impl G1Affine {
             Choice::from(1u8)
         };
         let is_on_curve: Choice = _g1affine_is_on_curve(&v[0], &v[1], &Choice::from(0u8));
+        tracing::debug!(?is_on_curve, "G1Affine::new");
         match bool::from(is_on_curve) {
             true => {
                 let is_in_torsion: Choice =
                     _g1affine_is_torsion_free(&v[0], &v[1], &Choice::from(0u8));
+                tracing::debug!(?is_in_torsion, "G1Affine::new");
                 match bool::from(is_in_torsion) {
                     true => Ok(Self {
                         x: v[0],
@@ -133,6 +136,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
         let scalars = exp
             .hash_to_field(msg, COUNT, L)
             .expect("Hashing to base field failed");
+        tracing::debug!(?scalars, "GroupTrait::hash_to_curve");
         match get_bn254_svdw() {
             Ok(bn254_g1_svdw) => {
                 let a = G1Projective::from(
@@ -145,6 +149,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
                         .unchecked_map_to_point(scalars[1])
                         .expect("Failed to hash"),
                 );
+                tracing::debug!(?a, ?b, "GroupTrait::hash_to_curve");
                 Ok(a + b)
             }
             _ => Err(GroupError::CannotHashToGroup),
@@ -161,6 +166,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
             .iter()
             .map(|x| x.frobenius(exponent))
             .collect();
+        tracing::debug!(?vec, "GroupTrait::frobenius");
         Self {
             x: vec[0],
             y: vec[1],
@@ -181,14 +187,17 @@ impl G1Projective {
             let z2 = z.square();
             let lhs = y2 * (*z);
             let rhs = x2 * (*x) + z2 * (*z) * <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
+            tracing::debug!(?y2, ?x2, ?z2, ?lhs, ?rhs, "G1Projective::new");
             lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
         };
         let _g1projective_is_torsion_free =
             |_x: &Fp, _y: &Fp, _z: &Fp| -> Choice { Choice::from(1u8) };
         let is_on_curve: Choice = _g1projective_is_on_curve(&v[0], &v[1], &v[2]);
+        tracing::debug!(?is_on_curve, "G1Projective::new");
         match bool::from(is_on_curve) {
             true => {
                 let is_in_torsion: Choice = _g1projective_is_torsion_free(&v[0], &v[1], &v[2]);
+                tracing::debug!(?is_in_torsion, "G1Projective::new");
                 match bool::from(is_in_torsion) {
                     true => Ok(Self {
                         x: v[0],
