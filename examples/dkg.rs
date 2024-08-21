@@ -26,67 +26,46 @@ fn generate_distinct_random_values(count: usize, min: u64, max: u64) -> Vec<Fp> 
     values.into_iter().collect()
 }
 
-#[allow(dead_code)]
 struct DealerSecret {
-    quorum: u32,
-    round_id: u64,
+    // polynomial coefficients; coefficients[0] is the secret a_0
     coefficients: Vec<Fp>,
-    secret: Fp,
     commitments: Vec<Fp>,
 }
 
 impl DealerSecret {
-    fn new(quorum: u32, round_id: u64) -> Self {
+    fn new(quorum: u32) -> Self {
         let coefficients =
             generate_distinct_random_values(quorum as usize, MIN_COEFFICIENT, MAX_COEFFICIENT);
-        let secret = coefficients[0];
         let commitments = coefficients
             .iter()
             .map(|c| GENERATOR.pow(c.value()))
             .collect();
         DealerSecret {
-            quorum,
-            round_id,
             coefficients,
-            secret,
             commitments,
         }
     }
-    fn new_bad(quorum: u32, round_id: u64) -> Self {
+    fn new_bad(quorum: u32) -> Self {
         let coefficients = vec![Fp::from(42u64); quorum as usize];
-        let secret = coefficients[0];
         let commitments = vec![Fp::from(42u64); quorum as usize];
         DealerSecret {
-            quorum,
-            round_id,
             coefficients,
-            secret,
             commitments,
         }
     }
 }
 
-#[allow(dead_code)]
 struct DealerShare {
-    round_id: u64,
-    dealer_id: u64,
     commitments: Vec<Fp>,
     x: Fp,
     y: Fp,
 }
 
-#[allow(dead_code)]
 struct Participant {
-    participant_id: u64,
-    host: String,
     dealer_secret: DealerSecret,
-    dealer_shares: HashMap<u64, DealerShare>,
 }
 
-#[allow(dead_code)]
 struct Round {
-    round_id: u64,
-    quorum: u32,
     participants: HashMap<u64, Participant>,
 }
 
@@ -125,8 +104,6 @@ struct MyConfig {
 fn do_round(round_id: u64, quorum: u32) {
     event!(Level::INFO, "Begin round {round_id}");
     let mut round_data = Round {
-        round_id,
-        quorum,
         participants: HashMap::new(),
     };
 
@@ -134,14 +111,11 @@ fn do_round(round_id: u64, quorum: u32) {
     let n_participants: u64 = (quorum + 2) as u64;
     for participant_id in 0u64..n_participants {
         let participant = Participant {
-            participant_id,
-            host: "some_host".to_string(),
             dealer_secret: if participant_id != (quorum + 1) as u64 {
-                DealerSecret::new(quorum, round_id)
+                DealerSecret::new(quorum)
             } else {
-                DealerSecret::new_bad(quorum, round_id)
+                DealerSecret::new_bad(quorum)
             },
-            dealer_shares: HashMap::new(),
         };
         round_data.participants.insert(participant_id, participant);
     }
@@ -164,8 +138,6 @@ fn do_round(round_id: u64, quorum: u32) {
             let x_share = x_shares[recipient_index];
             let y_share = dealer_secret.eval_polynomial(x_share);
             let share = DealerShare {
-                round_id,
-                dealer_id: *dealer_id,
                 commitments: dealer_secret.commitments.clone(),
                 x: x_share,
                 y: y_share,
