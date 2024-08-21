@@ -131,7 +131,7 @@ impl MillerLoopResult {
             let mut z5 = f.0[1].0[2];
             // Line 9
             let (t0, t1) = fp4_square(z0, z1);
-            tracing::debug!(?t0, ?t1, "MillerLoopResult::cyclotonic_squared");
+            tracing::debug!(?t0, ?t1, "MillerLoopResult::cyclotomic_squared");
             // Line 13-22 for A
             z0 = t0 - z0;
             z0 = z0 + z0 + t0;
@@ -141,7 +141,7 @@ impl MillerLoopResult {
 
             let (mut t0, t1) = fp4_square(z2, z3);
             let (t2, t3) = fp4_square(z4, z5);
-            tracing::debug!(?t0, ?t1, ?t2, ?t3, "MillerLoopResult::cyclotonic_squared");
+            tracing::debug!(?t0, ?t1, ?t2, ?t3, "MillerLoopResult::cyclotomic_squared");
 
             // Lines 25-31, for C
             z4 = t0 - z4;
