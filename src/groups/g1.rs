@@ -13,9 +13,10 @@
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
-use crate::svdw::{SvdW, SvdWTrait};
+use crate::svdw::{MapError, SvdW, SvdWTrait};
 use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::Zero;
+use std::sync::OnceLock;
 use subtle::{Choice, ConstantTimeEq};
 
 /// type alias for affine representation on base field
@@ -23,6 +24,15 @@ pub type G1Affine = GroupAffine<1, 1, Fp>;
 /// type alias for projective representation on base field
 pub type G1Projective = GroupProjective<1, 1, Fp>;
 
+/// this just creates a static instance of the SvdW map for G1
+static BN254_SVDW: OnceLock<Result<SvdW, MapError>> = OnceLock::new();
+
+/// This function returns the SvdW map for G1 on BN254
+pub fn get_bn254_svdw() -> Result<&'static SvdW, &'static MapError> {
+    BN254_SVDW
+        .get_or_init(|| SvdW::precompute_constants(Fp::ZERO, Fp::THREE))
+        .as_ref()
+}
 impl GroupTrait<1, 1, Fp> for G1Affine {
     fn generator() -> Self {
         Self {
@@ -127,7 +137,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
             .hash_to_field(msg, COUNT, L)
             .expect("Hashing to base field failed");
         tracing::debug!(?scalars, "GroupTrait::hash_to_curve");
-        match SvdW::precompute_constants(Fp::from(0), Fp::from(3)) {
+        match get_bn254_svdw() {
             Ok(bn254_g1_svdw) => {
                 let a = G1Projective::from(
                     bn254_g1_svdw
@@ -170,7 +180,7 @@ impl G1Projective {
     /// # Arguments
     /// * `v` - a tuple of field elements that represent the x, y, and z coordinates of the point
     #[allow(dead_code)]
-    pub(crate) fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
+    pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let _g1projective_is_on_curve = |x: &Fp, y: &Fp, z: &Fp| -> Choice {
             let y2 = y.square();
             let x2 = x.square();

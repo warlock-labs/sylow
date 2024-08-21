@@ -246,7 +246,7 @@ impl G2Projective {
     ///
     /// # Arguments
     /// * `v` - a tuple of field elements that represent the x, y, and z coordinates of the point
-    pub(crate) fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
+    pub fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
         let _g2projective_is_on_curve = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
             let y2 = y.square();
             let x2 = x.square();
