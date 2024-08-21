@@ -25,7 +25,7 @@ criterion_group!(
 );
 criterion_group!(
     g2_benches,
-    test_g2affine_conversion_to_g1projective,
+    test_g2affine_conversion_to_g2projective,
     test_g2projective_valid_generation,
     test_g2projective_addition,
     test_g2projective_multiplication
