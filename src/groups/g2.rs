@@ -291,7 +291,16 @@ impl G2Projective {
             let mut rhs = b.endomorphism(); // ψ^2(xQ)
             let lhs = rhs + b + a; // ψ^2(xQ) + ψ(xQ) + (x+1)Q
             rhs = rhs.endomorphism().double() - lhs; // ψ^3(2xQ) - (ψ^2(xQ) + ψ(xQ) + (x+1)Q)
-            tracing::debug!(?x, ?y, ?z, ?a, ?b, ?lhs, ?rhs, "G2Projective::_g2projective_is_torsion_free");
+            tracing::debug!(
+                ?x,
+                ?y,
+                ?z,
+                ?a,
+                ?b,
+                ?lhs,
+                ?rhs,
+                "G2Projective::_g2projective_is_torsion_free"
+            );
 
             // we do two checks: one is to verify that the result is indeed a point at infinity,
             // but we need a second check to verify that it is OUR point at infinity, namely for

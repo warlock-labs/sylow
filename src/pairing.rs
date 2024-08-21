@@ -109,6 +109,7 @@ impl MillerLoopResult {
             let t1 = b.square();
             // Line 3
             let c0 = t1.residue_mul();
+            tracing::debug!(?t0, ?t1, ?c0, "MillerLoopResult::fp4_square");
             // Line 4
             let c0 = c0 + t0;
             // Line 5
@@ -130,6 +131,7 @@ impl MillerLoopResult {
             let mut z5 = f.0[1].0[2];
             // Line 9
             let (t0, t1) = fp4_square(z0, z1);
+            tracing::debug!(?t0, ?t1, "MillerLoopResult::cyclotonic_squared");
             // Line 13-22 for A
             z0 = t0 - z0;
             z0 = z0 + z0 + t0;
@@ -139,6 +141,7 @@ impl MillerLoopResult {
 
             let (mut t0, t1) = fp4_square(z2, z3);
             let (t2, t3) = fp4_square(z4, z5);
+            tracing::debug!(?t0, ?t1, ?t2, ?t3, "MillerLoopResult::cyclotonic_squared");
 
             // Lines 25-31, for C
             z4 = t0 - z4;
@@ -220,6 +223,30 @@ impl MillerLoopResult {
             let s = input.unitary_inverse();
             let t = s * l;
             let u = t.frobenius(3);
+            tracing::debug!(
+                ?a,
+                ?b,
+                ?c,
+                ?d,
+                ?e,
+                ?f,
+                ?g,
+                ?h,
+                ?i,
+                ?j,
+                ?k,
+                ?l,
+                ?m,
+                ?n,
+                ?o,
+                ?p,
+                ?q,
+                ?r,
+                ?s,
+                ?t,
+                ?u,
+                "MillerLoopResult::hard_part"
+            );
             u * r
         }
 
@@ -265,20 +292,24 @@ impl G2PreComputed {
             let c = &self.coeffs[idx];
             idx += 1;
             f = f.square().sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
+            tracing::debug!(?idx, ?f, "G2PreComputed::miller_loop");
 
             if *i != 0 {
                 let c = &self.coeffs[idx];
                 idx += 1;
                 f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
+                tracing::debug!(?idx, ?f, "G2PreComputed::miller_loop");
             }
         }
 
         let c = &self.coeffs[idx];
         idx += 1;
         f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
+        tracing::debug!(?idx, ?f, "G2PreComputed::miller_loop");
 
         let c = &self.coeffs[idx];
         f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
+        tracing::debug!(?idx, ?f, "G2PreComputed::miller_loop");
 
         MillerLoopResult(f)
     }
@@ -343,6 +374,7 @@ impl G2Projective {
         let h = d * f;
         let i = self.x * f;
         let j = self.z * g + h - (i + i);
+        tracing::debug!(?d, ?e, ?f, ?g, ?h, ?i, ?j, "G2Projective::addition_step");
 
         self.x = d * j;
         self.y = e * (i - j) - h * self.y;
@@ -366,6 +398,7 @@ impl G2Projective {
         let i = e - b;
         let j = self.x.square();
         let e_sq = e.square();
+        tracing::debug!(?f, ?g, ?h, ?i, ?j, ?e_sq, "G2Projective::doubling_step");
 
         self.x = a * (b - f);
         self.y = g.square() - (e_sq + e_sq + e_sq);
@@ -394,6 +427,7 @@ pub fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
     let q = G2Affine::conditional_select(q, &G2Affine::generator(), either_zero);
     let tmp = q.precompute().miller_loop(&p).0;
     let tmp = MillerLoopResult(Fp12::conditional_select(&tmp, &Fp12::one(), either_zero));
+    tracing::debug!(?p, ?q, ?tmp, "pairing");
     tmp.final_exponentiation()
 }
 
@@ -423,11 +457,13 @@ pub fn glued_miller_loop(g2_precomps: &[G2PreComputed], g1s: &[G1Affine]) -> Mil
             idx += 1;
         }
     }
+    tracing::debug!(?f, "glued_miller_loop 1");
 
     for (g2_precompute, g1) in g2_precomps.iter().zip(g1s.iter()) {
         let c = &g2_precompute.coeffs[idx];
         f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
     }
+    tracing::debug!(?f, "glued_miller_loop 2");
     idx += 1;
     for (g2_precompute, g1) in g2_precomps.iter().zip(g1s.iter()) {
         let c = &g2_precompute.coeffs[idx];
