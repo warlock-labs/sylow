@@ -4,6 +4,7 @@ categories = ["cryptography", "mathematics"]
 description = "Implementation of the BLS signature scheme using the alt-bn128 curve."
 homepage = "https://github.com/warlock-labs/sylow"
 keywords = ["alt-bn128", "bls", "cryptography", "elliptic-curve", "pairing"]
+# BN254, any Ethereum/crypto-specific categories/keywords?
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/warlock-labs/sylow.git"
@@ -16,6 +17,12 @@ edition = "2021"
 [[example]]
 name = "dkg"
 path = "examples/dkg.rs"
+
+[[example]]
+name = "key"
+path = "examples/key.rs"
+# do we need/want to add all examples here
+# also, some examples demonstrating groups and fields
 
 [dependencies]
 num-traits = "0.2.19"
