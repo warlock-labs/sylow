@@ -82,35 +82,24 @@ impl G1Affine {
     // # Arguments
     // * `v` - a tuple of field elements that represent the x and y coordinates of the point
     fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
-        let _g1affine_is_on_curve = |x: &Fp, y: &Fp, z: &Choice| -> Choice {
-            let y2 = y.square();
-            let x2 = x.square();
-            let lhs = y2 - (x2 * (*x));
+        let is_on_curve = {
+            let y2 = v[1].square();
+            let x2 = v[0].square();
+            let lhs = y2 - (x2 * v[0]);
             let rhs = <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
             tracing::debug!(?y2, ?x2, ?lhs, ?rhs, "G1Affine::new");
-            lhs.ct_eq(&rhs) | *z
+            lhs.ct_eq(&rhs)
         };
 
-        let _g1affine_is_torsion_free = |_x: &Fp, _y: &Fp, _z: &Choice| -> Choice {
-            // every point in G1 on the curve is in the r-torsion of BN254
-            Choice::from(1u8)
-        };
-        let is_on_curve: Choice = _g1affine_is_on_curve(&v[0], &v[1], &Choice::from(0u8));
+        // every point in G1 on the curve is in the r-torsion of BN254,
+        // so we don't need to check for subgroup membership
         tracing::debug!(?is_on_curve, "G1Affine::new");
         match bool::from(is_on_curve) {
-            true => {
-                let is_in_torsion: Choice =
-                    _g1affine_is_torsion_free(&v[0], &v[1], &Choice::from(0u8));
-                tracing::debug!(?is_in_torsion, "G1Affine::new");
-                match bool::from(is_in_torsion) {
-                    true => Ok(Self {
-                        x: v[0],
-                        y: v[1],
-                        infinity: Choice::from(0u8),
-                    }),
-                    _ => Err(GroupError::NotInSubgroup),
-                }
-            }
+            true => Ok(Self {
+                x: v[0],
+                y: v[1],
+                infinity: Choice::from(0u8),
+            }),
             false => Err(GroupError::NotOnCurve),
         }
     }
@@ -181,32 +170,22 @@ impl G1Projective {
     /// * `v` - a tuple of field elements that represent the x, y, and z coordinates of the point
     #[allow(dead_code)]
     pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
-        let _g1projective_is_on_curve = |x: &Fp, y: &Fp, z: &Fp| -> Choice {
-            let y2 = y.square();
-            let x2 = x.square();
-            let z2 = z.square();
-            let lhs = y2 * (*z);
-            let rhs = x2 * (*x) + z2 * (*z) * <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
+        let is_on_curve = {
+            let y2 = v[1].square();
+            let x2 = v[0].square();
+            let z2 = v[2].square();
+            let lhs = y2 * v[2];
+            let rhs = x2 * v[0] + z2 * v[2] * <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
             tracing::debug!(?y2, ?x2, ?z2, ?lhs, ?rhs, "G1Projective::new");
-            lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
+            lhs.ct_eq(&rhs) | Choice::from(v[2].is_zero() as u8)
         };
-        let _g1projective_is_torsion_free =
-            |_x: &Fp, _y: &Fp, _z: &Fp| -> Choice { Choice::from(1u8) };
-        let is_on_curve: Choice = _g1projective_is_on_curve(&v[0], &v[1], &v[2]);
         tracing::debug!(?is_on_curve, "G1Projective::new");
         match bool::from(is_on_curve) {
-            true => {
-                let is_in_torsion: Choice = _g1projective_is_torsion_free(&v[0], &v[1], &v[2]);
-                tracing::debug!(?is_in_torsion, "G1Projective::new");
-                match bool::from(is_in_torsion) {
-                    true => Ok(Self {
-                        x: v[0],
-                        y: v[1],
-                        z: v[2],
-                    }),
-                    false => Err(GroupError::NotOnCurve),
-                }
-            }
+            true => Ok(Self {
+                x: v[0],
+                y: v[1],
+                z: v[2],
+            }),
             false => Err(GroupError::NotOnCurve),
         }
     }

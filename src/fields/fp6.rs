@@ -238,8 +238,8 @@ impl<'a, 'b> Mul<&'b Fp6> for &'a Fp6 {
         // //     (self.0[0] + self.0[2]) * (other.0[0] + other.0[2]) - t0 + t1 - t2,
         // // ])
         //
-        // But the issue again is constant-time execution. We opt for schoolbook multiplication 
-        // here instead following Algo 5 of <https://eprint.iacr.org/2022/367.pdf>, which yields 
+        // But the issue again is constant-time execution. We opt for schoolbook multiplication
+        // here instead following Algo 5 of <https://eprint.iacr.org/2022/367.pdf>, which yields
         // the following results:
         //
         // c0,0 = a0,0b0,0 - a0,1b0,1 + αa1,0b2,0 - αa1,1b2,1 + αa2,0b1,0 - αa2,1b1,1 - a1,0b2,1 - a1,1b2,0
