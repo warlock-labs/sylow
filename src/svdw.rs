@@ -6,7 +6,7 @@
 //! nontrivial rational point on an EC over the base field, given the Weiestrass equation for the
 //! curve. In our case, we create the SvdW struct below to work for any field, and extension, and
 //! therefore any target group and curve. The code is itself capable of determining all constants
-//! needed by the algorithm. They may be instantiated with hardcoded values for performance black_box(B)
+//! needed by the algorithm. They may be instantiated with hardcoded values for performance once
 //! the target group, curve, and therefore base field are known.
 //!
 //! References

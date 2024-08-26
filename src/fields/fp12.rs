@@ -162,18 +162,6 @@ const FROBENIUS_COEFF_FP12_C1: &[Fp2; 12] = &[
         ])),
     ]),
 ];
-// const FP12_QUADRATIC_NON_RESIDUE: Fp12 = Fp12::new(&[
-//     Fp6::new(&[
-//         Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-//         Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-//         Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-//     ]),
-//     Fp6::new(&[
-//         Fp2::new(&[Fp::ONE, Fp::ZERO]),
-//         Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-//         Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-//     ]),
-// ]);
 
 /// type alias for dodectic extension in the representation a + bw for a,b\in Fp6
 pub type Fp12 = FieldExtension<12, 2, Fp6>;

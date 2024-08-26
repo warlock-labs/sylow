@@ -165,11 +165,7 @@ const FROBENIUS_COEFF_FP6_C2: &[Fp2; 6] = &[
         ])),
     ]),
 ];
-// const FP6_QUADRATIC_NON_RESIDUE: Fp6 = Fp6::new(&[
-//     Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-//     Fp2::new(&[Fp::ONE, Fp::ZERO]),
-//     Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-// ]);
+
 /// type alias for the sextic extension of the base field
 pub type Fp6 = FieldExtension<6, 3, Fp2>;
 
