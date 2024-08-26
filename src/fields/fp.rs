@@ -516,6 +516,26 @@ impl Fp {
             Choice::from(1u8)
         }
     }
+    /// There is a need to at times move to a representation of the field element with
+    /// a lower Hamming weight, for instance in the case of multiplication of a group element by
+    /// such a scalar. This implements the prodinger algorithm, and returns a string of the
+    /// positive bits and a string of negative bits for the NAF representation
+    /// see <http://math.colgate.edu/~integers/a8/a8.pdf>
+    pub(crate) fn compute_naf(self) -> (U256, U256) {
+        let x = self.value();
+        let xh = x >> 1;
+        let x3 = x + xh;
+        let c = xh ^ x3;
+        let np = x3 & c;
+        let nm = xh & c;
+
+        (np, nm)
+    }
+}
+impl Fr {
+    pub(crate) fn compute_naf(self) -> (U256, U256) {
+        Fp::from(self).compute_naf()
+    }
 }
 /// the code below makes the base field "visible" to higher
 /// order extensions. The issue is really the fact that generic

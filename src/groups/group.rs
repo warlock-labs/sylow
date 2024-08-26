@@ -512,19 +512,25 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&
     for &'a GroupProjective<D, N, F>
 {
     /// This is simply the `double-and-add` algorithm for multiplication, which is the ECC
-    /// equivalent of the `square-and-multiply` algorithm used in modular exponentiation.
+    /// equivalent of the `square-and-multiply` algorithm used in modular exponentiation. It uses
+    /// the lower Hamming weight representation of the scalar to reduce the number of operations
     ///
     /// <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
     type Output = GroupProjective<D, N, F>;
     fn mul(self, other: &'b Fp) -> Self::Output {
-        let bits = other.value().to_le_bytes();
+        let (np, nm) = other.compute_naf();
         let mut res = Self::Output::zero();
-        for bit in bits.iter().rev() {
-            for i in (0..8).rev() {
-                res = res.double();
-                if (bit & (1 << i)) != 0 {
-                    res = &res + self;
-                }
+
+        for i in (0..256).rev() {
+            res = res.double();
+
+            let np_bit = np.bit(i).into();
+            let nm_bit = nm.bit(i).into();
+
+            if np_bit {
+                res = &res + self;
+            } else if nm_bit {
+                res = &res - self;
             }
         }
         res
