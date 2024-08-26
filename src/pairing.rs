@@ -383,11 +383,7 @@ impl G2Projective {
         self.y = e * (i - j) - h * self.y;
         self.z *= h;
 
-        Ell(
-            (e * base.x - d * base.y).residue_mul(),
-            d,
-            e.neg(),
-        )
+        Ell((e * base.x - d * base.y).residue_mul(), d, e.neg())
     }
     fn doubling_step(&mut self) -> Ell {
         let a = (self.x * self.y).scale(TWO_INV);
@@ -407,11 +403,7 @@ impl G2Projective {
         self.y = g.square() - (e_sq + e_sq + e_sq);
         self.z = b * h;
 
-        Ell(
-            i.residue_mul(),
-            h.neg(),
-            j + j + j,
-        )
+        Ell(i.residue_mul(), h.neg(), j + j + j)
     }
 }
 /// Execute the optimal ate pairing on BN254 for a given input pair of (G1,G2) points. If either

@@ -73,10 +73,12 @@ impl Fp2 {
     }
     #[inline(always)]
     pub(crate) fn residue_mul(&self) -> Self {
-        // self * &FP2_QUADRATIC_NON_RESIDUE
+        // Instead of simply `self * &FP2_QUADRATIC_NON_RESIDUE`, we do
+        // the multiplication "manually", namely:
+        // (a+bu)*(9+u) = (9a-b)+(a+9b)u, which is cheaper arithmetic in Fp that multiplication
         Self::new(&[
-            Fp::NINE*self.0[0]-self.0[1] ,
-            self.0[0] + Fp::NINE*self.0[1],
+            Fp::NINE * self.0[0] - self.0[1],
+            self.0[0] + Fp::NINE * self.0[1],
         ])
     }
     /// Frobenius mapping of a quadratic extension element to a given power
@@ -119,15 +121,12 @@ impl Fp2 {
         }
     }
     pub fn square(&self) -> Self {
-        let t0 = self.0[0] * self.0[1];
-        tracing::debug!(?t0, "Fp2::square");
-        Self([
-            (self.0[1] * FP_QUADRATIC_NON_RESIDUE + self.0[0])
-                * (self.0[0] + self.0[1])
-                - t0
-                - t0 * FP_QUADRATIC_NON_RESIDUE,
-            t0 + t0,
-        ])
+        // We implement manual squaring here and avoid multiplications at all costs
+        let a = self.0[0] + self.0[1];
+        let b = self.0[0] - self.0[1];
+        let c = self.0[0] + self.0[0];
+        tracing::debug!(?a, "Fp2::square");
+        Self([a * b, c * self.0[1]])
     }
     pub fn is_square(&self) -> Choice {
         let legendre = |x: &Fp| -> i32 {
@@ -141,8 +140,7 @@ impl Fp2 {
                 -1
             }
         };
-        let sum = self.0[0].square()
-            + FP_QUADRATIC_NON_RESIDUE * (-self.0[0]).square();
+        let sum = self.0[0].square() + FP_QUADRATIC_NON_RESIDUE * (-self.0[0]).square();
         tracing::debug!(?sum, "Fp2::is_square");
         Choice::from((legendre(&sum) != -1) as u8)
     }
@@ -174,13 +172,19 @@ impl<'a, 'b> Mul<&'b Fp2> for &'a Fp2 {
         // in order to multiply, we must implement complex Karatsuba
         // multiplication.
         // See https://eprint.iacr.org/2006/471.pdf, Sec 3
-        // We create the addition chain from Algo 1 of https://eprint.iacr.org/2022/367.pdf
-        let t0 = self.0[0] * other.0[0];
-        let t1 = self.0[1] * other.0[1];
-
+        // We could create the addition chain from Algo 1 of https://eprint.iacr.org/2022/367.pdf
+        // // let t0 = self.0[0] * other.0[0];
+        // // let t1 = self.0[1] * other.0[1];
+        // //
+        // // Self::Output::new(&[
+        // //     t1 * FP_QUADRATIC_NON_RESIDUE + t0,
+        // //     (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1,
+        // // ])
+        // BUT this is slower and less constant-time than not invoking the quadratic residue and
+        // simply doing the schoolbook version:
         Self::Output::new(&[
-            t1 * FP_QUADRATIC_NON_RESIDUE + t0,
-            (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1,
+            self.0[0] * other.0[0] - self.0[1] * other.0[1],
+            self.0[0] * other.0[1] + self.0[1] * other.0[0],
         ])
     }
 }
@@ -206,9 +210,7 @@ impl Inv for Fp2 {
     fn inv(self) -> Self {
         let c0_squared = self.0[0].square();
         let c1_squared = self.0[1].square();
-        let tmp = (c0_squared
-            - (c1_squared * FP_QUADRATIC_NON_RESIDUE))
-        .inv();
+        let tmp = (c0_squared - (c1_squared * FP_QUADRATIC_NON_RESIDUE)).inv();
         Self::new(&[self.0[0] * tmp, -(self.0[1] * tmp)])
     }
 }

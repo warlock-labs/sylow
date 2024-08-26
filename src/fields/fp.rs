@@ -49,8 +49,12 @@ pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
     0xB85045B68181585D,
     0x30644E72E131A029,
 ]));
-pub(crate) const FP_QUADRATIC_NON_RESIDUE: Fp = Fp::new(U256::from_words([4332616871279656262, 
-    10917124144477883021, 13281191951274694749, 3486998266802970665]));
+pub(crate) const FP_QUADRATIC_NON_RESIDUE: Fp = Fp::new(U256::from_words([
+    4332616871279656262,
+    10917124144477883021,
+    13281191951274694749,
+    3486998266802970665,
+]));
 /// This defines the key properties of a field extension. Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
@@ -258,7 +262,7 @@ macro_rules! define_finite_prime_field {
         }
         impl Sub for $wrapper_name {
             type Output = Self;
-            
+
             #[inline]
             fn sub(self, other: Self) -> Self {
                 Self::new((self.1 - other.1).retrieve())
@@ -346,7 +350,7 @@ macro_rules! define_finite_prime_field {
         }
         impl Neg for $wrapper_name {
             type Output = Self;
-            
+
             #[inline]
             fn neg(self) -> Self {
                 Self::new((-self.1).retrieve())
