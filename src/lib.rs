@@ -2,7 +2,11 @@
 #![doc = include_str!("../README.md")]
 #![deny(unsafe_code)]
 #![deny(dead_code)]
-#![allow(clippy::needless_doctest_main, clippy::doc_lazy_continuation, clippy::too_long_first_doc_paragraph)]
+#![allow(
+    clippy::needless_doctest_main,
+    clippy::doc_lazy_continuation,
+    clippy::too_long_first_doc_paragraph
+)]
 #![warn(
     clippy::unwrap_used,
     missing_docs,
