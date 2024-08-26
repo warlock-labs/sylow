@@ -1,4 +1,4 @@
-use sylow::{KeyPair, sign, verify};
+use sylow::{sign, verify, KeyPair};
 
 fn main() {
     // Generate a new key pair
@@ -15,10 +15,10 @@ fn main() {
                 Ok(is_valid) => {
                     assert!(is_valid, "Signature verification failed");
                     println!("Signature verified successfully!");
-                },
+                }
                 Err(e) => println!("Verification error: {:?}", e),
             }
-        },
+        }
         Err(e) => println!("Signing error: {:?}", e),
     }
 }
