@@ -194,9 +194,8 @@ impl<'a, 'b> Mul<&'b Fp12> for &'a Fp12 {
     type Output = Fp12;
     #[inline]
     fn mul(self, other: &'b Fp12) -> Self::Output {
-        // this is again simple Karatsuba multiplication
-        // see comments in Fp2 impl of `Mul` trait, or otherwise see Alg 20 of
-        // <https://eprint.iacr.org/2010/354.pdf>
+        // this is simple FOIL'ing of the multiplication of the Fp12 elements in their (Fp6, Fp6)
+        // representation, see Alg 20 of <https://eprint.iacr.org/2010/354.pdf>
         let t0 = self.0[0] * other.0[0];
         let t1 = self.0[1] * other.0[1];
         tracing::debug!(?t0, ?t1, "Fp12::mul");

@@ -51,7 +51,7 @@ pub type Fp2 = FieldExtension<2, 2, Fp>;
 // helper functions for us on this specific extension, but
 // don't generalize to any extension.
 impl Fp2 {
-    /// A simple square and multipy algorithm for exponentiation
+    /// A simple square and multiply algorithm for exponentiation
     /// # Arguments
     /// * `by` - Fp, the exponent to raise the element to
     ///
@@ -169,10 +169,9 @@ impl<'a, 'b> Mul<&'b Fp2> for &'a Fp2 {
     #[inline]
     fn mul(self, other: &'b Fp2) -> Self::Output {
         // This requires a bit more consideration. In Fp2,
-        // in order to multiply, we must implement complex Karatsuba
-        // multiplication.
-        // See https://eprint.iacr.org/2006/471.pdf, Sec 3
-        // We could create the addition chain from Algo 1 of https://eprint.iacr.org/2022/367.pdf
+        // in order to multiply, we could implement complex Karatsuba
+        // multiplication, see <https://eprint.iacr.org/2006/471.pdf>, Sec 3
+        // and then use the addition chain from Alg 1 of <https://eprint.iacr.org/2022/367.pdf>:
         // // let t0 = self.0[0] * other.0[0];
         // // let t1 = self.0[1] * other.0[1];
         // //
@@ -180,8 +179,11 @@ impl<'a, 'b> Mul<&'b Fp2> for &'a Fp2 {
         // //     t1 * FP_QUADRATIC_NON_RESIDUE + t0,
         // //     (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1,
         // // ])
-        // BUT this is slower and less constant-time than not invoking the quadratic residue and
-        // simply doing the schoolbook version:
+        // BUT this is not constant-time, and turns out slower than not invoking the quadratic residue and
+        // simply doing the schoolbook version, known as the sum of products approach. There is
+        // an optimized version of this implementation given in Alg 2 of the above reference,
+        // which requires more granular control of the limb arithmetic over the multiprecision
+        // scalars than is convenient to implement here.
         Self::Output::new(&[
             self.0[0] * other.0[0] - self.0[1] * other.0[1],
             self.0[0] * other.0[1] + self.0[1] * other.0[0],
