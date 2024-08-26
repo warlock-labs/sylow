@@ -5,6 +5,7 @@
 [![Docs](https://img.shields.io/crates/v/sylow?color=blue&label=docs)](https://docs.rs/sylow/)
 ![CI](https://github.com/warlock-labs/sylow/actions/workflows/CI.yml/badge.svg)
 
+<!-- Generally seems to be pronounced SEE-low at least in American English, and perhaps note that it's being named after Ludwig. -->
 Sylow (*ˈsyːlɔv*) is a comprehensive Rust library for elliptic curve cryptography, specifically tailored for the BN254 
 (alt-bn128) curve. It provides a robust implementation of finite fields, elliptic curve groups, and pairing-based 
 cryptography, making it an ideal choice for applications in blockchain, zero-knowledge proofs, and other cryptographic 
@@ -12,22 +13,16 @@ systems.
 
 ## Features
 
-- **Finite Field Arithmetic**: Efficient implementations of prime fields and their extensions $\mathbb{F}_ {p}, \mathbb
-  {F}_ {p^2}, 
-  \mathbb{F}_ {p^6}, 
-  \mathbb{F}_{p^{12}}$
-- **Elliptic Curve Groups**: Complete support for operations on $\mathbb{G}_ 1$, $\mathbb{G}_  2$, and $\mathbb{G}_{\rm 
-  T}$ groups of the BN254 curve
+- **Finite Field Arithmetic**: Efficient implementations of prime fields and their extensions $\mathbb{F}_{p},
+  \mathbb{F}_{p^2}, \mathbb{F}_{p^6}, \mathbb{F}_{p^{12}}$
+- **Elliptic Curve Groups**: Complete support for operations on $\mathbb{G}_1$, $\mathbb{G}_2$, and
+  $\mathbb{G}_{\rm T}$ groups of the BN254 curve
 - **Pairing Operations**: Optimized implementation of the optimal ate pairing
 - **Cryptographic Primitives**:
-  - Key generation 
+  - Key generation
   - BLS signature generation and verification
   - Hash-to-curve functionality
 - **Compatibility**: Designed to be compatible with Ethereum's precompiled contracts for BN254 operations.
-<!-- Two comments here. Scope: Realistically, will the exposed fields/groups be used for anything other than BN254,
-given the limited features and existence of more general computer algebra systems. Resources: Should we explain or link
-to resources for any of the above. -->
-<!-- Should we include/mention/support the Sage code? -->
 
 ## Installation
 
@@ -38,34 +33,32 @@ Add this to your `Cargo.toml`:
 sylow = "0.0.1"
 ```
 
-Here's a basic example demonstrating key generation, signing, and verification (examples/key.rs):
-<!-- rustfmt'd this and added to examples. Would printing out anything like the public key be useful? -->
-<!-- Is the below the most likely basic use case, the tl;dr for using the crate? -->
+Here's a basic example demonstrating key generation, signing, and verification:
 
 ```rust
 use sylow::{KeyPair, sign, verify};
 
 fn main() {
-    // Generate a new key pair
-    let key_pair = KeyPair::generate();
+  // Generate a new key pair
+  let key_pair = KeyPair::generate();
 
-    // Message to be signed
-    let message = b"Hello, Sylow!";
+  // Message to be signed
+  let message = b"Hello, Sylow!";
 
-    // Sign the message
-    match sign(&key_pair.secret_key, message) {
-        Ok(signature) => {
-            // Verify the signature
-            match verify(&key_pair.public_key, message, &signature) {
-                Ok(is_valid) => {
-                    assert!(is_valid, "Signature verification failed");
-                    println!("Signature verified successfully!");
-                },
-                Err(e) => println!("Verification error: {:?}", e),
-            }
+  // Sign the message
+  match sign(&key_pair.secret_key, message) {
+    Ok(signature) => {
+      // Verify the signature
+      match verify(&key_pair.public_key, message, &signature) {
+        Ok(is_valid) => {
+          assert!(is_valid, "Signature verification failed");
+          println!("Signature verified successfully!");
         },
-        Err(e) => println!("Signing error: {:?}", e),
-    }
+        Err(e) => println!("Verification error: {:?}", e),
+      }
+    },
+    Err(e) => println!("Signing error: {:?}", e),
+  }
 }
 ```
 
@@ -73,17 +66,16 @@ For more, please see [the examples](https://github.com/warlock-labs/sylow/tree/m
 advanced usage details, see the [API documentation](https://docs.rs/sylow).
 
 ## Core Concepts
-<!-- This is repeating the features above; should we consolidate and move the next few sections above the example? -->
 
 - **Finite fields**: The foundation of the library, providing arithmetic operations in prime fields and their extensions.
-- **Elliptic Curve Groups**: Implementations of the $\mathbb{G}_ 1$, $\mathbb{G}_  2$, and $\mathbb{G}_{\rm
-  T}$ groups on the BN254 curve, supporting both affine and projective coordinates.
+- **Elliptic Curve Groups**: Implementations of the $\mathbb{G}_1$, $\mathbb{G}_2$, and $\mathbb{G}_{\rm T}$ groups on
+  the BN254 curve, supporting both affine and projective coordinates.
 - **Pairing**: Efficient implementation of the optimal ate pairing, crucial for many cryptographic protocols.
 - **alt-bn128 (BN254) Curve**: A pairing-friendly elliptic curve widely used in zkSNARKs and supported by Ethereum precompiles.
 
 ## Advanced Features
 
-- **Customizable Hashing**: Supports various hash functions through the `Expander` trait, such as the XMD and XOF 
+- **Customizable Hashing**: Supports various hash functions through the `Expander` trait, such as the XMD and XOF
   algorithms on any hasher from [sha3](https://github.com/RustCrypto/hashes/tree/master/sha3).
 - **Optimized Arithmetic**: Utilizes Montgomery form for efficient modular arithmetic.
 - **Constant-time Operations**: Implements algorithms resistant to timing attacks.
@@ -92,25 +84,23 @@ advanced usage details, see the [API documentation](https://docs.rs/sylow).
 ## Performance
 
 Sylow is designed with performance in mind, leveraging optimized algorithms for $j$-invariant zero curves, the 
-optimal ate pairing for efficient signature verification, as well as multiprecision Montgomery arithmetic. 
+optimal ate pairing for efficient signature verification, as well as multiprecision Montgomery arithmetic.
 
 ## Security
 
 In order to ensure the highest level of security, Sylow is designed in compliance with the recommendations set forth 
-by Cloudflare in [RFC 9380](https://datatracker.ietf.org/doc/html/rfc9380), especially in regard to hashing an 
+by Cloudflare in [RFC 9380](https://datatracker.ietf.org/doc/html/rfc9380), especially in regard to hashing an
 arbitrary byte array to an element of the curve. Namely, we provide multiple secure implementations of the 
 `hash_to_field` standard, as well as implement the Shallue-van de Woestijne encoding for elliptic curve points.
 
 Furthermore, the multiprecision arithmetic operations are implemented in constant time, ensuring resistance to side 
-channel attacks, and constant-time operations are used whenever possible. There are currently no variable-time 
+channel attacks, and constant-time operations are used whenever possible. There are currently no variable-time
 functions used in Sylow.
-<!-- Placeholder for pending audit; mention audit when it's complete? -->
 
 ## Roadmap
 
 The following features and improvements are planned for future releases:
 
-<!-- So the x'd sections are already complete? Do we plan to do further work in some of these? -->
 - [x] Basic signature implementation
 - [x] Key generation utilities
 - [x] Optimizations for common operations
