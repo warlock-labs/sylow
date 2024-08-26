@@ -102,6 +102,7 @@ impl MillerLoopResult {
         /// This implements algorithm 9 from https://eprint.iacr.org/2010/354.pdf, with the notable
         /// difference that instead of passing an element of Fp4 (which I did not implement), we pass
         /// in only the two components from Fp2 that comprise the Fp4 element.
+        #[must_use]
         fn fp4_square(a: Fp2, b: Fp2) -> (Fp2, Fp2) {
             // Line 1
             let t0 = a.square();
@@ -121,6 +122,7 @@ impl MillerLoopResult {
         /// This implements efficient squaring of an element of Fp12 in the cyclotomic subgroup
         /// C_{\phi^6}. It is what's called "Granger-Scott" squaring, and is an implementation of
         /// algorithm 5.5.4 (listing 21) from https://www.math.u-bordeaux.fr/~damienrobert/csi/book/book.pdf
+        #[must_use]
         fn cyclotomic_squared(f: Fp12) -> Fp12 {
             // Lines 3-8
             let mut z0 = f.0[0].0[0];
@@ -162,6 +164,7 @@ impl MillerLoopResult {
         /// This is a simple square and multiply algorithm for exponentiation. You can get more
         /// complicated algorithms if you go to a compressed representation, such as Algorithm
         /// 5.5.4, listing 27
+        #[must_use]
         pub(crate) fn cyclotomic_exp(f: Fp12, exponent: &Fp) -> Fp12 {
             let bits = exponent.value().to_words();
             let mut res = Fp12::one();
@@ -381,7 +384,7 @@ impl G2Projective {
         self.z *= h;
 
         Ell(
-            <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue() * (e * base.x - d * base.y),
+            (e * base.x - d * base.y).residue_mul(),
             d,
             e.neg(),
         )
@@ -405,7 +408,7 @@ impl G2Projective {
         self.z = b * h;
 
         Ell(
-            <Fp2 as FieldExtensionTrait<2, 2>>::quadratic_non_residue() * i,
+            i.residue_mul(),
             h.neg(),
             j + j + j,
         )

@@ -162,27 +162,23 @@ const FROBENIUS_COEFF_FP12_C1: &[Fp2; 12] = &[
         ])),
     ]),
 ];
-const FP12_QUADRATIC_NON_RESIDUE: Fp12 = Fp12::new(&[
-    Fp6::new(&[
-        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-    ]),
-    Fp6::new(&[
-        Fp2::new(&[Fp::ONE, Fp::ZERO]),
-        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-        Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-    ]),
-]);
+// const FP12_QUADRATIC_NON_RESIDUE: Fp12 = Fp12::new(&[
+//     Fp6::new(&[
+//         Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+//         Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+//         Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+//     ]),
+//     Fp6::new(&[
+//         Fp2::new(&[Fp::ONE, Fp::ZERO]),
+//         Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+//         Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+//     ]),
+// ]);
 
 /// type alias for dodectic extension in the representation a + bw for a,b\in Fp6
 pub type Fp12 = FieldExtension<12, 2, Fp6>;
 
 impl FieldExtensionTrait<12, 2> for Fp12 {
-    fn quadratic_non_residue() -> Self {
-        // Self::new(&[Fp6::zero(), Fp6::one()])
-        FP12_QUADRATIC_NON_RESIDUE
-    }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self([
             <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng),
@@ -196,6 +192,7 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
 
 impl<'a, 'b> Mul<&'b Fp12> for &'a Fp12 {
     type Output = Fp12;
+    #[inline]
     fn mul(self, other: &'b Fp12) -> Self::Output {
         // this is again simple Karatsuba multiplication
         // see comments in Fp2 impl of `Mul` trait, or otherwise see Alg 20 of
@@ -212,17 +209,20 @@ impl<'a, 'b> Mul<&'b Fp12> for &'a Fp12 {
 }
 impl Mul for Fp12 {
     type Output = Self;
+    #[inline]
     fn mul(self, other: Self) -> Self::Output {
         (&self).mul(&other)
     }
 }
 impl MulAssign for Fp12 {
+    #[inline]
     fn mul_assign(&mut self, other: Self) {
         *self = *self * other;
     }
 }
 impl Inv for Fp12 {
     type Output = Self;
+    #[inline]
     fn inv(self) -> Self::Output {
         // Implements Alg 23 of <https://eprint.iacr.org/2010/354.pdf>
         let tmp = (self.0[0].square() - (self.0[1].square().residue_mul())).inv();
@@ -232,6 +232,7 @@ impl Inv for Fp12 {
 }
 
 impl One for Fp12 {
+    #[inline]
     fn one() -> Self {
         Self::new(&[Fp6::one(), Fp6::zero()])
     }
@@ -243,11 +244,13 @@ impl One for Fp12 {
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl Div for Fp12 {
     type Output = Self;
+    #[inline]
     fn div(self, other: Self) -> Self::Output {
         self * other.inv()
     }
 }
 impl DivAssign for Fp12 {
+    #[inline]
     fn div_assign(&mut self, other: Self) {
         *self = *self / other;
     }
@@ -264,6 +267,7 @@ impl ConditionallySelectable for Fp12 {
 }
 /// Below are additional functions needed on Fp12 for the pairing operations
 impl Fp12 {
+    #[inline]
     pub(crate) fn unitary_inverse(&self) -> Self {
         Self::new(&[self.0[0], -self.0[1]])
     }
@@ -378,6 +382,7 @@ impl Fp12 {
 
         Fp12::new(&[Fp6::new(&[z0, z1, z2]), Fp6::new(&[z3, z4, z5])])
     }
+    #[inline(always)]
     pub(crate) fn frobenius(&self, exponent: usize) -> Self {
         Self::new(&[
             self.0[0].frobenius(exponent),
@@ -386,6 +391,7 @@ impl Fp12 {
                 .scale(FROBENIUS_COEFF_FP12_C1[exponent % 12]),
         ])
     }
+    #[inline]
     pub(crate) fn square(&self) -> Self {
         // For F_{p^{12}} = F_{p^6}(w)/(w^2-\gamma), and A=a_0 + a_1*w \in F_{p^{12}},
         // we determine C=c_0+c_1*w = A^2\in F_{p^{12}}

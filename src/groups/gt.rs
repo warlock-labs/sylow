@@ -140,6 +140,7 @@ impl ConditionallySelectable for Gt {
 }
 
 impl PartialEq for Gt {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         bool::from(self.ct_eq(other))
     }
@@ -187,6 +188,7 @@ impl<'a, 'b> Mul<&'b Fr> for &'a Gt {
 
 impl Mul<Fr> for Gt {
     type Output = Self;
+    #[inline]
     fn mul(self, rhs: Fr) -> Self::Output {
         &self * &rhs
     }

@@ -49,6 +49,8 @@ pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
     0xB85045B68181585D,
     0x30644E72E131A029,
 ]));
+pub(crate) const FP_QUADRATIC_NON_RESIDUE: Fp = Fp::new(U256::from_words([4332616871279656262, 
+    10917124144477883021, 13281191951274694749, 3486998266802970665]));
 /// This defines the key properties of a field extension. Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
@@ -83,9 +85,6 @@ pub trait FieldExtensionTrait<const D: usize, const N: usize>:
     + Inv<Output = Self>
     + From<u64>
 {
-    /// multiplication in a field extension is dictated heavily such a value below,
-    /// so we define the quadratic non-residue here
-    fn quadratic_non_residue() -> Self;
     /// generate a random value in the field extension based on the random number generator from
     /// `crypto_bigint`
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self;
@@ -200,11 +199,6 @@ macro_rules! define_finite_prime_field {
         // appropriate degree, in our case degree 1 (with
         // therefore 1 unique representation of an element)
         impl FieldExtensionTrait<$degree, $nreps> for $wrapper_name {
-            fn quadratic_non_residue() -> Self {
-                //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
-                // = -1
-                Self::new((-Self::ONE).1.retrieve())
-            }
             /// Generate a random value in the field
             /// # Arguments
             /// * `rng` - R: CryptoRngCore - the random number generator to use
@@ -233,11 +227,13 @@ macro_rules! define_finite_prime_field {
         /// of the field element. All binops with assignment equivalents are given
         impl Add for $wrapper_name {
             type Output = Self;
+            #[inline]
             fn add(self, other: Self) -> Self {
                 Self::new((self.1 + other.1).retrieve())
             }
         }
         impl AddAssign for $wrapper_name {
+            #[inline]
             fn add_assign(&mut self, other: Self) {
                 *self = *self + other;
             }
@@ -262,11 +258,14 @@ macro_rules! define_finite_prime_field {
         }
         impl Sub for $wrapper_name {
             type Output = Self;
+            
+            #[inline]
             fn sub(self, other: Self) -> Self {
                 Self::new((self.1 - other.1).retrieve())
             }
         }
         impl SubAssign for $wrapper_name {
+            #[inline]
             fn sub_assign(&mut self, other: Self) {
                 *self = *self - other;
             }
@@ -301,11 +300,13 @@ macro_rules! define_finite_prime_field {
         }
         impl Mul for $wrapper_name {
             type Output = Self;
+            #[inline]
             fn mul(self, other: Self) -> Self {
                 Self::new((self.1 * other.1).retrieve())
             }
         }
         impl MulAssign for $wrapper_name {
+            #[inline]
             fn mul_assign(&mut self, other: Self) {
                 *self = *self * other;
             }
@@ -324,6 +325,7 @@ macro_rules! define_finite_prime_field {
         /// <https://github.com/RustCrypto/crypto-bigint/blob/be6a3abf7e65279ba0b5e4b1ce09eb0632e443f6/src/const_choice.rs#L237>
         impl Inv for $wrapper_name {
             type Output = Self;
+            #[inline]
             fn inv(self) -> Self {
                 Self::new((CtOption::from(self.1.inv()).unwrap_or(Self::from(0u64).1)).retrieve())
             }
@@ -331,23 +333,28 @@ macro_rules! define_finite_prime_field {
         #[allow(clippy::suspicious_arithmetic_impl)]
         impl Div for $wrapper_name {
             type Output = Self;
+            #[inline]
             fn div(self, other: Self) -> Self {
                 self * other.inv()
             }
         }
         impl DivAssign for $wrapper_name {
+            #[inline]
             fn div_assign(&mut self, other: Self) {
                 *self = *self / other;
             }
         }
         impl Neg for $wrapper_name {
             type Output = Self;
+            
+            #[inline]
             fn neg(self) -> Self {
                 Self::new((-self.1).retrieve())
             }
         }
         impl Pow<U256> for $wrapper_name {
             type Output = Self;
+            #[inline]
             fn pow(self, rhs: U256) -> Self::Output {
                 Self::new(self.1.pow(&rhs).retrieve())
             }
@@ -360,6 +367,7 @@ macro_rules! define_finite_prime_field {
         /// which we unwrap. Otherwise, there will be panic.
         impl Rem for $wrapper_name {
             type Output = Self;
+            #[inline]
             fn rem(self, other: Self) -> Self::Output {
                 // create our own check for zeroness?
                 Self::new(
@@ -370,6 +378,7 @@ macro_rules! define_finite_prime_field {
             }
         }
         impl Euclid for $wrapper_name {
+            #[inline]
             fn div_euclid(&self, other: &Self) -> Self {
                 if other.is_zero() {
                     return Self::from(0u64);
@@ -385,6 +394,7 @@ macro_rules! define_finite_prime_field {
                 }
                 Self::new(_q)
             }
+            #[inline]
             fn rem_euclid(&self, other: &Self) -> Self {
                 if other.is_zero() {
                     return Self::from(0u64);
@@ -456,6 +466,7 @@ impl Fp {
     /// function is inherently expensive, and we never call it on the base field, but if
     /// we did, it's only defined for p=1. Specialized versions exist for all extensions which
     /// will require the frobenius transformation.
+    #[inline(always)]
     pub fn frobenius(&self, exponent: usize) -> Self {
         match exponent {
             1 => self.pow(BN254_FP_MODULUS.value()),
@@ -470,6 +481,7 @@ impl Fp {
     /// prime that is congruent to 3 mod 4. In this case, the sqrt only has the
     /// possible solution of $\pm pow(n, \frac{p+1}{4})$, which is where this magic
     /// number below comes from ;)
+    #[inline]
     pub fn sqrt(&self) -> CtOption<Self> {
         let arg = ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
         let sqrt = self.pow(arg);
@@ -477,6 +489,7 @@ impl Fp {
         CtOption::new(sqrt, sqrt.square().ct_eq(self))
     }
     /// Returns the square of the element in the base field
+    #[inline]
     pub fn square(&self) -> Self {
         (*self) * (*self)
     }
@@ -491,7 +504,7 @@ impl Fp {
     /// Determines the 'sign' of a value in the base field,
     /// see <https://datatracker.ietf.org/doc/html/rfc9380#section-4.1> for more details
     pub fn sgn0(&self) -> Choice {
-        let a = *self % Self::from(2u64);
+        let a = *self % Self::TWO;
         tracing::debug!(?a, "Fp::sgn0");
         if a.is_zero() {
             Choice::from(0u8)
@@ -510,9 +523,6 @@ impl Fp {
 /// by manually specifying the traits D, N. This enforces the logic
 /// by means of manual input.
 impl FieldExtensionTrait<2, 2> for Fp {
-    fn quadratic_non_residue() -> Self {
-        <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()
-    }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
     }

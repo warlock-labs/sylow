@@ -165,18 +165,20 @@ const FROBENIUS_COEFF_FP6_C2: &[Fp2; 6] = &[
         ])),
     ]),
 ];
-const FP6_QUADRATIC_NON_RESIDUE: Fp6 = Fp6::new(&[
-    Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-    Fp2::new(&[Fp::ONE, Fp::ZERO]),
-    Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-]);
+// const FP6_QUADRATIC_NON_RESIDUE: Fp6 = Fp6::new(&[
+//     Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+//     Fp2::new(&[Fp::ONE, Fp::ZERO]),
+//     Fp2::new(&[Fp::ZERO, Fp::ZERO]),
+// ]);
 /// type alias for the sextic extension of the base field
 pub type Fp6 = FieldExtension<6, 3, Fp2>;
 
 impl Fp6 {
+    #[inline(always)]
     pub(crate) fn residue_mul(&self) -> Self {
         Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
     }
+    #[inline(always)]
     pub(crate) fn frobenius(&self, exponent: usize) -> Self {
         Self::new(&[
             self.0[0].frobenius(exponent),
@@ -209,10 +211,6 @@ impl Fp6 {
     }
 }
 impl FieldExtensionTrait<6, 3> for Fp6 {
-    fn quadratic_non_residue() -> Self {
-        FP6_QUADRATIC_NON_RESIDUE
-    }
-
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self([
             <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
@@ -226,6 +224,7 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
 }
 impl<'a, 'b> Mul<&'b Fp6> for &'a Fp6 {
     type Output = Fp6;
+    #[inline]
     fn mul(self, other: &'b Fp6) -> Self::Output {
         // This is the exact same strategy as multiplication in Fp2
         // see the doc string there for more details
@@ -243,11 +242,13 @@ impl<'a, 'b> Mul<&'b Fp6> for &'a Fp6 {
 }
 impl Mul for Fp6 {
     type Output = Self;
+    #[inline]
     fn mul(self, other: Self) -> Self::Output {
         (&self).mul(&other)
     }
 }
 impl MulAssign for Fp6 {
+    #[inline]
     fn mul_assign(&mut self, other: Self) {
         *self = *self * other;
     }
@@ -255,6 +256,7 @@ impl MulAssign for Fp6 {
 
 impl Inv for Fp6 {
     type Output = Self;
+    #[inline]
     fn inv(self) -> Self::Output {
         // Implements a low-overhead version of Alg 17 of <https://eprint.iacr.org/2010/354.pdf>
         let t0 = self.0[0].square() - self.0[1] * self.0[2].residue_mul();
@@ -268,6 +270,7 @@ impl Inv for Fp6 {
 }
 
 impl One for Fp6 {
+    #[inline]
     fn one() -> Self {
         Self::new(&[Fp2::one(), Fp2::zero(), Fp2::zero()])
     }
@@ -279,11 +282,13 @@ impl One for Fp6 {
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl Div for Fp6 {
     type Output = Self;
+    #[inline]
     fn div(self, other: Self) -> Self::Output {
         self * other.inv()
     }
 }
 impl DivAssign for Fp6 {
+    #[inline]
     fn div_assign(&mut self, other: Self) {
         *self = *self / other;
     }
@@ -302,9 +307,6 @@ impl ConditionallySelectable for Fp6 {
 
 // make sextic extension visible to the dodectic extension
 impl FieldExtensionTrait<12, 2> for Fp6 {
-    fn quadratic_non_residue() -> Self {
-        <Fp6 as FieldExtensionTrait<6, 3>>::quadratic_non_residue()
-    }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng)
     }
