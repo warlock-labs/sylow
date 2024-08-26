@@ -165,7 +165,7 @@ fn main() -> Result<(), confy::ConfyError> {
     tracing_subscriber::fmt().init();
     event!(Level::INFO, "Begin dkg::main");
     let config_path = PathBuf::from("examples/dkg.toml");
-    let cfg: MyConfig = confy::load_path(&config_path)?;
+    let cfg: MyConfig = confy::load_path(config_path)?;
     event!(Level::INFO, "Loaded config: {:?}", cfg);
 
     const NUMBER_OF_ROUNDS: u64 = 3;
