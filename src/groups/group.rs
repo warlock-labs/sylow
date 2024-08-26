@@ -516,6 +516,7 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&
                 res = res.double();
                 if (bit & (1 << i)) != 0 {
                     res = &res + self;
+                    // this conditional is fine?
                 }
             }
         }

@@ -49,6 +49,8 @@ pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
     0xB85045B68181585D,
     0x30644E72E131A029,
 ]));
+// This is the same as BN254_MOD_STRING? Do we say at some point that Fp is explicitly the finite
+// field for the BN254 curve? Does the number itself have a name?
 /// This defines the key properties of a field extension. Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
@@ -59,6 +61,7 @@ pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
 /// used to generate the quotient field F(x)/f(x)), D, and (ii) the number of elements
 /// required for a unique representation of an element in the extension, N. An extension can have
 /// many different representations, so it is key to allow this flexibility.
+// What are the constraints on D and (N in relation to D)?
 ///
 pub trait FieldExtensionTrait<const D: usize, const N: usize>:
     Sized
@@ -123,6 +126,7 @@ where
 /// * `$degree`: The degree of the field extension.
 /// * `$nreps`: The number of elements required for a unique representation of an element in the
 /// extension.
+// Do we want to expose this to allow users to define their own fields?
 #[allow(unused_macros)]
 macro_rules! define_finite_prime_field {
     ($wrapper_name:ident, $mod_struct:ident, $output:ident, $uint_type:ty, $limbs:expr,
@@ -152,6 +156,7 @@ macro_rules! define_finite_prime_field {
             /// representation of the value in base 10
             /// # Arguments
             /// * `value` - &str - the string representation of the value to create the element from
+            // So any value from "0" to "{p-1}" will be valid here and anything else goes to None?
             pub fn new_from_str(value: &str) -> Option<Self> {
                 let ints: Vec<_> = {
                     let mut acc = Self::zero();
@@ -183,6 +188,7 @@ macro_rules! define_finite_prime_field {
             pub fn characteristic() -> $uint_type {
                 <$uint_type>::from($mod_struct::MODULUS.as_nz_ref().get())
             }
+            // Assuming there's a rationale for these specific values being available?
             /// the constant zero in the field
             pub const ZERO: Self = Self::new(<$uint_type>::from_words([0x0; 4]));
             /// the constant one in the field
@@ -199,6 +205,7 @@ macro_rules! define_finite_prime_field {
         // we make the base field an extension of the
         // appropriate degree, in our case degree 1 (with
         // therefore 1 unique representation of an element)
+        // A little dense in terms of what this means.
         impl FieldExtensionTrait<$degree, $nreps> for $wrapper_name {
             fn quadratic_non_residue() -> Self {
                 //this is p - 1 mod p = -1 mod p = 0 - 1 mod p
@@ -278,6 +285,8 @@ macro_rules! define_finite_prime_field {
         /// Choice(1u8) if self.0 == other.0
         /// Choice(0u8) if self.0 != other.0
         /// We unwrap and match the choice
+        // We presumably make all comparisons max out in terms of number of operations to make it
+        // constant time?
 
         impl ConstantTimeEq for $wrapper_name {
             fn ct_eq(&self, other: &Self) -> Choice {
@@ -379,10 +388,12 @@ macro_rules! define_finite_prime_field {
                     .retrieve()
                     .div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
 
+                // perhaps explain this high-bit check and consequence?
                 if self.1.retrieve().bit(255).into() {
                     _q = _q - <$uint_type>::ONE;
                     _r = other.1.retrieve() - _r;
                 }
+                // I'm assuming these conditionals that cover corner cases are okay in the context of constant time?
                 Self::new(_q)
             }
             fn rem_euclid(&self, other: &Self) -> Self {
@@ -419,6 +430,7 @@ macro_rules! define_finite_prime_field {
 }
 
 const BN254_MOD_STRING: &str = "30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47";
+// User should have context on what this subgroup is?
 const BN254_SUBGROUP_MOD_STRING: &str =
     "30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001";
 define_finite_prime_field!(

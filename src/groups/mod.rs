@@ -160,6 +160,7 @@ mod tests {
         Fp::new_from_str(r).expect("failed to convert r to Fp")
     }
     const FNAME: &str = "./src/sage_reference/bn254_reference.json";
+    // very minor, but wondering if this json file should be moved up from the sage dir
 
     lazy_static! {
         static ref REFERENCE_DATA: ReferenceData = {

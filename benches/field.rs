@@ -1,3 +1,5 @@
+// Would testing for operations running in const time, e.g. through sampling,
+// be feasible as a part of benchmark or other testing?
 #![allow(dead_code)]
 use criterion::{black_box, Criterion};
 use crypto_bigint::rand_core::OsRng;
