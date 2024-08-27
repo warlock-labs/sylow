@@ -19,6 +19,10 @@ name = "dkg"
 path = "examples/dkg.rs"
 
 [[example]]
+name = "fields"
+path = "examples/fields.rs"
+
+[[example]]
 name = "key"
 path = "examples/key.rs"
 # do we need/want to add all examples here
