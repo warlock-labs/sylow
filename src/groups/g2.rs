@@ -157,6 +157,12 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     /// clear this value to place it in the r-torsion. The return value of this function goes
     /// through the `new` constructor to ensure that the random value does indeed pass the curve
     /// and subgroup checks
+    /// ```
+    /// use sylow::*;
+    /// use crypto_bigint::rand_core::OsRng;
+    /// let mut rng = OsRng;
+    /// let random_point = G2Projective::rand(&mut rng);
+    /// ```
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         // the cofactor of $\mathbb{G}_2$
         const C2: Fp = Fp::new(U256::from_words([

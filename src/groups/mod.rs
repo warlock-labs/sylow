@@ -741,15 +741,27 @@ mod tests {
             let p2 = g1 * Fp::from(b);
             let p3 = g1 * Fp::from(c);
 
-            (p1 + p2) + p3 == p1 + (p2 + p3)
+            
+            
+            let g2 = G2Projective::generator();
+            let q1 = g2 * Fp::from(a);
+            let q2 = g2 * Fp::from(b);
+            let q3 = g2 * Fp::from(c);
+
+            ((p1 + p2) + p3 == p1 + (p2 + p3)) & ((q1 + q2) + q3 == q1 + (q2 + q3))
         }
         #[quickcheck]
         fn fuzz_scalar_multiplication(a: u64, b: u64) -> bool {
             let g1 = G1Projective::generator();
             let s1 = Fp::from(a);
             let s2 = Fp::from(b);
+            
+            let g2 = G2Projective::generator();
+            let t1 = Fp::from(a);
+            let t2 = Fp::from(b);
+            
+            ((g1 * s1) * s2 == g1 * (s1 * s2)) & ((g2 * t1) * t2 == g2 * (t1 * t2))
 
-            (g1 * s1) * s2 == g1 * (s1 * s2)
         }
     }
 }
