@@ -68,8 +68,8 @@ advanced usage details, see the [API documentation](https://docs.rs/sylow).
 ## Core Concepts
 
 - **Finite fields**: The foundation of the library, providing arithmetic operations in prime fields and their extensions.
-- **Elliptic Curve Groups**: Implementations of the $\mathbb{G}_1$, $\mathbb{G}_2$, and $\mathbb{G}_{\rm T}$ groups on
-  the BN254 curve, supporting both affine and projective coordinates.
+- **Elliptic Curve Groups**: Implementations of the $\mathbb{G}_ 1$, $\mathbb{G}_  2$, and $\mathbb{G}_{\rm
+  T}$ groups on the BN254 curve, supporting both affine and projective coordinates.
 - **Pairing**: Efficient implementation of the optimal ate pairing, crucial for many cryptographic protocols.
 - **alt-bn128 (BN254) Curve**: A pairing-friendly elliptic curve widely used in zkSNARKs and supported by Ethereum precompiles.
 
