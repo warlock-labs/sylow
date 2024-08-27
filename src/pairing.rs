@@ -273,6 +273,7 @@ impl MillerLoopResult {
 /// doubling step. Further, there are 9 `1` digits (each with an addition step), and 12 `3`
 /// digits, each also with an addition step. After the loop, there are 2 more addition steps, so
 /// the total number of coefficients we need to store is 64+9+12+2 = 87.
+#[cfg_attr(coverage_nightly, coverage(off))]
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub struct G2PreComputed {
     pub(crate) q: G2Affine,

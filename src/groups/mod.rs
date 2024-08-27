@@ -26,7 +26,6 @@ mod tests {
     use crate::fields::fp2::Fp2;
     use crate::groups::g1::{G1Affine, G1Projective};
     use crate::groups::g2::G2Projective;
-    use crate::GroupTrait;
 
     #[derive(Serialize, Deserialize, Clone)]
     struct _G2Coords {
