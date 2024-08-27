@@ -219,16 +219,15 @@ impl G2Affine {
     /// # Arguments
     /// * `v` - a tuple of field elements that represent the x and y coordinates of the point
     fn new_unchecked(v: [Fp2; 2]) -> Result<Self, GroupError> {
-        let _g2affine_is_on_curve = |x: &Fp2, y: &Fp2, z: &Choice| -> Choice {
-            let y2 = y.square();
-            let x2 = x.square();
-            let lhs = y2 - (x2 * (*x));
+        let is_on_curve = {
+            let y2 = v[1].square();
+            let x2 = v[0].square();
+            let lhs = y2 - (x2 * v[0]);
             let rhs = <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
             tracing::debug!(?y2, ?x2, ?lhs, ?rhs, "G2Affine::new_unchecked");
-            lhs.ct_eq(&rhs) | *z
+            lhs.ct_eq(&rhs)
         };
 
-        let is_on_curve = _g2affine_is_on_curve(&v[0], &v[1], &Choice::from(0u8));
         match bool::from(is_on_curve) {
             true => Ok(Self {
                 x: v[0],
@@ -247,14 +246,14 @@ impl G2Projective {
     /// # Arguments
     /// * `v` - a tuple of field elements that represent the x, y, and z coordinates of the point
     pub fn new(v: [Fp2; 3]) -> Result<Self, GroupError> {
-        let _g2projective_is_on_curve = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
-            let y2 = y.square();
-            let x2 = x.square();
-            let z2 = z.square();
-            let lhs = y2 * (*z);
-            let rhs = x2 * (*x) + z2 * (*z) * <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
+        let is_on_curve = {
+            let y2 = v[1].square();
+            let x2 = v[0].square();
+            let z2 = v[2].square();
+            let lhs = y2 * v[2];
+            let rhs = x2 * v[0] + z2 * v[2] * <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
             tracing::debug!(?y2, ?x2, ?z2, ?lhs, ?rhs, "G2Projective::new");
-            lhs.ct_eq(&rhs) | Choice::from(z.is_zero() as u8)
+            lhs.ct_eq(&rhs) | Choice::from(v[2].is_zero() as u8)
         };
         // This method is where the magic happens. In a naïve approach, in order to check for
         // validity in the r-torsion, one could simply verify the r-torsion condition:
@@ -279,11 +278,11 @@ impl G2Projective {
         // ----------
         // 1. <https://eprint.iacr.org/2022/352.pdf>
         // 2. <https://eprint.iacr.org/2022/348.pdf>
-        let _g2projective_is_torsion_free = |x: &Fp2, y: &Fp2, z: &Fp2| -> Choice {
+        let is_torsion_free = {
             let tmp = G2Projective {
-                x: *x,
-                y: *y,
-                z: *z,
+                x: v[0],
+                y: v[1],
+                z: v[2],
             };
             let mut a = tmp * BLS_X; // xQ
             let b = a.endomorphism(); // ψ(xQ)
@@ -292,9 +291,7 @@ impl G2Projective {
             let lhs = rhs + b + a; // ψ^2(xQ) + ψ(xQ) + (x+1)Q
             rhs = rhs.endomorphism().double() - lhs; // ψ^3(2xQ) - (ψ^2(xQ) + ψ(xQ) + (x+1)Q)
             tracing::debug!(
-                ?x,
-                ?y,
-                ?z,
+                ?v,
                 ?a,
                 ?b,
                 ?lhs,
@@ -305,10 +302,8 @@ impl G2Projective {
             // we do two checks: one is to verify that the result is indeed a point at infinity,
             // but we need a second check to verify that it is OUR point at infinity, namely for
             // the curve defined on the twist.
-            Choice::from(rhs.is_zero() as u8) & _g2projective_is_on_curve(&rhs.x, &rhs.y, &rhs.z)
+            Choice::from(rhs.is_zero() as u8) & is_on_curve
         };
-        let is_on_curve = _g2projective_is_on_curve(&v[0], &v[1], &v[2]);
-        let is_torsion_free = _g2projective_is_torsion_free(&v[0], &v[1], &v[2]);
         match bool::from(is_on_curve) {
             true => match bool::from(is_torsion_free) {
                 true => Ok(Self {

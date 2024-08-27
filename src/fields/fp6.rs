@@ -165,18 +165,16 @@ const FROBENIUS_COEFF_FP6_C2: &[Fp2; 6] = &[
         ])),
     ]),
 ];
-const FP6_QUADRATIC_NON_RESIDUE: Fp6 = Fp6::new(&[
-    Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-    Fp2::new(&[Fp::ONE, Fp::ZERO]),
-    Fp2::new(&[Fp::ZERO, Fp::ZERO]),
-]);
+
 /// type alias for the sextic extension of the base field
 pub type Fp6 = FieldExtension<6, 3, Fp2>;
 
 impl Fp6 {
+    #[inline(always)]
     pub(crate) fn residue_mul(&self) -> Self {
         Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
     }
+    #[inline(always)]
     pub(crate) fn frobenius(&self, exponent: usize) -> Self {
         Self::new(&[
             self.0[0].frobenius(exponent),
@@ -209,10 +207,6 @@ impl Fp6 {
     }
 }
 impl FieldExtensionTrait<6, 3> for Fp6 {
-    fn quadratic_non_residue() -> Self {
-        FP6_QUADRATIC_NON_RESIDUE
-    }
-
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self([
             <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
@@ -226,28 +220,102 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
 }
 impl<'a, 'b> Mul<&'b Fp6> for &'a Fp6 {
     type Output = Fp6;
+    #[inline]
     fn mul(self, other: &'b Fp6) -> Self::Output {
-        // This is the exact same strategy as multiplication in Fp2
-        // see the doc string there for more details
-        let t0 = self.0[0] * other.0[0];
-        let t1 = self.0[1] * other.0[1];
-        let t2 = self.0[2] * other.0[2];
-        tracing::debug!(?t0, ?t1, ?t2, "Fp6::mul");
+        // We could do Karatsuba multiplication here, which would look simpler:
+        // // let t0 = self.0[0] * other.0[0];
+        // // let t1 = self.0[1] * other.0[1];
+        // // let t2 = self.0[2] * other.0[2];
+        // // tracing::debug!(?t0, ?t1, ?t2, "Fp6::mul");
+        // //
+        // // Self::Output::new(&[
+        // //     ((self.0[1] + self.0[2]) * (other.0[1] + other.0[2]) - t1 - t2).residue_mul() + t0,
+        // //     (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1 + t2.residue_mul(),
+        // //     (self.0[0] + self.0[2]) * (other.0[0] + other.0[2]) - t0 + t1 - t2,
+        // // ])
+        //
+        // But the issue again is constant-time execution. We opt for schoolbook multiplication
+        // here instead following Algo 5 of <https://eprint.iacr.org/2022/367.pdf>, which yields
+        // the following results:
+        //
+        // c0,0 = a0,0b0,0 - a0,1b0,1 + αa1,0b2,0 - αa1,1b2,1 + αa2,0b1,0 - αa2,1b1,1 - a1,0b2,1 - a1,1b2,0
+        //        - a2,0b1,1 - a2,1b1,0.
+        //      = a0,0b0,0 - a0,1b0,1 + a1,0(αb2,0 - b2,1) - a1,1(b2,0 + αb2,1) + a2,0(αb1,0 - b1,1)
+        //        - a2,1(b1,0 + αb1,1).
+        // c0,1 = a0,0b0,1 + a0,1b0,0 + αa1,0b2,1 + αa1,1b2,0 + αa2,0b1,1 + αa2,1b1,0 + a1,0b2,0 - a1,1b2,1
+        //        + a2,0b1,0 - a2,1b1,1.
+        //      = a0,0b0,1 + a0,1b0,0 + a1,0(b2,0 + αb2,1) + a1,1(αb2,0 - b2,1) + a2,0(b1,0 + αb1,1)
+        //        + a2,1(αb1,0 - b1,1).
+        // c1,0 = a0,0b1,0 - a0,1b1,1 + a1,0b0,0 - a1,1b0,1 + αa2,0b2,0 - αa2,1b2,1 - a2,0b2,1 - a2,1b2,0.
+        //      = a0,0b1,0 - a0,1b1,1 + a1,0b0,0 - a1,1b0,1 + a2,0(αb2,0 - b2,1) - a2,1(αb2,1 + b2,0).
+        // c1,1 = a0,0b1,1 + a0,1b1,0 + a1,0b0,1 + a1,1b0,0 + αa2,0b2,1 + αa2,1b2,0 + a2,0b2,0 - a2,1b2,1.
+        //      = a0,0b1,1 + a0,1b1,0 + a1,0b0,1 + a1,1b0,0 + a2,0(αb2,1 + b2,0) + a2,1(αb2,0 - b2,1).
+        // c2,0 = a0,0b2,0 - a0,1b2,1 + a1,0b1,0 - a1,1b1,1 + a2,0b0,0 - a2,1b0,1.
+        // c2,1 = a0,0b2,1 + a0,1b2,0 + a1,0b1,1 + a1,1b1,0 + a2,0b0,1 + a2,1b0,0.
+        //
+        // Here, alpha is \xi=\alpha+u=9+u => alpha = 9
+
+        let a20_m_b21 = Fp::NINE * other.0[2].0[0] - other.0[2].0[1];
+        let a10_m_b11 = Fp::NINE * other.0[1].0[0] - other.0[1].0[1];
+        let b21_p_b20 = Fp::NINE * other.0[2].0[1] + other.0[2].0[0];
+        let b20_m_b21 = Fp::NINE * other.0[2].0[0] - other.0[2].0[1];
+        let b11_p_b10 = Fp::NINE * other.0[1].0[1] + other.0[1].0[0];
+
+        let c00 = self.0[0].0[0] * other.0[0].0[0] - self.0[0].0[1] * other.0[0].0[1]
+            + self.0[1].0[0] * a20_m_b21
+            - self.0[1].0[1] * b21_p_b20
+            + self.0[2].0[0] * a10_m_b11
+            - self.0[2].0[1] * b11_p_b10;
+
+        let c01 = self.0[0].0[0] * other.0[0].0[1]
+            + self.0[0].0[1] * other.0[0].0[0]
+            + self.0[1].0[0] * b21_p_b20
+            + self.0[1].0[1] * b20_m_b21
+            + self.0[2].0[0] * b11_p_b10
+            + self.0[2].0[1] * a10_m_b11;
+
+        let c10 = self.0[0].0[0] * other.0[1].0[0] - self.0[0].0[1] * other.0[1].0[1]
+            + self.0[1].0[0] * other.0[0].0[0]
+            - self.0[1].0[1] * other.0[0].0[1]
+            + self.0[2].0[0] * b20_m_b21
+            - self.0[2].0[1] * b21_p_b20;
+
+        let c11 = self.0[0].0[0] * other.0[1].0[1]
+            + self.0[0].0[1] * other.0[1].0[0]
+            + self.0[1].0[0] * other.0[0].0[1]
+            + self.0[1].0[1] * other.0[0].0[0]
+            + self.0[2].0[0] * b21_p_b20
+            + self.0[2].0[1] * a20_m_b21;
+
+        let c20 = self.0[0].0[0] * other.0[2].0[0] - self.0[0].0[1] * other.0[2].0[1]
+            + self.0[1].0[0] * other.0[1].0[0]
+            - self.0[1].0[1] * other.0[1].0[1]
+            + self.0[2].0[0] * other.0[0].0[0]
+            - self.0[2].0[1] * other.0[0].0[1];
+
+        let c21 = self.0[0].0[0] * other.0[2].0[1]
+            + self.0[0].0[1] * other.0[2].0[0]
+            + self.0[1].0[0] * other.0[1].0[1]
+            + self.0[1].0[1] * other.0[1].0[0]
+            + self.0[2].0[0] * other.0[0].0[1]
+            + self.0[2].0[1] * other.0[0].0[0];
 
         Self::Output::new(&[
-            ((self.0[1] + self.0[2]) * (other.0[1] + other.0[2]) - t1 - t2).residue_mul() + t0,
-            (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1 + t2.residue_mul(),
-            (self.0[0] + self.0[2]) * (other.0[0] + other.0[2]) - t0 + t1 - t2,
+            Fp2::new(&[c00, c01]),
+            Fp2::new(&[c10, c11]),
+            Fp2::new(&[c20, c21]),
         ])
     }
 }
 impl Mul for Fp6 {
     type Output = Self;
+    #[inline]
     fn mul(self, other: Self) -> Self::Output {
         (&self).mul(&other)
     }
 }
 impl MulAssign for Fp6 {
+    #[inline]
     fn mul_assign(&mut self, other: Self) {
         *self = *self * other;
     }
@@ -255,6 +323,7 @@ impl MulAssign for Fp6 {
 
 impl Inv for Fp6 {
     type Output = Self;
+    #[inline]
     fn inv(self) -> Self::Output {
         // Implements a low-overhead version of Alg 17 of <https://eprint.iacr.org/2010/354.pdf>
         let t0 = self.0[0].square() - self.0[1] * self.0[2].residue_mul();
@@ -268,6 +337,7 @@ impl Inv for Fp6 {
 }
 
 impl One for Fp6 {
+    #[inline]
     fn one() -> Self {
         Self::new(&[Fp2::one(), Fp2::zero(), Fp2::zero()])
     }
@@ -279,11 +349,13 @@ impl One for Fp6 {
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl Div for Fp6 {
     type Output = Self;
+    #[inline]
     fn div(self, other: Self) -> Self::Output {
         self * other.inv()
     }
 }
 impl DivAssign for Fp6 {
+    #[inline]
     fn div_assign(&mut self, other: Self) {
         *self = *self / other;
     }
@@ -302,9 +374,6 @@ impl ConditionallySelectable for Fp6 {
 
 // make sextic extension visible to the dodectic extension
 impl FieldExtensionTrait<12, 2> for Fp6 {
-    fn quadratic_non_residue() -> Self {
-        <Fp6 as FieldExtensionTrait<6, 3>>::quadratic_non_residue()
-    }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng)
     }

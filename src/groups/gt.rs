@@ -140,6 +140,7 @@ impl ConditionallySelectable for Gt {
 }
 
 impl PartialEq for Gt {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         bool::from(self.ct_eq(other))
     }
@@ -166,19 +167,25 @@ impl<'a, 'b> Sub<&'b Gt> for &'a Gt {
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl<'a, 'b> Mul<&'b Fr> for &'a Gt {
     /// This is simply the `double-and-add` algorithm for multiplication, which is the ECC
-    /// equivalent of the `square-and-multiply` algorithm used in modular exponentiation.
+    /// equivalent of the `square-and-multiply` algorithm used in modular exponentiation. It uses
+    //  the lower Hamming weight representation of the scalar to reduce the number of operations
     ///
     /// <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
     type Output = Gt;
     fn mul(self, other: &'b Fr) -> Self::Output {
-        let bits = other.value().to_le_bytes();
+        let (np, nm) = other.compute_naf();
         let mut res = Self::Output::identity();
-        for bit in bits.iter().rev() {
-            for i in (0..8).rev() {
-                res = res.double();
-                if (bit & (1 << i)) != 0 {
-                    res = &res + self;
-                }
+
+        for i in (0..256).rev() {
+            res = res.double();
+
+            let np_bit = np.bit(i).into();
+            let nm_bit = nm.bit(i).into();
+
+            if np_bit {
+                res = &res + self;
+            } else if nm_bit {
+                res = &res - self;
             }
         }
         res
@@ -187,6 +194,7 @@ impl<'a, 'b> Mul<&'b Fr> for &'a Gt {
 
 impl Mul<Fr> for Gt {
     type Output = Self;
+    #[inline]
     fn mul(self, rhs: Fr) -> Self::Output {
         &self * &rhs
     }

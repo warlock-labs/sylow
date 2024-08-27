@@ -146,7 +146,7 @@ impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg
     for &'a GroupAffine<D, N, F>
 {
     type Output = GroupAffine<D, N, F>;
-
+    #[inline]
     fn neg(self) -> Self::Output {
         Self::Output {
             x: self.x,
@@ -157,6 +157,7 @@ impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg for GroupAffine<D, N, F> {
     type Output = GroupAffine<D, N, F>;
+    #[inline]
     fn neg(self) -> Self::Output {
         -&self
     }
@@ -190,6 +191,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Conditionally
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
     for GroupAffine<D, N, F>
 {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         bool::from(self.ct_eq(other))
     }
@@ -202,7 +204,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D
             infinity: Choice::from(1u8),
         }
     }
-
+    #[inline(always)]
     pub(crate) fn is_zero(&self) -> bool {
         bool::from(self.infinity)
     }
@@ -235,7 +237,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
             z: F::zero(),
         }
     }
-
+    #[inline(always)]
     pub(crate) fn is_zero(&self) -> bool {
         self.z.is_zero()
     }
@@ -294,7 +296,7 @@ impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg
     for &'a GroupProjective<D, N, F>
 {
     type Output = GroupProjective<D, N, F>;
-
+    #[inline]
     fn neg(self) -> Self::Output {
         Self::Output {
             x: self.x,
@@ -307,6 +309,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg
     for GroupProjective<D, N, F>
 {
     type Output = Self;
+    #[inline]
     fn neg(self) -> Self::Output {
         -&self
     }
@@ -347,6 +350,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Conditionally
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
     for GroupProjective<D, N, F>
 {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         bool::from(self.ct_eq(other))
     }
@@ -411,6 +415,7 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     ///
     /// Complexity:
     ///        `12M` + `2m` + `19A`
+    #[inline]
     fn add(self, other: &'b GroupProjective<D, N, F>) -> Self::Output {
         let t0 = self.x * other.x;
         let t1 = self.y * other.y;
@@ -476,6 +481,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add<GroupProj
     for GroupProjective<D, N, F>
 {
     type Output = Self;
+    #[inline]
     fn add(self, rhs: GroupProjective<D, N, F>) -> Self::Output {
         &self + &rhs
     }
@@ -486,6 +492,7 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     Sub<&'b GroupProjective<D, N, F>> for &'a GroupProjective<D, N, F>
 {
     type Output = GroupProjective<D, N, F>;
+    #[inline]
     fn sub(self, other: &'b GroupProjective<D, N, F>) -> Self::Output {
         self + &(-other)
     }
@@ -494,6 +501,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Sub<GroupProj
     for GroupProjective<D, N, F>
 {
     type Output = Self;
+    #[inline]
     fn sub(self, rhs: GroupProjective<D, N, F>) -> Self::Output {
         &self - &rhs
     }
@@ -504,19 +512,25 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&
     for &'a GroupProjective<D, N, F>
 {
     /// This is simply the `double-and-add` algorithm for multiplication, which is the ECC
-    /// equivalent of the `square-and-multiply` algorithm used in modular exponentiation.
+    /// equivalent of the `square-and-multiply` algorithm used in modular exponentiation. It uses
+    /// the lower Hamming weight representation of the scalar to reduce the number of operations
     ///
     /// <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
     type Output = GroupProjective<D, N, F>;
     fn mul(self, other: &'b Fp) -> Self::Output {
-        let bits = other.value().to_le_bytes();
+        let (np, nm) = other.compute_naf();
         let mut res = Self::Output::zero();
-        for bit in bits.iter().rev() {
-            for i in (0..8).rev() {
-                res = res.double();
-                if (bit & (1 << i)) != 0 {
-                    res = &res + self;
-                }
+
+        for i in (0..256).rev() {
+            res = res.double();
+
+            let np_bit = np.bit(i).into();
+            let nm_bit = nm.bit(i).into();
+
+            if np_bit {
+                res = &res + self;
+            } else if nm_bit {
+                res = &res - self;
             }
         }
         res
@@ -527,6 +541,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<Fp>
     for GroupProjective<D, N, F>
 {
     type Output = Self;
+    #[inline]
     fn mul(self, rhs: Fp) -> Self::Output {
         &self * &rhs
     }
