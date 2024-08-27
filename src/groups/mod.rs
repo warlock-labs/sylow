@@ -690,4 +690,66 @@ mod tests {
             assert_eq!(Gt::conditional_select(&a, &b, Choice::from(1u8)), b);
         }
     }
+
+    mod invariants {
+        use super::*;
+        use proptest::prelude::*;
+        use crypto_bigint::rand_core::OsRng;
+        fn arbitrary_fp() -> impl Strategy<Value = Fp> {
+            any::<u64>().prop_map(|_x| <Fp as FieldExtensionTrait<1,1>>::rand(&mut OsRng))
+        }
+
+        fn arbitrary_g1() -> impl Strategy<Value = G1Projective> {
+            (arbitrary_fp(), arbitrary_fp(), arbitrary_fp())
+                .prop_map(|(x, y, z)| G1Projective::new([x, y, z]).unwrap_or(G1Projective::zero()))
+        }
+        mod g1 {
+            use super::*;
+            proptest! {
+                #[test]
+                fn test_addition_commutativity(a in arbitrary_g1(), b in arbitrary_g1()) {
+                    prop_assert_eq!(a + b, b + a);
+                }
+
+                #[test]
+                fn test_scalar_multiplication_distributivity(a in arbitrary_g1(), b in arbitrary_g1(), s in arbitrary_fp()) {
+                    prop_assert_eq!((a + b) * s, a * s + b * s);
+                }
+
+                #[test]
+                fn test_identity_element(a in arbitrary_g1()) {
+                    prop_assert_eq!(a + G1Projective::zero(), a);
+                }
+
+                #[test]
+                fn test_inverse_element(a in arbitrary_g1()) {
+                    prop_assert_eq!(a + (-a), G1Projective::zero());
+                }
+            }
+        }
+    }
+
+    mod fuzz {
+        use super::*;
+        use quickcheck_macros::quickcheck;
+        use crate::GroupTrait;
+
+        #[quickcheck]
+        fn fuzz_addition_associativity(a: u64, b: u64, c: u64) -> bool {
+            let g1 = G1Projective::generator();
+            let p1 = g1 * Fp::from(a);
+            let p2 = g1 * Fp::from(b);
+            let p3 = g1 * Fp::from(c);
+
+            (p1 + p2) + p3 == p1 + (p2 + p3)
+        }
+        #[quickcheck]
+        fn fuzz_scalar_multiplication(a: u64, b: u64) -> bool {
+            let g1 = G1Projective::generator();
+            let s1 = Fp::from(a);
+            let s2 = Fp::from(b);
+
+            (g1 * s1) * s2 == g1 * (s1 * s2)
+        }
+    }
 }
