@@ -36,7 +36,7 @@ def generate_reference_json():
     for _ in range(num_points):
         points["g2"]['invalid'].append(point_to_json(generate_non_r_torsion_point()))
 
-    with open('bn254_reference.json', 'w') as f:
+    with open('../bn254_reference.json', 'w') as f:
     	f.write(json.dumps(points,indent=2))
 
 if __name__ == "__main__":

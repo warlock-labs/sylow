@@ -16,8 +16,7 @@ use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 // the following struct can unfortunately not have much that is const,
 // since the underlying Mul, Add, etc., are not, and const traits are in the works
 // https://github.com/rust-lang/rust/issues/67792
-// Perhaps a note that D and N are as described in FieldExtensionTrait,
-// or why we have an array of size N in a conrete representation?
+// The values of D and N are as described in `FieldExtensionTrait`, see `fp.rs`.
 #[derive(Copy, Clone, Debug)]
 pub struct FieldExtension<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>(
     pub(crate) [F; N],
@@ -29,7 +28,6 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> From<u64>
     fn from(value: u64) -> Self {
         let mut retval = [F::zero(); N];
         retval[0] = F::from(value);
-        // And we're sure F is always >= u64
         Self::new(&retval)
     }
 }
@@ -47,14 +45,14 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtensio
     /// <https://eprint.iacr.org/2010/354.pdf>
     /// # Arguments
     /// * `factor` - a field element that is used to scale the extension element
-    // This has a clear meaning in context, as opposed to multiplication?
+    // Note that this is different from multiplying two elements from the same extension, and is
+    // really a "cross-extension multiplication" in a way.
     pub(crate) fn scale(&self, factor: F) -> Self {
         let mut i = 0;
         let mut retval = [F::zero(); N];
         while i < N {
             retval[i] = self.0[i] * factor;
             i += 1;
-            // There's no concern about carry/overflow here?
         }
         Self::new(&retval)
     }
@@ -84,7 +82,6 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         while i < N {
             retval[i] = self.0[i] + other.0[i];
             i += 1;
-            // likewise re carry/overflow
         }
         Self::Output::new(&retval)
     }
@@ -162,7 +159,6 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg for Field
         while i < N {
             retval[i] = -self.0[i];
             i += 1;
-            // This element-wise negation just works?
         }
         Self::new(&retval)
     }

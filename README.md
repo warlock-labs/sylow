@@ -4,6 +4,7 @@
 [![Crates.io](https://img.shields.io/crates/v/sylow)](https://crates.io/crates/sylow)
 [![Docs](https://img.shields.io/crates/v/sylow?color=blue&label=docs)](https://docs.rs/sylow/)
 ![CI](https://github.com/warlock-labs/sylow/actions/workflows/CI.yml/badge.svg)
+[![codecov](https://codecov.io/gh/warlock-labs/sylow/graph/badge.svg?token=MJNRUZHI1Z)](https://codecov.io/gh/warlock-labs/sylow)
 
 <!-- Generally seems to be pronounced SEE-low at least in American English, and perhaps note that it's being named after Ludwig. -->
 Sylow (*ˈsyːlɔv*) is a comprehensive Rust library for elliptic curve cryptography, specifically tailored for the BN254 

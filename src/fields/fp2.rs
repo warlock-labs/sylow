@@ -1,9 +1,7 @@
 //! This describes the quadratic field extension of the base field of BN254
-//! defined by the tower F_{p^2} = F_p(X) / (X^2-\beta). Further, the quadratic nature implies
-//! that elements of this field are represented as a_0 + a_1*X. This implements
+//! defined by the tower $F_{p^2} = F_p(X) / (X^2-\beta)$. Further, the quadratic nature implies
+//! that elements of this field are represented as $a_0 + a_1*X$. This implements
 //! the specific behaviour for this extension, such as multiplication.
-// Should the above be wrapped in $$? Don't quite follow the rhs but I assume that's understood
-// in context.
 
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp, BN254_FP_MODULUS, FP_QUADRATIC_NON_RESIDUE};
@@ -68,7 +66,6 @@ impl Fp2 {
             for i in (0..64).rev() {
                 res = res * res;
                 if ((*e >> i) & 1) == 1 {
-                    // assume this conditional is fine?
                     res *= *self;
                 }
             }
