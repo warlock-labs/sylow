@@ -583,4 +583,12 @@ mod tests {
             let _ = a / b;
         }
     }
+    #[test]
+    fn test_conditional_select() {
+        let a = Fp12::rand(&mut OsRng);
+        let b = Fp12::rand(&mut OsRng);
+
+        assert_eq!(a, Fp12::conditional_select(&a, &b, Choice::from(0u8)), "Conditional select failed when choice is 0");
+        assert_eq!(b, Fp12::conditional_select(&a, &b, Choice::from(1u8)), "Conditional select failed when choice is 1");
+    }
 }

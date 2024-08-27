@@ -740,4 +740,33 @@ mod tests {
             let _ = a / b;
         }
     }
+    #[test]
+    fn conditional_select() {
+        let a = create_field_extension(
+            [1, 0, 0, 0],
+            [0, 2, 0, 0],
+            [0, 0, 3, 0],
+            [0, 0, 0, 4],
+            [5, 0, 0, 0],
+            [0, 6, 0, 0],
+        );
+        let b = create_field_extension(
+            [0, 6, 0, 0],
+            [5, 0, 0, 0],
+            [0, 0, 0, 4],
+            [0, 0, 3, 0],
+            [0, 2, 0, 0],
+            [1, 0, 0, 0],
+        );
+        assert_eq!(
+            Fp6::conditional_select(&a, &b, Choice::from(0u8)),
+            a,
+            "Failed to select a"
+        );
+        assert_eq!(
+            Fp6::conditional_select(&a, &b, Choice::from(1u8)),
+            b,
+            "Failed to select b"
+        );
+    }
 }

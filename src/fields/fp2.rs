@@ -527,4 +527,23 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn test_conditional_select() {
+        let a = create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]);
+        let b = create_field_extension([1, 1, 1, 1], [1, 2, 3, 4]);
+        assert_eq!(Fp2::conditional_select(&a, &b, Choice::from(0u8)), a, "Conditional select failed");
+        assert_eq!(Fp2::conditional_select(&a, &b, Choice::from(1u8)), b, "Conditional select failed");
+    }
+    #[test]
+    fn test_equality() {
+        fn is_equal(a: &Fp2, b: &Fp2) -> bool {
+            let eq = a == b;
+            let ct_eq = a.ct_eq(b);
+            assert_eq!(eq, bool::from(ct_eq));
+            
+            eq
+        }
+        assert!(is_equal(&create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]), &create_field_extension([4, 3, 2, 1], [1, 1, 1, 1])), "Equality failed");
+        assert!(!is_equal(&create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]), &create_field_extension([1, 1, 1, 1], [1, 2, 3, 4])), "Equality failed");
+    }
 }

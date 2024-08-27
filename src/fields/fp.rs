@@ -1101,4 +1101,77 @@ mod tests {
             // As per Feldman VSS, I believe we need to select appropriate p and q.
         }
     }
+
+    #[test]
+    fn test_conditional_selection() {
+        let a = create_field([1, 2, 3, 4]);
+        let b = create_field([5, 6, 7, 8]);
+        assert_eq!(Fp::conditional_select(&a, &b, Choice::from(0u8)), a);
+        assert_eq!(Fp::conditional_select(&a, &b, Choice::from(1u8)), b);
+    }
+    #[test]
+    fn test_conversion() {
+        let b = Fr::new(U256::from_words([1, 2, 3, 4]));
+        let c = Fp::from(&b);
+        assert_eq!(c.value().to_words(), [1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_equality() {
+        fn is_equal(a: &Fp, b: &Fp) -> bool {
+            let eq = a == b;
+            let ct_eq = a.ct_eq(b);
+
+            assert_eq!(eq, bool::from(ct_eq));
+            eq
+        }
+        assert!(is_equal(
+            &create_field([1, 2, 3, 4]),
+            &create_field([1, 2, 3, 4])
+        ));
+        assert!(!is_equal(
+            &create_field([9, 2, 3, 4]),
+            &create_field([1, 2, 3, 4])
+        ));
+        assert!(!is_equal(
+            &create_field([1, 9, 3, 4]),
+            &create_field([1, 2, 3, 4])
+        ));
+        assert!(!is_equal(
+            &create_field([1, 2, 9, 4]),
+            &create_field([1, 2, 3, 4])
+        ));
+        assert!(!is_equal(
+            &create_field([1, 2, 3, 9]),
+            &create_field([1, 2, 3, 4])
+        ));
+    }
+
+    #[test]
+    fn test_characteristic() {
+        let char = Fp::characteristic() - U256::from(1u64);
+        assert_eq!(char, (BN254_FP_MODULUS - Fp::ONE).value());
+    }
+
+    #[test]
+    fn test_from_u64() {
+        for i in 0..255 {
+            let res = Fp::from(i);
+            assert_eq!(res.value().to_words(), [i, 0, 0, 0]);
+        }
+    }
+
+    #[test]
+    fn test_debug() {
+        let res = Fp::new(U256::from_words([
+            0x0,
+            0x97816A916871CA8D,
+            0x0,
+            0x30644E02E131A029,
+        ]));
+        assert_eq!(
+            format!("{:?}", res),
+            "Fp { U256: Uint(0x30644E02E131A029000000000000000097816A916871CA8D0000000000000000) }"
+        );
+    }
 }
