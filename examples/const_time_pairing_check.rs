@@ -1,6 +1,6 @@
 use dudect_bencher::{ctbench_main, BenchRng, Class, CtRunner};
 use rand::Rng;
-use sylow::{KeyPair, sign, verify};
+use sylow::{sign, verify, KeyPair};
 
 const MIN_MSG_LEN: usize = 1;
 const MAX_MSG_LEN: usize = 1024;
@@ -13,9 +13,9 @@ fn generate_random_message(rng: &mut BenchRng) -> Vec<u8> {
 fn bench_pairing_generation(runner: &mut CtRunner, rng: &mut BenchRng) {
     let mut inputs = Vec::new();
     let mut classes = Vec::new();
-    
+
     // Make 100,000 inputs on each run
-    for _ in 0..10000 {
+    for _ in 0..10_000 {
         inputs.push(generate_random_message(rng));
         // Randomly pick which distribution this example belongs to
         if rng.gen::<bool>() {
@@ -34,10 +34,10 @@ fn bench_pairing_generation(runner: &mut CtRunner, rng: &mut BenchRng) {
                     match verify(&key_pair.public_key, &msg, &signature) {
                         Ok(is_valid) => {
                             assert!(is_valid, "Signature verification failed");
-                        },
+                        }
                         Err(e) => println!("Verification error: {:?}", e),
                     }
-                },
+                }
                 Err(e) => println!("Signing error: {:?}", e),
             }
         });
