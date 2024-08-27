@@ -1,7 +1,7 @@
-use dudect_bencher::{ctbench_main, BenchRng, CtRunner, Class};
+use dudect_bencher::{ctbench_main, BenchRng, Class, CtRunner};
 use rand::Rng;
-use sylow::{FieldExtensionTrait, Fp, Fr, G1Projective, GroupTrait, XMDExpander};
 use sha3::Keccak256;
+use sylow::{FieldExtensionTrait, Fp, Fr, G1Projective, GroupTrait, XMDExpander};
 
 const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
 const K: u64 = 128;
@@ -13,7 +13,6 @@ fn generate_random_message(rng: &mut BenchRng) -> Vec<u8> {
     (0..len).map(|_| rng.gen::<u8>()).collect()
 }
 
-
 fn bench_signature_generation(runner: &mut CtRunner, rng: &mut BenchRng) {
     let mut inputs = Vec::new();
     let mut classes = Vec::new();
@@ -22,7 +21,7 @@ fn bench_signature_generation(runner: &mut CtRunner, rng: &mut BenchRng) {
     let private_key = Fp::new(Fr::rand(rng).value());
 
     // Make 100,000 inputs on each run
-    for _ in 0..100 {
+    for _ in 0..100_000 {
         inputs.push(generate_random_message(rng));
         // Randomly pick which distribution this example belongs to
         if rng.gen::<bool>() {
