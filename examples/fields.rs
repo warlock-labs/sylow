@@ -1,5 +1,5 @@
-use num_traits::Inv;
 use crypto_bigint::U256;
+use num_traits::Inv;
 use sylow::{Fp, Fp2};
 use tracing::info;
 
@@ -30,8 +30,14 @@ fn fp_example() {
     info!("10.square() = {:?}", f);
     f = f.sqrt().unwrap();
     info!("100.sqrt() = {:?}", f);
-    info!("100.sqrt().square() = {:?}", Fp::new(U256::from_u32(100)).sqrt().unwrap().square());
-    info!("10 * 10 = {:?}", Fp::new(U256::from_u32(10)) * Fp::new(U256::from_u32(10)));
+    info!(
+        "100.sqrt().square() = {:?}",
+        Fp::new(U256::from_u32(100)).sqrt().unwrap().square()
+    );
+    info!(
+        "10 * 10 = {:?}",
+        Fp::new(U256::from_u32(10)) * Fp::new(U256::from_u32(10))
+    );
     info!("100.is_square() = {:?}", f.is_square());
     f = Fp::new(U256::from_u32(99));
     info!("99.is_square() = {:?}", f.is_square());
