@@ -1,7 +1,8 @@
 //! This describes the quadratic field extension of the base field of BN254
-//! defined by the tower F_{p^2} = F_p(X) / (X^2-\beta). Further, the quadratic nature implies
-//! that elements of this field are represented as a_0 + a_1*X. This implements
+//! defined by the tower $F_{p^2} = F_p(X) / (X^2-\beta)$. Further, the quadratic nature implies
+//! that elements of this field are represented as $a_0 + a_1*X$. This implements
 //! the specific behaviour for this extension, such as multiplication.
+
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp, BN254_FP_MODULUS, FP_QUADRATIC_NON_RESIDUE};
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
