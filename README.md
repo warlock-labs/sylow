@@ -13,10 +13,12 @@ systems.
 
 ## Features
 
-- **Finite Field Arithmetic**: Efficient implementations of prime fields and their extensions $\mathbb{F}_{p},
-  \mathbb{F}_{p^2}, \mathbb{F}_{p^6}, \mathbb{F}_{p^{12}}$
-- **Elliptic Curve Groups**: Complete support for operations on $\mathbb{G}_1$, $\mathbb{G}_2$, and
-  $\mathbb{G}_{\rm T}$ groups of the BN254 curve
+- **Finite Field Arithmetic**: Efficient implementations of prime fields and their extensions $\mathbb{F}_ {p}, \mathbb
+  {F}_ {p^2}, 
+  \mathbb{F}_ {p^6}, 
+  \mathbb{F}_{p^{12}}$
+- **Elliptic Curve Groups**: Complete support for operations on $\mathbb{G}_ 1$, $\mathbb{G}_  2$, and $\mathbb{G}_{\rm 
+  T}$ groups of the BN254 curve
 - **Pairing Operations**: Optimized implementation of the optimal ate pairing
 - **Cryptographic Primitives**:
   - Key generation
