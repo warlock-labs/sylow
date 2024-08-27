@@ -16,6 +16,7 @@ use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 // the following struct can unfortunately not have much that is const,
 // since the underlying Mul, Add, etc., are not, and const traits are in the works
 // https://github.com/rust-lang/rust/issues/67792
+// The values of D and N are as described in `FieldExtensionTrait`, see `fp.rs`.
 #[derive(Copy, Clone, Debug)]
 pub struct FieldExtension<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>(
     pub(crate) [F; N],
@@ -44,6 +45,8 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtensio
     /// <https://eprint.iacr.org/2010/354.pdf>
     /// # Arguments
     /// * `factor` - a field element that is used to scale the extension element
+    // Note that this is different from multiplying two elements from the same extension, and is
+    // really a "cross-extension multiplication" in a way.
     pub(crate) fn scale(&self, factor: F) -> Self {
         let mut i = 0;
         let mut retval = [F::zero(); N];
