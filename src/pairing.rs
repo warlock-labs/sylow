@@ -27,7 +27,7 @@ const ATE_LOOP_COUNT_NAF: [i8; 64] = [
 /// an element is confusing, so we just enforce that the results of miller loops are handled with
 /// multiplication. And semantically, this just helps me keep straight all the different values,
 /// base fields, groups, etc., that are involved here. Arithmetic defined by reference.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct MillerLoopResult(pub(crate) Fp12);
 impl Default for MillerLoopResult {
     fn default() -> Self {
@@ -687,5 +687,12 @@ mod tests {
             let c_batch = glued_pairing(&p_arr, &sq_arr);
             assert_eq!(b_batch, c_batch);
         }
+    }
+    #[test]
+    fn test_miller_assignments() {
+        let mut a = MillerLoopResult::default();
+        let b = MillerLoopResult::default();
+        a *= b;
+        assert_eq!(a, MillerLoopResult::default());
     }
 }

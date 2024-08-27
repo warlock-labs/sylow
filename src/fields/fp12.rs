@@ -400,6 +400,7 @@ impl Fp12 {
 mod tests {
     use super::*;
     use crypto_bigint::{rand_core::OsRng, U256};
+    use subtle::ConstantTimeEq;
 
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
@@ -588,7 +589,56 @@ mod tests {
         let a = Fp12::rand(&mut OsRng);
         let b = Fp12::rand(&mut OsRng);
 
-        assert_eq!(a, Fp12::conditional_select(&a, &b, Choice::from(0u8)), "Conditional select failed when choice is 0");
-        assert_eq!(b, Fp12::conditional_select(&a, &b, Choice::from(1u8)), "Conditional select failed when choice is 1");
+        assert_eq!(
+            a,
+            Fp12::conditional_select(&a, &b, Choice::from(0u8)),
+            "Conditional select failed when choice is 0"
+        );
+        assert_eq!(
+            b,
+            Fp12::conditional_select(&a, &b, Choice::from(1u8)),
+            "Conditional select failed when choice is 1"
+        );
+        let one = Fp12::one();
+        assert!(one.is_one(), "One is not one!");
+    }
+    #[test]
+    fn assignment_tests() {
+        let mut a = Fp12::from(10);
+        let b = Fp12::from(5);
+
+        // addition
+        let c = a + b;
+        a += b;
+
+        assert_eq!(c, a, "Addition assignment failed");
+
+        // subtraction
+        let mut a = Fp12::from(10);
+        let c = a - b;
+        a -= b;
+        assert_eq!(c, a, "Subtraction assignment failed");
+
+        // multiplication
+        let mut a = Fp12::from(10);
+        let c = a * b;
+        a *= b;
+        assert_eq!(c, a, "Multiplication assignment failed");
+
+        // division
+        let mut a = Fp12::from(10);
+        let c = a / b;
+        a /= b;
+        assert_eq!(c, a, "Division assignment failed");
+    }
+    #[test]
+    fn test_curve_constant() {
+        let curve_constant = Fp12::curve_constant();
+
+        let tmp = Fp12::from(3);
+        assert!(
+            bool::from(curve_constant.ct_eq(&tmp)),
+            "Curve constant is not 3"
+        );
     }
 }

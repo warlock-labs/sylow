@@ -26,6 +26,8 @@ mod tests {
     use crate::fields::fp2::Fp2;
     use crate::groups::g1::{G1Affine, G1Projective};
     use crate::groups::g2::G2Projective;
+    use crate::GroupTrait;
+
     #[derive(Serialize, Deserialize, Clone)]
     struct _G2Coords {
         c0: String,
@@ -255,6 +257,7 @@ mod tests {
 
     mod g1 {
         use super::*;
+        use subtle::ConstantTimeEq;
         mod generation {
             use super::*;
 
@@ -465,9 +468,21 @@ mod tests {
                 }
             }
         }
+        #[test]
+        fn test_equality() {
+            let a1 = G1Affine::new([Fp::ONE, Fp::TWO]).expect("Failed to generate point on curve");
+            let a2 = G1Affine::new([Fp::ONE, Fp::TWO]).expect("Failed to generate point on curve");
+            assert_eq!(a1, a2, "Equality failed");
+            assert!(bool::from(a1.ct_eq(&a2)), "Ctequality failed");
+
+            let a3 = G1Affine::zero();
+            assert_ne!(a1, a3, "Equality failed");
+            assert!(!bool::from(a1.ct_eq(&a3)), "Ctequality failed");
+        }
     }
     mod g2 {
         use super::*;
+        use subtle::ConstantTimeEq;
         mod generation {
             use super::*;
 
@@ -640,6 +655,40 @@ mod tests {
                     assert_eq!(result, expected[i], "Endomorphic mapping failed");
                 }
             }
+        }
+        #[test]
+        fn test_equality() {
+            let a1 = G1Projective::new([Fp::ONE, Fp::TWO, Fp::ONE]).expect(
+                "Failed to generate \
+            point on \
+            curve",
+            );
+            let a2 = G1Projective::new([Fp::ONE, Fp::TWO, Fp::ONE]).expect(
+                "Failed to generate \
+            point on \
+            curve",
+            );
+            assert_eq!(a1, a2, "Equality failed");
+            assert!(bool::from(a1.ct_eq(&a2)), "Ctequality failed");
+
+            let a3 = G1Projective::zero();
+            assert_ne!(a1, a3, "Equality failed");
+            assert!(!bool::from(a1.ct_eq(&a3)), "Ctequality failed");
+        }
+    }
+    mod gt {
+        use super::*;
+        use crate::groups::gt::Gt;
+        use crate::Fp12;
+        use crypto_bigint::rand_core::OsRng;
+        use subtle::{Choice, ConditionallySelectable};
+
+        #[test]
+        fn test_conditional_select() {
+            let a = Gt(Fp12::rand(&mut OsRng));
+            let b = Gt(Fp12::rand(&mut OsRng));
+            assert_eq!(Gt::conditional_select(&a, &b, Choice::from(0u8)), a);
+            assert_eq!(Gt::conditional_select(&a, &b, Choice::from(1u8)), b);
         }
     }
 }

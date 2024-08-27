@@ -228,10 +228,6 @@ impl GroupTrait<12, 2, Fp12> for Gt {
     ) -> Result<Self, GroupError> {
         unimplemented!()
     }
-
-    fn frobenius(&self, _exponent: usize) -> Self {
-        unimplemented!()
-    }
 }
 impl Gt {
     /// Returns the group identity, which is $1$.

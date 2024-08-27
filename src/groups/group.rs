@@ -100,18 +100,18 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     /// * `msg` - a slice of bytes that is to be hashed to a point on the curve
     /// * `private_key` - a scalar in the base field that is used to sign the message
     fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: F) -> Result<Self, GroupError>;
-    /// NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
-    /// It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
-    /// Therefore, these points must bypass curve membership and torsion checks, and therefore
-    /// directly be instantiated as a struct
-    ///
-    /// This performs the operation:
-    /// (x,y) |-> (x^p, y^p)
-    ///
-    /// # Arguments
-    /// * `exponent` - usize, the exponent to raise the point to
-    #[allow(dead_code)]
-    fn frobenius(&self, exponent: usize) -> Self;
+    // NOTA BENE: the frobenius map does NOT in general map points from the curve back to the curve
+    // It is an endomorphism of the algebraic closure of the base field, but NOT of the curve
+    // Therefore, these points must bypass curve membership and torsion checks, and therefore
+    // directly be instantiated as a struct
+    //
+    // This performs the operation:
+    // (x,y) |-> (x^p, y^p)
+    //
+    // # Arguments
+    // * `exponent` - usize, the exponent to raise the point to
+    // #[allow(dead_code)]
+    // fn frobenius(&self, exponent: usize) -> Self;
 }
 
 #[derive(Copy, Clone, Debug)]

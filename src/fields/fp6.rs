@@ -386,6 +386,7 @@ impl FieldExtensionTrait<12, 2> for Fp6 {
 mod tests {
     use super::*;
     use crypto_bigint::U256;
+    use subtle::ConstantTimeEq;
 
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
@@ -767,6 +768,49 @@ mod tests {
             Fp6::conditional_select(&a, &b, Choice::from(1u8)),
             b,
             "Failed to select b"
+        );
+        let one = Fp6::one();
+        assert!(one.is_one(), "One is not one!");
+    }
+
+    #[test]
+    fn assignment_tests() {
+        let mut a = Fp6::from(10);
+        let b = Fp6::from(5);
+
+        // addition
+        let c = a + b;
+        a += b;
+
+        assert_eq!(c, a, "Addition assignment failed");
+
+        // subtraction
+        let mut a = Fp6::from(10);
+        let c = a - b;
+        a -= b;
+        assert_eq!(c, a, "Subtraction assignment failed");
+
+        // multiplication
+        let mut a = Fp6::from(10);
+        let c = a * b;
+        a *= b;
+        assert_eq!(c, a, "Multiplication assignment failed");
+
+        // division
+        let mut a = Fp6::from(10);
+        let c = a / b;
+        a /= b;
+        assert_eq!(c, a, "Division assignment failed");
+    }
+    #[test]
+    fn test_curve_constant() {
+        let curve_constant = <Fp6 as FieldExtensionTrait<6, 3>>::curve_constant();
+        let also_curve_constant = <Fp6 as FieldExtensionTrait<12, 2>>::curve_constant();
+
+        let tmp = Fp6::from(3);
+        assert!(
+            bool::from(curve_constant.ct_eq(&tmp) & also_curve_constant.ct_eq(&tmp)),
+            "Curve constant is not 3"
         );
     }
 }

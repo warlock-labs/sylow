@@ -1174,4 +1174,138 @@ mod tests {
             "Fp { U256: Uint(0x30644E02E131A029000000000000000097816A916871CA8D0000000000000000) }"
         );
     }
+
+    mod euclid_tests {
+        use super::*;
+        #[test]
+        fn test_div_euclid() {
+            let test_cases = [
+                (10, 3, 3),  // Normal case
+                (10, 2, 5),  // Exact division
+                (0, 5, 0),   // Zero dividend
+                (10, 1, 10), // Divisor is 1
+                (10, 11, 0), // Divisor larger than dividend
+            ];
+            for (a, b, expected) in test_cases.iter() {
+                let a = Fp::from(*a as u64);
+                let b = Fp::from(*b as u64);
+                let expected = Fp::from(*expected as u64);
+                assert_eq!(
+                    a.div_euclid(&b),
+                    expected,
+                    "Failed for {} div_euclid {}",
+                    a.value(),
+                    b.value()
+                );
+            }
+        }
+        #[test]
+        fn test_rem_euclid() {
+            let test_cases = [
+                (10, 3, 1),   // Normal case
+                (10, 2, 0),   // No remainder
+                (0, 5, 0),    // Zero dividend
+                (10, 1, 0),   // Divisor is 1
+                (10, 11, 10), // Divisor larger than dividend
+            ];
+            for (a, b, expected) in test_cases.iter() {
+                let a = Fp::from(*a as u64);
+                let b = Fp::from(*b as u64);
+                let expected = Fp::from(*expected as u64);
+                assert_eq!(
+                    a.rem_euclid(&b),
+                    expected,
+                    "Failed for {} rem_euclid {}",
+                    a.value(),
+                    b.value()
+                );
+            }
+        }
+    }
+    #[test]
+    fn assignment_tests() {
+        let mut a = Fp::from(10);
+        let b = Fp::from(5);
+
+        // addition
+        let c = a + b;
+        a += b;
+
+        assert_eq!(c, a, "Addition assignment failed");
+
+        // subtraction
+        let mut a = Fp::from(10);
+        let c = a - b;
+        a -= b;
+        assert_eq!(c, a, "Subtraction assignment failed");
+
+        // multiplication
+        let mut a = Fp::from(10);
+        let c = a * b;
+        a *= b;
+        assert_eq!(c, a, "Multiplication assignment failed");
+
+        // division
+        let mut a = Fp::from(10);
+        let c = a / b;
+        a /= b;
+        assert_eq!(c, a, "Division assignment failed");
+    }
+
+    mod hash_tests {
+        use super::*;
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        fn calculate_hash<T: Hash>(t: &T) -> u64 {
+            let mut s = DefaultHasher::new();
+            t.hash(&mut s);
+            s.finish()
+        }
+        #[test]
+        fn test_equality() {
+            let v1 = Fp::from(123456789u64);
+            let v2 = Fp::from(123456789u64);
+
+            assert_eq!(
+                calculate_hash(&v1),
+                calculate_hash(&v2),
+                "Hash not consistent for equal values"
+            );
+        }
+        #[test]
+        fn test_hash_set_insertion() {
+            use std::collections::HashSet;
+            let mut set = HashSet::new();
+            let v1 = Fp::from(123456789u64);
+            let v2 = Fp::from(123456789u64);
+
+            set.insert(v1);
+            assert!(set.contains(&v2), "HashSet insertion failed");
+            assert!(
+                !set.insert(v1),
+                "Shouldn't be able to add the same element twice"
+            );
+        }
+    }
+
+    #[test]
+    fn test_curve_constant() {
+        let curve_constant = <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
+        let also_curve_constant = <Fp as FieldExtensionTrait<2, 2>>::curve_constant();
+        assert!(
+            bool::from(curve_constant.ct_eq(&Fp::THREE) & also_curve_constant.ct_eq(&Fp::THREE)),
+            "Curve constant is not 3"
+        );
+    }
+
+    #[test]
+    fn test_frobenius() {
+        let a = Fp::from(10);
+        assert_eq!(
+            Fp::ONE,
+            a.frobenius(1).frobenius(1),
+            "Frobenius squared should be equal to one"
+        );
+    }
 }

@@ -139,17 +139,6 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
     ) -> Result<Self, GroupError> {
         unimplemented!()
     }
-    fn frobenius(&self, exponent: usize) -> Self {
-        let vec: Vec<Fp2> = [self.x, self.y]
-            .iter()
-            .map(|x| x.frobenius(exponent))
-            .collect();
-        Self {
-            x: vec[0],
-            y: vec[1],
-            infinity: self.infinity,
-        }
-    }
 }
 impl GroupTrait<2, 2, Fp2> for G2Projective {
     fn generator() -> Self {
@@ -195,17 +184,6 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
         _private_key: Fp2,
     ) -> Result<Self, GroupError> {
         unimplemented!()
-    }
-    fn frobenius(&self, exponent: usize) -> Self {
-        let vec: Vec<Fp2> = [self.x, self.y, self.z]
-            .iter()
-            .map(|x| x.frobenius(exponent))
-            .collect();
-        Self {
-            x: vec[0],
-            y: vec[1],
-            z: vec[2],
-        }
     }
 }
 impl G2Affine {

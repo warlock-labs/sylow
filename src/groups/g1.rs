@@ -62,17 +62,6 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
             Err(e) => Err(e),
         }
     }
-    fn frobenius(&self, exponent: usize) -> Self {
-        let vec: Vec<Fp> = [self.x, self.y]
-            .iter()
-            .map(|x| x.frobenius(exponent))
-            .collect();
-        Self {
-            x: vec[0],
-            y: vec[1],
-            infinity: self.infinity,
-        }
-    }
 }
 
 impl G1Affine {
@@ -81,7 +70,7 @@ impl G1Affine {
     // and therefore no subgroup check is required in G1.
     // # Arguments
     // * `v` - a tuple of field elements that represent the x and y coordinates of the point
-    fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
+    pub(crate) fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
         let is_on_curve = {
             let y2 = v[1].square();
             let x2 = v[0].square();
@@ -149,18 +138,6 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
             return Ok(d * private_key);
         }
         Err(GroupError::CannotHashToGroup)
-    }
-    fn frobenius(&self, exponent: usize) -> Self {
-        let vec: Vec<Fp> = [self.x, self.y, self.z]
-            .iter()
-            .map(|x| x.frobenius(exponent))
-            .collect();
-        tracing::debug!(?vec, "GroupTrait::frobenius");
-        Self {
-            x: vec[0],
-            y: vec[1],
-            z: vec[2],
-        }
     }
 }
 impl G1Projective {
