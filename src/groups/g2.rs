@@ -139,17 +139,6 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
     ) -> Result<Self, GroupError> {
         unimplemented!()
     }
-    fn frobenius(&self, exponent: usize) -> Self {
-        let vec: Vec<Fp2> = [self.x, self.y]
-            .iter()
-            .map(|x| x.frobenius(exponent))
-            .collect();
-        Self {
-            x: vec[0],
-            y: vec[1],
-            infinity: self.infinity,
-        }
-    }
 }
 impl GroupTrait<2, 2, Fp2> for G2Projective {
     fn generator() -> Self {
@@ -168,6 +157,12 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     /// clear this value to place it in the r-torsion. The return value of this function goes
     /// through the `new` constructor to ensure that the random value does indeed pass the curve
     /// and subgroup checks
+    /// ```
+    /// use sylow::*;
+    /// use crypto_bigint::rand_core::OsRng;
+    /// let mut rng = OsRng;
+    /// let random_point = G2Projective::rand(&mut rng);
+    /// ```
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         // the cofactor of $\mathbb{G}_2$
         const C2: Fp = Fp::new(U256::from_words([
@@ -195,17 +190,6 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
         _private_key: Fp2,
     ) -> Result<Self, GroupError> {
         unimplemented!()
-    }
-    fn frobenius(&self, exponent: usize) -> Self {
-        let vec: Vec<Fp2> = [self.x, self.y, self.z]
-            .iter()
-            .map(|x| x.frobenius(exponent))
-            .collect();
-        Self {
-            x: vec[0],
-            y: vec[1],
-            z: vec[2],
-        }
     }
 }
 impl G2Affine {

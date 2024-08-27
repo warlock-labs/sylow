@@ -26,6 +26,7 @@ mod tests {
     use crate::fields::fp2::Fp2;
     use crate::groups::g1::{G1Affine, G1Projective};
     use crate::groups::g2::G2Projective;
+
     #[derive(Serialize, Deserialize, Clone)]
     struct _G2Coords {
         c0: String,
@@ -256,6 +257,7 @@ mod tests {
 
     mod g1 {
         use super::*;
+        use subtle::ConstantTimeEq;
         mod generation {
             use super::*;
 
@@ -466,9 +468,21 @@ mod tests {
                 }
             }
         }
+        #[test]
+        fn test_equality() {
+            let a1 = G1Affine::new([Fp::ONE, Fp::TWO]).expect("Failed to generate point on curve");
+            let a2 = G1Affine::new([Fp::ONE, Fp::TWO]).expect("Failed to generate point on curve");
+            assert_eq!(a1, a2, "Equality failed");
+            assert!(bool::from(a1.ct_eq(&a2)), "Ctequality failed");
+
+            let a3 = G1Affine::zero();
+            assert_ne!(a1, a3, "Equality failed");
+            assert!(!bool::from(a1.ct_eq(&a3)), "Ctequality failed");
+        }
     }
     mod g2 {
         use super::*;
+        use subtle::ConstantTimeEq;
         mod generation {
             use super::*;
 
@@ -641,6 +655,111 @@ mod tests {
                     assert_eq!(result, expected[i], "Endomorphic mapping failed");
                 }
             }
+        }
+        #[test]
+        fn test_equality() {
+            let a1 = G1Projective::new([Fp::ONE, Fp::TWO, Fp::ONE]).expect(
+                "Failed to generate \
+            point on \
+            curve",
+            );
+            let a2 = G1Projective::new([Fp::ONE, Fp::TWO, Fp::ONE]).expect(
+                "Failed to generate \
+            point on \
+            curve",
+            );
+            assert_eq!(a1, a2, "Equality failed");
+            assert!(bool::from(a1.ct_eq(&a2)), "Ctequality failed");
+
+            let a3 = G1Projective::zero();
+            assert_ne!(a1, a3, "Equality failed");
+            assert!(!bool::from(a1.ct_eq(&a3)), "Ctequality failed");
+        }
+    }
+    mod gt {
+        use super::*;
+        use crate::groups::gt::Gt;
+        use crate::Fp12;
+        use crypto_bigint::rand_core::OsRng;
+        use subtle::{Choice, ConditionallySelectable};
+
+        #[test]
+        fn test_conditional_select() {
+            let a = Gt(Fp12::rand(&mut OsRng));
+            let b = Gt(Fp12::rand(&mut OsRng));
+            assert_eq!(Gt::conditional_select(&a, &b, Choice::from(0u8)), a);
+            assert_eq!(Gt::conditional_select(&a, &b, Choice::from(1u8)), b);
+        }
+    }
+
+    mod invariants {
+        use super::*;
+        use crypto_bigint::rand_core::OsRng;
+        use proptest::prelude::*;
+        fn arbitrary_fp() -> impl Strategy<Value = Fp> {
+            any::<u64>().prop_map(|_x| <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng))
+        }
+
+        fn arbitrary_g1() -> impl Strategy<Value = G1Projective> {
+            (arbitrary_fp(), arbitrary_fp(), arbitrary_fp())
+                .prop_map(|(x, y, z)| G1Projective::new([x, y, z]).unwrap_or(G1Projective::zero()))
+        }
+        mod g1 {
+            use super::*;
+            proptest! {
+                #[test]
+                fn test_addition_commutativity(a in arbitrary_g1(), b in arbitrary_g1()) {
+                    prop_assert_eq!(a + b, b + a);
+                }
+
+                #[test]
+                fn test_scalar_multiplication_distributivity(a in arbitrary_g1(), b in arbitrary_g1(), s in arbitrary_fp()) {
+                    prop_assert_eq!((a + b) * s, a * s + b * s);
+                }
+
+                #[test]
+                fn test_identity_element(a in arbitrary_g1()) {
+                    prop_assert_eq!(a + G1Projective::zero(), a);
+                }
+
+                #[test]
+                fn test_inverse_element(a in arbitrary_g1()) {
+                    prop_assert_eq!(a + (-a), G1Projective::zero());
+                }
+            }
+        }
+    }
+
+    mod fuzz {
+        use super::*;
+        use crate::GroupTrait;
+        use quickcheck_macros::quickcheck;
+
+        #[quickcheck]
+        fn fuzz_addition_associativity(a: u64, b: u64, c: u64) -> bool {
+            let g1 = G1Projective::generator();
+            let p1 = g1 * Fp::from(a);
+            let p2 = g1 * Fp::from(b);
+            let p3 = g1 * Fp::from(c);
+
+            let g2 = G2Projective::generator();
+            let q1 = g2 * Fp::from(a);
+            let q2 = g2 * Fp::from(b);
+            let q3 = g2 * Fp::from(c);
+
+            ((p1 + p2) + p3 == p1 + (p2 + p3)) & ((q1 + q2) + q3 == q1 + (q2 + q3))
+        }
+        #[quickcheck]
+        fn fuzz_scalar_multiplication(a: u64, b: u64) -> bool {
+            let g1 = G1Projective::generator();
+            let s1 = Fp::from(a);
+            let s2 = Fp::from(b);
+
+            let g2 = G2Projective::generator();
+            let t1 = Fp::from(a);
+            let t2 = Fp::from(b);
+
+            ((g1 * s1) * s2 == g1 * (s1 * s2)) & ((g2 * t1) * t2 == g2 * (t1 * t2))
         }
     }
 }

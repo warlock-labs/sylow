@@ -145,12 +145,6 @@ impl Fp2 {
         tracing::debug!(?sum, "Fp2::is_square");
         Choice::from((legendre(&sum) != -1) as u8)
     }
-    pub fn sgn0(&self) -> Choice {
-        let sign_0 = self.0[0].sgn0();
-        let zero_0 = Choice::from(self.0[0].is_zero() as u8);
-        let sign_1 = self.0[1].sgn0();
-        sign_0 | (zero_0 & sign_1)
-    }
 }
 impl FieldExtensionTrait<2, 2> for Fp2 {
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
@@ -527,5 +521,87 @@ mod tests {
                 assert!(bool::from(b.is_square()), "Is square failed");
             }
         }
+    }
+    #[test]
+    fn test_conditional_select() {
+        let a = create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]);
+        let b = create_field_extension([1, 1, 1, 1], [1, 2, 3, 4]);
+        assert_eq!(
+            Fp2::conditional_select(&a, &b, Choice::from(0u8)),
+            a,
+            "Conditional select failed"
+        );
+        assert_eq!(
+            Fp2::conditional_select(&a, &b, Choice::from(1u8)),
+            b,
+            "Conditional select failed"
+        );
+    }
+    #[test]
+    fn test_equality() {
+        fn is_equal(a: &Fp2, b: &Fp2) -> bool {
+            let eq = a == b;
+            let ct_eq = a.ct_eq(b);
+            assert_eq!(eq, bool::from(ct_eq));
+
+            eq
+        }
+        assert!(
+            is_equal(
+                &create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]),
+                &create_field_extension([4, 3, 2, 1], [1, 1, 1, 1])
+            ),
+            "Equality failed"
+        );
+        assert!(
+            !is_equal(
+                &create_field_extension([4, 3, 2, 1], [1, 1, 1, 1]),
+                &create_field_extension([1, 1, 1, 1], [1, 2, 3, 4])
+            ),
+            "Equality failed"
+        );
+
+        let one = Fp2::one();
+        assert!(one.is_one(), "One is not one!");
+    }
+    #[test]
+    fn assignment_tests() {
+        let mut a = Fp2::from(10);
+        let b = Fp2::from(5);
+
+        // addition
+        let c = a + b;
+        a += b;
+
+        assert_eq!(c, a, "Addition assignment failed");
+
+        // subtraction
+        let mut a = Fp2::from(10);
+        let c = a - b;
+        a -= b;
+        assert_eq!(c, a, "Subtraction assignment failed");
+
+        // multiplication
+        let mut a = Fp2::from(10);
+        let c = a * b;
+        a *= b;
+        assert_eq!(c, a, "Multiplication assignment failed");
+
+        // division
+        let mut a = Fp2::from(10);
+        let c = a / b;
+        a /= b;
+        assert_eq!(c, a, "Division assignment failed");
+    }
+    #[test]
+    fn test_curve_constant() {
+        let curve_constant = <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant();
+        let also_curve_constant = <Fp2 as FieldExtensionTrait<6, 3>>::curve_constant();
+
+        let tmp = Fp2::new(&[Fp::THREE, Fp::ZERO]) / Fp2::new(&[Fp::NINE, Fp::ONE]);
+        assert!(
+            bool::from(curve_constant.ct_eq(&tmp) & also_curve_constant.ct_eq(&tmp)),
+            "Curve constant is not 3/(9+u)"
+        );
     }
 }

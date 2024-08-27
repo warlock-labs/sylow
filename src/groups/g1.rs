@@ -62,26 +62,19 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
             Err(e) => Err(e),
         }
     }
-    fn frobenius(&self, exponent: usize) -> Self {
-        let vec: Vec<Fp> = [self.x, self.y]
-            .iter()
-            .map(|x| x.frobenius(exponent))
-            .collect();
-        Self {
-            x: vec[0],
-            y: vec[1],
-            infinity: self.infinity,
-        }
-    }
 }
 
 impl G1Affine {
-    // Instantiate a new element in affine coordinates in G1. The input values must simply pass
-    // the curve check, since the r-torsion of the curve on the base field is the entire curve
-    // and therefore no subgroup check is required in G1.
-    // # Arguments
-    // * `v` - a tuple of field elements that represent the x and y coordinates of the point
-    fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
+    /// Instantiate a new element in affine coordinates in G1. The input values must simply pass
+    /// the curve check, since the r-torsion of the curve on the base field is the entire curve
+    /// and therefore no subgroup check is required in G1.
+    /// # Arguments
+    /// * `v` - a tuple of field elements that represent the x and y coordinates of the point
+    /// ```
+    /// use sylow::*;
+    /// let generator = G1Affine::new([Fp::ONE, Fp::TWO]);
+    /// ```
+    pub fn new(v: [Fp; 2]) -> Result<Self, GroupError> {
         let is_on_curve = {
             let y2 = v[1].square();
             let x2 = v[0].square();
@@ -144,23 +137,27 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
             _ => Err(GroupError::CannotHashToGroup),
         }
     }
+    /// Basic signature on G1
+    /// ```
+    /// use sylow::*;
+    /// use crypto_bigint::rand_core::OsRng;
+    /// use sha3::Keccak256;
+    /// const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";    
+    /// const MSG: &[u8; 4] = &20_i32.to_be_bytes();     
+    /// const K: u64 = 128;
+    /// let expander = XMDExpander::<Keccak256>::new(DST, K);
+    /// let rando = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng);
+    /// if let Ok(d) = G1Projective::sign_message(&expander, MSG, rando) {
+    ///     println!("DST: {:?}", String::from_utf8_lossy(DST));
+    ///     println!("Message: {:?}", String::from_utf8_lossy(MSG));
+    ///     println!("private key: {:?}", rando.value());
+    /// }
+    /// ```
     fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: Fp) -> Result<Self, GroupError> {
         if let Ok(d) = Self::hash_to_curve(exp, msg) {
             return Ok(d * private_key);
         }
         Err(GroupError::CannotHashToGroup)
-    }
-    fn frobenius(&self, exponent: usize) -> Self {
-        let vec: Vec<Fp> = [self.x, self.y, self.z]
-            .iter()
-            .map(|x| x.frobenius(exponent))
-            .collect();
-        tracing::debug!(?vec, "GroupTrait::frobenius");
-        Self {
-            x: vec[0],
-            y: vec[1],
-            z: vec[2],
-        }
     }
 }
 impl G1Projective {
@@ -168,6 +165,10 @@ impl G1Projective {
     /// the curve check, since the r-torsion of the curve on the base field is the entire curve.
     /// # Arguments
     /// * `v` - a tuple of field elements that represent the x, y, and z coordinates of the point
+    /// ```
+    /// use sylow::*;
+    /// let generator = G1Projective::new([Fp::ONE, Fp::TWO, Fp::ONE]);
+    /// ```
     #[allow(dead_code)]
     pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let is_on_curve = {

@@ -27,7 +27,7 @@ const ATE_LOOP_COUNT_NAF: [i8; 64] = [
 /// an element is confusing, so we just enforce that the results of miller loops are handled with
 /// multiplication. And semantically, this just helps me keep straight all the different values,
 /// base fields, groups, etc., that are involved here. Arithmetic defined by reference.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct MillerLoopResult(pub(crate) Fp12);
 impl Default for MillerLoopResult {
     fn default() -> Self {
@@ -270,7 +270,7 @@ impl MillerLoopResult {
 /// computing the line. Second, is an array of the coefficients we determine by the generation
 /// of the line, stored as an array. But an array of 87 elements is very specific, no?
 /// There's 64 total iterations through the NAF representation, each one incurring a
-/// doubling step. Further, there are 9 `1` digits (each with an addition step), and 12 `3`
+/// doubling step. Further, there are 9 `1` digits (each with an addition step), and 12 `-1`
 /// digits, each also with an addition step. After the loop, there are 2 more addition steps, so
 /// the total number of coefficients we need to store is 64+9+12+2 = 87.
 #[derive(PartialEq, Debug, Copy, Clone)]
@@ -687,5 +687,12 @@ mod tests {
             let c_batch = glued_pairing(&p_arr, &sq_arr);
             assert_eq!(b_batch, c_batch);
         }
+    }
+    #[test]
+    fn test_miller_assignments() {
+        let mut a = MillerLoopResult::default();
+        let b = MillerLoopResult::default();
+        a *= b;
+        assert_eq!(a, MillerLoopResult::default());
     }
 }
