@@ -1,5 +1,4 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![cfg_attr(coverage, feature(coverage_attribute))]
 #![doc = include_str!("../README.md")]
 #![deny(unsafe_code)]
 #![deny(dead_code)]

@@ -270,10 +270,9 @@ impl MillerLoopResult {
 /// computing the line. Second, is an array of the coefficients we determine by the generation
 /// of the line, stored as an array. But an array of 87 elements is very specific, no?
 /// There's 64 total iterations through the NAF representation, each one incurring a
-/// doubling step. Further, there are 9 `1` digits (each with an addition step), and 12 `3`
+/// doubling step. Further, there are 9 `1` digits (each with an addition step), and 12 `-1`
 /// digits, each also with an addition step. After the loop, there are 2 more addition steps, so
 /// the total number of coefficients we need to store is 64+9+12+2 = 87.
-#[cfg_attr(coverage_nightly, coverage(off))]
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub struct G2PreComputed {
     pub(crate) q: G2Affine,
