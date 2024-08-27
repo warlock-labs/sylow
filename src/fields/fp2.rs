@@ -6,13 +6,12 @@
 // in context.
 
 use crate::fields::extensions::FieldExtension;
-use crate::fields::fp::{FieldExtensionTrait, Fp, BN254_FP_MODULUS};
+use crate::fields::fp::{FieldExtensionTrait, Fp, BN254_FP_MODULUS, FP_QUADRATIC_NON_RESIDUE};
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Pow, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::{Choice, ConstantTimeEq, CtOption};
 
-const FP2_QUADRATIC_NON_RESIDUE: Fp2 = Fp2::new(&[Fp::NINE, Fp::ONE]);
 pub(crate) const TWO_INV: Fp = Fp::new(U256::from_words([
     11389680472494603940,
     14681934109093717318,
@@ -55,7 +54,7 @@ pub type Fp2 = FieldExtension<2, 2, Fp>;
 // helper functions for us on this specific extension, but
 // don't generalize to any extension.
 impl Fp2 {
-    /// A simple square and multipy algorithm for exponentiation
+    /// A simple square and multiply algorithm for exponentiation
     /// # Arguments
     /// * `by` - Fp, the exponent to raise the element to
     ///
@@ -76,19 +75,26 @@ impl Fp2 {
         }
         res
     }
-
+    #[inline(always)]
     pub(crate) fn residue_mul(&self) -> Self {
-        self * &FP2_QUADRATIC_NON_RESIDUE
+        // Instead of simply `self * &FP2_QUADRATIC_NON_RESIDUE`, we do
+        // the multiplication "manually", namely:
+        // (a+bu)*(9+u) = (9a-b)+(a+9b)u, which is cheaper arithmetic in Fp that multiplication
+        Self::new(&[
+            Fp::NINE * self.0[0] - self.0[1],
+            self.0[0] + Fp::NINE * self.0[1],
+        ])
     }
     /// Frobenius mapping of a quadratic extension element to a given power
     /// # Arguments
     /// * `exponent` - usize, the power to raise the element to
+    #[inline(always)]
     pub fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp2: &[Fp; 2] = &[
             // Fp::quadratic_non_residue()**(((p^0) - 1) / 2)
             Fp::ONE,
             // Fp::quadratic_non_residue()**(((p^1) - 1) / 2)
-            <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue(),
+            FP_QUADRATIC_NON_RESIDUE,
         ];
         match exponent % 2 {
             0 => *self,
@@ -119,15 +125,12 @@ impl Fp2 {
         }
     }
     pub fn square(&self) -> Self {
-        let t0 = self.0[0] * self.0[1];
-        tracing::debug!(?t0, "Fp2::square");
-        Self([
-            (self.0[1] * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() + self.0[0])
-                * (self.0[0] + self.0[1])
-                - t0
-                - t0 * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue(),
-            t0 + t0,
-        ])
+        // We implement manual squaring here and avoid multiplications at all costs
+        let a = self.0[0] + self.0[1];
+        let b = self.0[0] - self.0[1];
+        let c = self.0[0] + self.0[0];
+        tracing::debug!(?a, "Fp2::square");
+        Self([a * b, c * self.0[1]])
     }
     pub fn is_square(&self) -> Choice {
         let legendre = |x: &Fp| -> i32 {
@@ -141,8 +144,7 @@ impl Fp2 {
                 -1
             }
         };
-        let sum = self.0[0].square()
-            + <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() * (-self.0[0]).square();
+        let sum = self.0[0].square() + FP_QUADRATIC_NON_RESIDUE * (-self.0[0]).square();
         tracing::debug!(?sum, "Fp2::is_square");
         Choice::from((legendre(&sum) != -1) as u8)
     }
@@ -154,9 +156,6 @@ impl Fp2 {
     }
 }
 impl FieldExtensionTrait<2, 2> for Fp2 {
-    fn quadratic_non_residue() -> Self {
-        FP2_QUADRATIC_NON_RESIDUE
-    }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self([
             <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
@@ -171,23 +170,33 @@ impl FieldExtensionTrait<2, 2> for Fp2 {
 }
 impl<'a, 'b> Mul<&'b Fp2> for &'a Fp2 {
     type Output = Fp2;
+    #[inline]
     fn mul(self, other: &'b Fp2) -> Self::Output {
         // This requires a bit more consideration. In Fp2,
-        // in order to multiply, we must implement complex Karatsuba
-        // multiplication.
-        // See https://eprint.iacr.org/2006/471.pdf, Sec 3
-        // We create the addition chain from Algo 1 of https://eprint.iacr.org/2022/367.pdf
-        let t0 = self.0[0] * other.0[0];
-        let t1 = self.0[1] * other.0[1];
-
+        // in order to multiply, we could implement complex Karatsuba
+        // multiplication, see <https://eprint.iacr.org/2006/471.pdf>, Sec 3
+        // and then use the addition chain from Alg 1 of <https://eprint.iacr.org/2022/367.pdf>:
+        // // let t0 = self.0[0] * other.0[0];
+        // // let t1 = self.0[1] * other.0[1];
+        // //
+        // // Self::Output::new(&[
+        // //     t1 * FP_QUADRATIC_NON_RESIDUE + t0,
+        // //     (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1,
+        // // ])
+        // BUT this is not constant-time, and turns out slower than not invoking the quadratic residue and
+        // simply doing the schoolbook version, known as the sum of products approach. There is
+        // an optimized version of this implementation given in Alg 2 of the above reference,
+        // which requires more granular control of the limb arithmetic over the multiprecision
+        // scalars than is convenient to implement here.
         Self::Output::new(&[
-            t1 * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue() + t0,
-            (self.0[0] + self.0[1]) * (other.0[0] + other.0[1]) - t0 - t1,
+            self.0[0] * other.0[0] - self.0[1] * other.0[1],
+            self.0[0] * other.0[1] + self.0[1] * other.0[0],
         ])
     }
 }
 impl Mul<Fp2> for Fp2 {
     type Output = Self;
+    #[inline]
     fn mul(self, other: Fp2) -> Self::Output {
         // TODO linter complains about this being a needless reference if I do &a * &b, so this
         // gets around it
@@ -195,6 +204,7 @@ impl Mul<Fp2> for Fp2 {
     }
 }
 impl MulAssign for Fp2 {
+    #[inline]
     fn mul_assign(&mut self, other: Self) {
         *self = *self * other;
     }
@@ -202,12 +212,11 @@ impl MulAssign for Fp2 {
 
 impl Inv for Fp2 {
     type Output = Self;
+    #[inline]
     fn inv(self) -> Self {
         let c0_squared = self.0[0].square();
         let c1_squared = self.0[1].square();
-        let tmp = (c0_squared
-            - (c1_squared * <Fp as FieldExtensionTrait<1, 1>>::quadratic_non_residue()))
-        .inv();
+        let tmp = (c0_squared - (c1_squared * FP_QUADRATIC_NON_RESIDUE)).inv();
         Self::new(&[self.0[0] * tmp, -(self.0[1] * tmp)])
     }
 }
@@ -216,6 +225,7 @@ impl Inv for Fp2 {
 // this must be defined only for the specific case here, aka not
 // in extensions.rs
 impl One for Fp2 {
+    #[inline]
     fn one() -> Self {
         Self::new(&[Fp::ONE, Fp::ZERO])
     }
@@ -227,11 +237,13 @@ impl One for Fp2 {
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl Div for Fp2 {
     type Output = Self;
+    #[inline]
     fn div(self, other: Self) -> Self {
         self * other.inv()
     }
 }
 impl DivAssign for Fp2 {
+    #[inline]
     fn div_assign(&mut self, other: Self) {
         *self = *self / other;
     }
@@ -250,9 +262,6 @@ impl ConditionallySelectable for Fp2 {
 // the below is again to make the quadratic extension visible to
 // higher order sextic extension
 impl FieldExtensionTrait<6, 3> for Fp2 {
-    fn quadratic_non_residue() -> Self {
-        FP2_QUADRATIC_NON_RESIDUE
-    }
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng)
     }
@@ -268,6 +277,7 @@ impl FieldExtensionTrait<6, 3> for Fp2 {
 mod tests {
     use super::*;
     use crypto_bigint::U256;
+    const FP2_QUADRATIC_NON_RESIDUE: Fp2 = Fp2::new(&[Fp::NINE, Fp::ONE]);
 
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))

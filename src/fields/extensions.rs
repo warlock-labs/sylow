@@ -77,7 +77,7 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     Add<&'b FieldExtension<D, N, F>> for &'a FieldExtension<D, N, F>
 {
     type Output = FieldExtension<D, N, F>;
-
+    #[inline]
     fn add(self, other: &'b FieldExtension<D, N, F>) -> Self::Output {
         let mut i = 0;
         let mut retval = [F::zero(); N];
@@ -93,6 +93,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add<FieldExte
     for FieldExtension<D, N, F>
 {
     type Output = Self;
+    #[inline]
     fn add(self, other: FieldExtension<D, N, F>) -> Self::Output {
         &self + &other
     }
@@ -100,6 +101,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Add<FieldExte
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> AddAssign
     for FieldExtension<D, N, F>
 {
+    #[inline]
     fn add_assign(&mut self, other: Self) {
         *self = *self + other;
     }
@@ -108,7 +110,7 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     Sub<&'b FieldExtension<D, N, F>> for &'a FieldExtension<D, N, F>
 {
     type Output = FieldExtension<D, N, F>;
-
+    #[inline]
     fn sub(self, other: &'b FieldExtension<D, N, F>) -> Self::Output {
         let mut i = 0;
         let mut retval = [F::zero(); N];
@@ -123,6 +125,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Sub<FieldExte
     for FieldExtension<D, N, F>
 {
     type Output = Self;
+    #[inline]
     fn sub(self, other: FieldExtension<D, N, F>) -> Self::Output {
         &self - &other
     }
@@ -130,6 +133,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Sub<FieldExte
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> SubAssign
     for FieldExtension<D, N, F>
 {
+    #[inline]
     fn sub_assign(&mut self, other: Self) {
         *self = *self - other;
     }
@@ -151,6 +155,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> PartialEq
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg for FieldExtension<D, N, F> {
     type Output = Self;
+    #[inline]
     fn neg(self) -> Self {
         let mut i = 0;
         let mut retval = [F::zero(); N];
@@ -165,6 +170,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg for Field
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Zero
     for FieldExtension<D, N, F>
 {
+    #[inline]
     fn zero() -> Self {
         Self::new(&[F::zero(); N])
     }
