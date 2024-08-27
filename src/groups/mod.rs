@@ -693,10 +693,10 @@ mod tests {
 
     mod invariants {
         use super::*;
-        use proptest::prelude::*;
         use crypto_bigint::rand_core::OsRng;
+        use proptest::prelude::*;
         fn arbitrary_fp() -> impl Strategy<Value = Fp> {
-            any::<u64>().prop_map(|_x| <Fp as FieldExtensionTrait<1,1>>::rand(&mut OsRng))
+            any::<u64>().prop_map(|_x| <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng))
         }
 
         fn arbitrary_g1() -> impl Strategy<Value = G1Projective> {
@@ -731,8 +731,8 @@ mod tests {
 
     mod fuzz {
         use super::*;
-        use quickcheck_macros::quickcheck;
         use crate::GroupTrait;
+        use quickcheck_macros::quickcheck;
 
         #[quickcheck]
         fn fuzz_addition_associativity(a: u64, b: u64, c: u64) -> bool {
@@ -741,8 +741,6 @@ mod tests {
             let p2 = g1 * Fp::from(b);
             let p3 = g1 * Fp::from(c);
 
-            
-            
             let g2 = G2Projective::generator();
             let q1 = g2 * Fp::from(a);
             let q2 = g2 * Fp::from(b);
@@ -755,13 +753,12 @@ mod tests {
             let g1 = G1Projective::generator();
             let s1 = Fp::from(a);
             let s2 = Fp::from(b);
-            
+
             let g2 = G2Projective::generator();
             let t1 = Fp::from(a);
             let t2 = Fp::from(b);
-            
-            ((g1 * s1) * s2 == g1 * (s1 * s2)) & ((g2 * t1) * t2 == g2 * (t1 * t2))
 
+            ((g1 * s1) * s2 == g1 * (s1 * s2)) & ((g2 * t1) * t2 == g2 * (t1 * t2))
         }
     }
 }

@@ -141,10 +141,10 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
     /// ```
     /// use sylow::*;
     /// use crypto_bigint::rand_core::OsRng;
-    /// use sha3::Keccak256; 
+    /// use sha3::Keccak256;
     /// const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";    
     /// const MSG: &[u8; 4] = &20_i32.to_be_bytes();     
-    /// const K: u64 = 128; 
+    /// const K: u64 = 128;
     /// let expander = XMDExpander::<Keccak256>::new(DST, K);
     /// let rando = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng);
     /// if let Ok(d) = G1Projective::sign_message(&expander, MSG, rando) {
