@@ -21,7 +21,7 @@ use crate::hasher::Expander;
 use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::U256;
 use num_traits::{One, Zero};
-use subtle::{Choice, ConstantTimeEq};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
 /// This is the X coordinate of the generator for the r-torsion of the twist curve, generated
 /// directly from sage
@@ -220,6 +220,93 @@ impl G2Affine {
             }),
             false => Err(GroupError::NotOnCurve),
         }
+    }
+    /// Serializes an element into uncompressed form. The first 3 most significant bits of the
+    /// byte array are special, and are used to identify this point.
+    /// The most significant bit is set if the point is the point at infinity
+    pub fn to_uncompressed(self) -> [u8; 128] {
+        let mut res = [0u8; 128];
+
+        let x = Fp2::conditional_select(&self.x, &Fp2::zero(), self.infinity);
+        let y = Fp2::conditional_select(&self.y, &Fp2::one(), self.infinity);
+
+        res[0..32].copy_from_slice(&x.0[1].to_be_bytes()[..]);
+        res[32..64].copy_from_slice(&x.0[0].to_be_bytes()[..]);
+        res[64..96].copy_from_slice(&y.0[1].to_be_bytes()[..]);
+        res[96..128].copy_from_slice(&y.0[0].to_be_bytes()[..]);
+
+        res[0] |= u8::conditional_select(&0u8, &(1u8 << 7), self.infinity);
+
+        res
+    }
+    pub fn from_uncompressed(bytes: &[u8; 128]) -> CtOption<G2Projective> {
+        Self::from_uncompressed_unchecked(bytes).and_then(|p| {
+            let infinity_flag = bool::from(p.infinity);
+            if infinity_flag {
+                CtOption::new(G2Projective::zero(), Choice::from(1u8))
+            } else {
+                match G2Projective::new([p.x, p.y, Fp2::one()]) {
+                    Ok(valid) => CtOption::new(valid, Choice::from(1u8)),
+                    Err(_) => CtOption::new(G2Projective::zero(), Choice::from(0u8)),
+                }
+            }
+        })
+    }
+    fn from_uncompressed_unchecked(bytes: &[u8; 128]) -> CtOption<Self> {
+        let infinity_flag = Choice::from((bytes[0] >> 7) & 1);
+
+        // try to get the x coordinate
+        let xc1 = {
+            let mut tmp = [0u8; 32];
+            tmp.copy_from_slice(&bytes[0..32]);
+
+            tmp[0] &= 0b0111_1111; // mask away the flag bit
+
+            Fp::from_be_bytes(&tmp)
+        };
+        let xc0 = {
+            let mut tmp = [0u8; 32];
+            tmp.copy_from_slice(&bytes[32..64]);
+
+            Fp::from_be_bytes(&tmp)
+        };
+
+        // try to get the y coordinate
+        let yc1 = {
+            let mut tmp = [0u8; 32];
+            tmp.copy_from_slice(&bytes[64..96]);
+
+            Fp::from_be_bytes(&tmp)
+        };
+        let yc0 = {
+            let mut tmp = [0u8; 32];
+            tmp.copy_from_slice(&bytes[96..128]);
+
+            Fp::from_be_bytes(&tmp)
+        };
+        xc1.and_then(|xc1| {
+            xc0.and_then(|xc0| {
+                yc1.and_then(|yc1| {
+                    yc0.and_then(|yc0| {
+                        let x = Fp2::new(&[xc0, xc1]);
+                        let y = Fp2::new(&[yc0, yc1]);
+
+                        let p = G2Affine::conditional_select(
+                            &G2Affine {
+                                x,
+                                y,
+                                infinity: infinity_flag,
+                            },
+                            &G2Affine::zero(),
+                            infinity_flag,
+                        );
+                        let is_some = (!infinity_flag)
+                            | (infinity_flag & Choice::from((x.is_zero() & y.is_one()) as u8));
+                        CtOption::new(p, is_some)
+                    })
+                })
+            })
+        })
     }
 }
 impl G2Projective {

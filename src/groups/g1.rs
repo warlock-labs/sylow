@@ -98,7 +98,7 @@ impl G1Affine {
     }
     /// Serializes an element into uncompressed form. The first 3 most significant bits of the
     /// byte array are special, and are used to identify this point.
-    /// 1. The most significant bit is set if the point is the point at infinity
+    /// The most significant bit is set if the point is the point at infinity
     pub fn to_uncompressed(self) -> [u8; 64] {
         let mut res = [0u8; 64];
         res[0..32].copy_from_slice(
@@ -143,7 +143,6 @@ impl G1Affine {
             let mut tmp = [0u8; 32];
             tmp.copy_from_slice(&bytes[32..64]);
 
-            tmp[0] &= 0b0111_1111; // mask away the flag bit
             Fp::from_be_bytes(&tmp)
         };
         x.and_then(|x| {
