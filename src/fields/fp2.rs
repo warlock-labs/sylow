@@ -149,7 +149,7 @@ impl Fp2 {
     /// # Arguments
     /// * `bytes` - &[u8], the byte array to convert
     /// # Returns
-    /// * CtOption<Self>, the Fp2 element if the byte array is valid
+    /// * `CtOption<Self>`, the Fp2 element if the byte array is valid
     pub fn from_be_bytes(arr: &[u8; 64]) -> CtOption<Self> {
         let b = Fp::from_be_bytes(
             &<[u8; 32]>::try_from(&arr[0..32]).expect("Conversion of u32 array failed"),

@@ -129,7 +129,7 @@ impl G1Affine {
     /// # Arguments
     /// * `bytes` - a 64 byte array representing the point
     /// # Returns
-    /// * CtOption<G1Projective> - a point on the curve or the point at infinity, if the evaluation is valid
+    /// * `CtOption<G1Projective>` - a point on the curve or the point at infinity, if the evaluation is valid
     /// Note that this returns a G1Projective, since this is the version of the elements on which
     /// arithmetic can be performed. We define this method though on the affine representation
     /// which requires 32 fewer bytes to instantiate for the same point.
