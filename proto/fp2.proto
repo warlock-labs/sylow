@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package fp2;
+
+import "fp.proto";  // Import the file containing FpProto definition
+
+message Fp2Proto {
+  fp.FpProto c0 = 1;  // First coefficient
+  fp.FpProto c1 = 2;  // Second coefficient
+}

@@ -33,6 +33,8 @@
 //! The unused imports just let the CI pipeline pass, but the crates themselves are actually
 //! used by the code :)
 
+#[cfg(feature = "serialize")]
+use crate::proto::fp::FpProto;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 #[allow(unused_imports)]
 use crypto_bigint::{
@@ -607,14 +609,14 @@ impl Fp {
     }
     /// this is the serialization to protobuf
     #[cfg(feature = "serialize")]
-    pub fn to_proto(&self) -> proto::FpProto {
-        proto::FpProto {
+    pub fn to_proto(&self) -> FpProto {
+        FpProto {
             value: self.to_be_bytes().to_vec(),
         }
     }
     /// this is the deserialization method from protobuf
     #[cfg(feature = "serialize")]
-    pub fn from_proto(proto: &proto::FpProto) -> CtOption<Self> {
+    pub fn from_proto(proto: &FpProto) -> CtOption<Self> {
         if proto.value.len() != 32 {
             return CtOption::new(Self::ZERO, Choice::from(0));
         }
@@ -622,10 +624,6 @@ impl Fp {
         bytes.copy_from_slice(&proto.value);
         Self::from_be_bytes(&bytes)
     }
-}
-#[cfg(feature = "serialize")]
-pub mod proto {
-    include!(concat!(env!("OUT_DIR"), "/protobuf/fp.rs"));
 }
 impl Fr {
     pub(crate) fn compute_naf(self) -> (U256, U256) {
@@ -692,7 +690,6 @@ mod tests {
             let a_proto = a.to_proto();
             let b = Fp::from_proto(&a_proto).unwrap();
             assert_eq!(a, b, "To proto failed");
-            println!("{:?}", a_proto);
         }
     }
     mod addition_tests {

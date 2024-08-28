@@ -9,6 +9,6 @@ fn main() -> std::io::Result<()> {
     prost_build::Config::new()
         .out_dir(&protobuf_out)
         .default_package_filename("mod")
-        .compile_protos(&["proto/fp.proto"], &["proto/"])?;
+        .compile_protos(&["proto/fp.proto", "proto/fp2.proto"], &["proto/"])?;
     Ok(())
 }
