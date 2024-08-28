@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-package fp;
-
-message FpProto {
-    bytes value = 1;
-}

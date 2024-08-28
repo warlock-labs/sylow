@@ -22,7 +22,6 @@ mod fields;
 mod groups;
 mod hasher;
 mod pairing;
-mod proto;
 mod svdw;
 pub(crate) mod utils;
 

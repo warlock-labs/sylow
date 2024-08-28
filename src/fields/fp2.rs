@@ -5,8 +5,6 @@
 
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp, BN254_FP_MODULUS, FP_QUADRATIC_NON_RESIDUE};
-#[cfg(feature = "serialize")]
-use crate::proto::fp2::Fp2Proto;
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Pow, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
@@ -180,28 +178,6 @@ impl Fp2 {
 
         res
     }
-    #[cfg(feature = "serialize")]
-    pub fn to_proto(self) -> Fp2Proto {
-        Fp2Proto {
-            c0: Some(self.0[0].to_proto()),
-            c1: Some(self.0[1].to_proto()),
-        }
-    }
-    #[cfg(feature = "serialize")]
-    pub fn from_proto(proto: &Fp2Proto) -> CtOption<Self> {
-        match (proto.c0.as_ref(), proto.c1.as_ref()) {
-            (Some(c0_proto), Some(c1_proto)) => {
-                let c0 = Fp::from_proto(c0_proto);
-                let c1 = Fp::from_proto(c1_proto);
-                if bool::from(c0.is_some() & c1.is_some()) {
-                    CtOption::new(Self::new(&[c0.unwrap(), c1.unwrap()]), Choice::from(1u8))
-                } else {
-                    CtOption::new(Self::zero(), Choice::from(0u8))
-                }
-            }
-            _ => CtOption::new(Self::zero(), Choice::from(0u8)),
-        }
-    }
 }
 impl FieldExtensionTrait<2, 2> for Fp2 {
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
@@ -359,17 +335,6 @@ mod tests {
             bytes[0..32].copy_from_slice(a.to_be_bytes().as_ref());
             bytes[32..64].copy_from_slice(a.to_be_bytes().as_ref());
             let _b = Fp2::from_be_bytes(&bytes).unwrap();
-        }
-    }
-    #[cfg(feature = "serialize")]
-    mod serialization_tests {
-        use super::*;
-        #[test]
-        fn test_to_proto() {
-            let a = create_field_extension([1, 2, 3, 4], [1, 2, 3, 4]);
-            let a_proto = a.to_proto();
-            let b = Fp2::from_proto(&a_proto).unwrap();
-            assert_eq!(a, b, "To proto failed");
         }
     }
     mod addition_tests {
