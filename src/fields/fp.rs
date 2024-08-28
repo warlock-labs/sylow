@@ -589,6 +589,22 @@ impl Fp {
             Choice::from(is_some),
         )
     }
+    /// This method takes an instance of the base fields, and translates it into a byte array.
+    /// # Arguments
+    /// * `self` - &Self - the element in the base field to convert to a byte array
+    /// # Returns
+    /// * [u8; 32] - the byte array representation of the element in the base field
+    pub fn to_be_bytes(&self) -> [u8; 32] {
+        let words = self.value().to_words();
+        let mut res = [0; 32];
+
+        res[0..8].copy_from_slice(&words[3].to_be_bytes());
+        res[8..16].copy_from_slice(&words[2].to_be_bytes());
+        res[16..24].copy_from_slice(&words[1].to_be_bytes());
+        res[24..32].copy_from_slice(&words[0].to_be_bytes());
+
+        res
+    }
 }
 impl Fr {
     pub(crate) fn compute_naf(self) -> (U256, U256) {
@@ -630,6 +646,13 @@ mod tests {
             let bytes = a.value().to_be_bytes();
             let b = Fp::from_be_bytes(&bytes).unwrap();
             assert_eq!(a, b, "From bytes failed")
+        }
+        #[test]
+        fn test_to_be_bytes() {
+            let a = create_field([1, 2, 3, 4]);
+            let bytes = a.to_be_bytes();
+            let b = Fp::from_be_bytes(&bytes).unwrap();
+            assert_eq!(a, b, "To bytes failed")
         }
         #[test]
         fn test_over_modulus() {
