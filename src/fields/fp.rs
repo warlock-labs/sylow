@@ -40,7 +40,6 @@ use crypto_bigint::{
     RandomMod, Uint, U256,
 };
 use num_traits::{Euclid, Inv, One, Pow, Zero};
-use prost::bytes::{Buf, BufMut};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use subtle::CtOption;
 
@@ -663,18 +662,11 @@ mod tests {
     mod byte_tests {
         use super::*;
         #[test]
-        fn test_from_be_bytes() {
+        fn test_conversion() {
             let a = create_field([1, 2, 3, 4]);
             let bytes = a.value().to_be_bytes();
             let b = Fp::from_be_bytes(&bytes).unwrap();
             assert_eq!(a, b, "From bytes failed")
-        }
-        #[test]
-        fn test_to_be_bytes() {
-            let a = create_field([1, 2, 3, 4]);
-            let bytes = a.to_be_bytes();
-            let b = Fp::from_be_bytes(&bytes).unwrap();
-            assert_eq!(a, b, "To bytes failed")
         }
         #[test]
         fn test_over_modulus() {

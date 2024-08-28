@@ -145,6 +145,39 @@ impl Fp2 {
         tracing::debug!(?sum, "Fp2::is_square");
         Choice::from((legendre(&sum) != -1) as u8)
     }
+    /// allows for the conversion of a byte array to a Fp2 element
+    /// # Arguments
+    /// * `bytes` - &[u8], the byte array to convert
+    /// # Returns
+    /// * CtOption<Self>, the Fp2 element if the byte array is valid
+    pub fn from_be_bytes(arr: &[u8; 64]) -> CtOption<Self> {
+        let b = Fp::from_be_bytes(
+            &<[u8; 32]>::try_from(&arr[0..32]).expect("Conversion of u8 array failed"),
+        );
+        let a = Fp::from_be_bytes(
+            &<[u8; 32]>::try_from(&arr[32..64]).expect("Conversion of u8 array failed"),
+        );
+        // the issue is that we must explicitly catch the `is_some` value, and cannot just rely
+        // on `unwrap` alone because this will panic if the value is not valid
+        if bool::from(a.is_some() & b.is_some()) {
+            CtOption::new(Self::new(&[a.unwrap(), b.unwrap()]), Choice::from(1u8))
+        } else {
+            CtOption::new(Self::zero(), Choice::from(0u8))
+        }
+    }
+    /// this is a helper function to convert the Fp2 element to a byte array
+    /// # Returns
+    /// * [u8; 64], the byte array representation of the Fp2 element
+    pub fn to_be_bytes(self) -> [u8; 64] {
+        let mut res = [0u8; 64];
+        let a = self.0[0].to_be_bytes();
+        let b = self.0[1].to_be_bytes();
+
+        res[0..32].copy_from_slice(&b);
+        res[32..64].copy_from_slice(&a);
+
+        res
+    }
 }
 impl FieldExtensionTrait<2, 2> for Fp2 {
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
@@ -275,6 +308,34 @@ mod tests {
     }
     fn create_field_extension(v1: [u64; 4], v2: [u64; 4]) -> Fp2 {
         Fp2::new(&[create_field(v1), create_field(v2)])
+    }
+    mod byte_tests {
+        use super::*;
+        #[test]
+        fn test_conversion() {
+            let a = create_field_extension([1, 2, 3, 4], [1,2,3,4]);
+            let bytes = a.to_be_bytes();
+            let b = Fp2::from_be_bytes(&bytes).unwrap();
+            assert_eq!(a, b, "From bytes failed")
+        }
+        #[test]
+        fn test_over_modulus() {
+            let a = (BN254_FP_MODULUS - Fp::ONE).value() + U256::from(10u64);
+            let mut bytes = [0u8; 64];
+            bytes[0..32].copy_from_slice(a.to_be_bytes().as_ref());
+            bytes[32..64].copy_from_slice(a.to_be_bytes().as_ref());
+            let b = Fp2::from_be_bytes(&bytes);
+            assert!(bool::from(b.is_none()), "Over modulus failed")
+        }
+        #[test]
+        #[should_panic(expected = "assertion `left == right` failed")]
+        fn test_over_modulus_panic() {
+            let a = (BN254_FP_MODULUS - Fp::ONE).value() + U256::from(10u64);
+            let mut bytes = [0u8; 64];
+            bytes[0..32].copy_from_slice(a.to_be_bytes().as_ref());
+            bytes[32..64].copy_from_slice(a.to_be_bytes().as_ref());
+            let _b = Fp2::from_be_bytes(&bytes).unwrap();
+        }
     }
     mod addition_tests {
         use super::*;
