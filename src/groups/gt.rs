@@ -240,3 +240,8 @@ impl Gt {
         Gt(self.0.square())
     }
 }
+impl Default for Gt {
+    fn default() -> Self {
+        Gt(Fp12::default())
+    }
+}

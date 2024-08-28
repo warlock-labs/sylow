@@ -762,4 +762,48 @@ mod tests {
             ((g1 * s1) * s2 == g1 * (s1 * s2)) & ((g2 * t1) * t2 == g2 * (t1 * t2))
         }
     }
+    mod bytes {
+        use super::*;
+
+        #[test]
+        fn test_g1_uncompressed() {
+            let g1_points = &*G1_REFERENCE_DATA;
+            for g1 in g1_points.a.iter().map(G1Affine::from) {
+                let g1_serialized = g1.to_uncompressed();
+                let g1_deserialized =
+                    G1Affine::from_uncompressed(&g1_serialized).expect("Deserialization failed");
+                assert_eq!(g1, g1_deserialized);
+            }
+        }
+
+        #[test]
+        fn test_bad_g1_uncompressed() {
+            let g1_points = &*G1_REFERENCE_DATA;
+            for g1 in g1_points.a.iter().map(G1Affine::from) {
+                let mut g1_serialized = g1.to_uncompressed();
+                let g1_serialized_copy = g1_serialized;
+
+                // flip some things around in the x and y coordinates, basically jumbling up the
+                // bytes
+                g1_serialized[26..32].copy_from_slice(&g1_serialized_copy[32..38]);
+                g1_serialized[32..38].copy_from_slice(&g1_serialized_copy[26..32]);
+
+                let g1_deserialized = G1Affine::from_uncompressed(&g1_serialized);
+                match bool::from(g1_deserialized.is_some()) {
+                    true => panic!("Deserialization should have failed"),
+                    false => continue,
+                }
+            }
+        }
+
+        #[test]
+        fn test_special_points() {
+            let a = G1Affine::zero();
+            let a_serialized = a.to_uncompressed();
+            let a_deserialized =
+                G1Affine::from_uncompressed(&a_serialized).expect("Deserialization failed");
+
+            assert_eq!(a, a_deserialized, "Handling point at infinity failed");
+        }
+    }
 }

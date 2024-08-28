@@ -15,9 +15,9 @@ use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait}
 use crate::hasher::Expander;
 use crate::svdw::{MapError, SvdW, SvdWTrait};
 use crypto_bigint::rand_core::CryptoRngCore;
-use num_traits::Zero;
+use num_traits::{One, Zero};
 use std::sync::OnceLock;
-use subtle::{Choice, ConstantTimeEq};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
 /// type alias for affine representation on base field
 pub type G1Affine = GroupAffine<1, 1, Fp>;
@@ -95,6 +95,74 @@ impl G1Affine {
             }),
             false => Err(GroupError::NotOnCurve),
         }
+    }
+    /// Serializes an element into uncompressed form. The first 3 most significant bits of the
+    /// byte array are special, and are used to identify this point.
+    /// 1. The most significant bit is set if the point is the point at infinity
+    pub fn to_uncompressed(self) -> [u8; 64] {
+        let mut res = [0u8; 64];
+        res[0..32].copy_from_slice(
+            &Fp::conditional_select(&self.x, &Fp::ZERO, self.infinity).to_be_bytes()[..],
+        );
+        res[32..64].copy_from_slice(
+            &Fp::conditional_select(&self.y, &Fp::ONE, self.infinity).to_be_bytes()[..],
+        );
+        // we need to set the most significant bit if it's the point at infinity
+        // the six below is to set the most significant bit = 7.
+        res[0] |= u8::conditional_select(&0u8, &(1u8 << 7), self.infinity);
+
+        res
+    }
+    pub fn from_uncompressed(bytes: &[u8; 64]) -> CtOption<Self> {
+        Self::from_uncompressed_unchecked(bytes).and_then(|p| {
+            let infinity_flag = bool::from(p.infinity);
+            if infinity_flag {
+                CtOption::new(Self::zero(), Choice::from(1u8))
+            } else {
+                match Self::new([p.x, p.y]) {
+                    Ok(p) => CtOption::new(p, Choice::from(1u8)),
+                    Err(_) => CtOption::new(Self::zero(), Choice::from(0u8)),
+                }
+            }
+        })
+    }
+    fn from_uncompressed_unchecked(bytes: &[u8; 64]) -> CtOption<Self> {
+        let infinity_flag = Choice::from((bytes[0] >> 7) & 1);
+
+        //try to get the x coord
+        let x = {
+            let mut tmp = [0u8; 32];
+            tmp.copy_from_slice(&bytes[0..32]);
+
+            tmp[0] &= 0b0111_1111; // mask away the flag bit
+            Fp::from_be_bytes(&tmp)
+        };
+
+        //try to get the y coord
+        let y = {
+            let mut tmp = [0u8; 32];
+            tmp.copy_from_slice(&bytes[32..64]);
+
+            tmp[0] &= 0b0111_1111; // mask away the flag bit
+            Fp::from_be_bytes(&tmp)
+        };
+        x.and_then(|x| {
+            y.and_then(|y| {
+                let p = Self::conditional_select(
+                    &G1Affine {
+                        x,
+                        y,
+                        infinity: infinity_flag,
+                    },
+                    &G1Affine::zero(),
+                    infinity_flag,
+                );
+
+                let is_some = (!infinity_flag)
+                    | (infinity_flag & Choice::from((x.is_zero() & y.is_one()) as u8));
+                CtOption::new(p, is_some)
+            })
+        })
     }
 }
 impl GroupTrait<1, 1, Fp> for G1Projective {
