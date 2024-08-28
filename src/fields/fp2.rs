@@ -145,7 +145,7 @@ impl Fp2 {
         tracing::debug!(?sum, "Fp2::is_square");
         Choice::from((legendre(&sum) != -1) as u8)
     }
-    /// allows for the conversion of a byte array to a Fp2 element
+    /// Allows for the conversion of a byte array to a Fp2 element
     /// # Arguments
     /// * `bytes` - &[u8], the byte array to convert
     /// # Returns
@@ -165,7 +165,7 @@ impl Fp2 {
             CtOption::new(Self::zero(), Choice::from(0u8))
         }
     }
-    /// this is a helper function to convert the Fp2 element to a byte array
+    /// Allows for the conversion of a Fp2 element to a byte array
     /// # Returns
     /// * [u8; 64], the byte array representation of the Fp2 element
     pub fn to_be_bytes(self) -> [u8; 64] {

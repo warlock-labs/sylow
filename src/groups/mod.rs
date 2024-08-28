@@ -773,7 +773,7 @@ mod tests {
                 let g1_serialized = g1.to_uncompressed();
                 let g1_deserialized =
                     G1Affine::from_uncompressed(&g1_serialized).expect("Deserialization failed");
-                assert_eq!(g1, g1_deserialized);
+                assert_eq!(g1, g1_deserialized.into());
             }
         }
 
@@ -804,7 +804,11 @@ mod tests {
             let a_deserialized =
                 G1Affine::from_uncompressed(&a_serialized).expect("Deserialization failed");
 
-            assert_eq!(a, a_deserialized, "Handling point at infinity failed");
+            assert_eq!(
+                a,
+                a_deserialized.into(),
+                "Handling point at infinity failed"
+            );
 
             let a = G2Affine::zero();
             let a_serialized = a.to_uncompressed();

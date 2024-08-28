@@ -539,7 +539,7 @@ impl Fp {
     /// circumvent this by doing the conversion manually, and returning a null value if the input
     /// would yield a value greater than the modulus. Doing the arithmetic on the limbs
     /// themselves is cheaper than doing it on the full U256 object, but also crypto_bigint will
-    /// straight panic if there is an issue in many places, which is not ideal, so we do things
+    /// straight up panic if there is an issue in many places, which is not ideal, so we do things
     /// in u64 to handle the potential errors ourselves.
     ///
     /// The below is inspired by the equivalent implementation in zkcrypto/bls12_381/fp.rs, which
@@ -559,22 +559,18 @@ impl Fp {
             (ret as u64, (ret >> 64) as u64)
         }
         // generate the words themselves from the byte array
-        let a4 = u64::from_be_bytes(<[u8; 8]>::try_from(&arr[0..8]).expect(
-            "Conversion of u8 \
-        array failed",
-        ));
-        let a3 = u64::from_be_bytes(<[u8; 8]>::try_from(&arr[8..16]).expect(
-            "Conversion of u8 \
-        array failed",
-        ));
-        let a2 = u64::from_be_bytes(<[u8; 8]>::try_from(&arr[16..24]).expect(
-            "Conversion of u8 \
-        array failed",
-        ));
-        let a1 = u64::from_be_bytes(<[u8; 8]>::try_from(&arr[24..32]).expect(
-            "Conversion of u8 \
-        array failed",
-        ));
+        let a4 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[0..8]).expect("Conversion of u8 array failed"),
+        );
+        let a3 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[8..16]).expect("Conversion of u8 array failed"),
+        );
+        let a2 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[16..24]).expect("Conversion of u8 array failed"),
+        );
+        let a1 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[24..32]).expect("Conversion of u8 array failed"),
+        );
 
         // determine if the value is greater than the modulus
         let (_, borrow) = sbb(a1, BN254_FP_MODULUS_WORDS[0], 0);

@@ -221,9 +221,19 @@ impl G2Affine {
             false => Err(GroupError::NotOnCurve),
         }
     }
-    /// Serializes an element into uncompressed form. The first 3 most significant bits of the
-    /// byte array are special, and are used to identify this point.
-    /// The most significant bit is set if the point is the point at infinity
+    /// Serializes an element of G2 into uncompressed big endian form. The most significant bit is
+    /// set if the point is the point at infinity. Elements of G2 are two elements of Fp2, so the
+    /// total byte size of a G2 element is (32 + 32) + (32 + 32) = 128 bytes.
+    /// # Arguments
+    /// * `self` - the point to serialize
+    /// # Returns
+    /// * a 128 byte array representing the point
+    /// ```
+    /// use sylow::*;
+    ///
+    /// let point = G2Affine::generator();
+    /// let point_bytes = point.to_uncompressed();
+    /// ```
     pub fn to_uncompressed(self) -> [u8; 128] {
         let mut res = [0u8; 128];
 
@@ -239,6 +249,23 @@ impl G2Affine {
 
         res
     }
+    /// This function deserializes a point from an uncompressed big endian form. The most
+    /// significant bit is set if the point is the point at infinity, and therefore must be
+    /// explicitly checked to correctly evaluate the bytes.
+    /// # Arguments
+    /// * `bytes` - a 128 byte array representing the point
+    /// # Returns
+    /// * CtOption<G2Projective> - a point on the curve or the point at infinity, if the evaluation is valid
+    /// Note that this returns a G2Projective, since this is the version of the elements on which
+    /// arithmetic can be performed. We define this method though on the affine representation
+    /// which requires 64 fewer bytes to instantiate for the same point.
+    /// ```
+    /// use sylow::*;
+    /// let p = G2Affine::generator();
+    /// let bytes = p.to_uncompressed();
+    /// let p2 = G2Affine::from_uncompressed(&bytes).unwrap();
+    /// assert_eq!(p, p2.into(), "Deserialization failed");
+    /// ```
     pub fn from_uncompressed(bytes: &[u8; 128]) -> CtOption<G2Projective> {
         Self::from_uncompressed_unchecked(bytes).and_then(|p| {
             let infinity_flag = bool::from(p.infinity);
@@ -252,6 +279,9 @@ impl G2Affine {
             }
         })
     }
+    /// This is a helper function to `Self::from_uncompressed` that does the extraction of the
+    /// relevant information from the bytes themselves, see the documentation of
+    /// `G1Affine::from_uncompressed_unchecked` for more information.
     fn from_uncompressed_unchecked(bytes: &[u8; 128]) -> CtOption<Self> {
         let infinity_flag = Choice::from((bytes[0] >> 7) & 1);
 
