@@ -1,45 +1,62 @@
-// IMPORTANT NOTES:
-// 1. This implementation is for educational purposes and is not suitable for production use without further enhancements.
-// 2. The XOR encryption used here is not secure for real-world applications. A proper symmetric encryption algorithm should be used instead.
-// 3. There's no nonce or IV used in the encryption, which can lead to vulnerabilities if the same key is reused.
-// 4. The error handling could be more granular and informative in a production environment.
-// 5. In a real-world scenario, you'd want to add more robust parameter validation and possibly use a more standardized format for the ciphertext and associated data.
-// 6. The key derivation process using XMDExpander is a good start, but for production use, you might want to use a standardized key derivation function like HKDF.
-// 7. The signature is computed over the ciphertext, which provides integrity and authenticity. However, you might want to include additional data (like the ephemeral public key) in the signed message for added security.
-// 8. This implementation doesn't include any padding schemes, which might be necessary in some cases to prevent certain types of attacks.
-// 9. For production use, it's crucial to use constant-time operations to prevent timing attacks.
-// 10. Always use peer-reviewed and well-tested cryptographic libraries for any security-critical applications.
+//! # ECIES (Elliptic Curve Integrated Encryption Scheme) Example
+//!
+//! This example demonstrates the implementation of ECIES using the Sylow library.
+//! ECIES is a hybrid encryption scheme that combines elliptic curve cryptography
+//! with symmetric encryption to provide confidentiality, integrity, and authentication.
+//!
+//! The implementation includes:
+//! - Key generation for parties
+//! - Encryption of messages
+//! - Decryption of messages
+//! - Digital signatures for sender authentication
+//! - An example of an impersonation attempt
 
-use crypto_bigint::rand_core::OsRng;
+use aes_gcm::{
+    aead::{Aead, KeyInit},
+    Aes256Gcm, Nonce,
+};
+use rand::Rng;
+use rand_core::OsRng;
 use sha3::Keccak256;
+use std::convert::TryFrom;
 use sylow::{
     sign, verify, Expander, FieldExtensionTrait, Fp, Fr, G1Projective, G2Projective, GroupTrait,
     KeyPair, XMDExpander,
 };
 use tracing::{debug, error, info, instrument};
 
-// Constants
 /// Domain Separation Tag for hash-to-curve operations
 const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
-/// Security parameter in bits
+/// Security parameter in bits for the key derivation function
 const SECURITY_BITS: u64 = 128;
+/// Length of the AES key in bytes (256-bit key)
 const KEY_LEN: usize = 32;
+/// Length of the AES-GCM nonce in bytes
+const NONCE_LEN: usize = 12;
 
+/// Errors that can occur during ECIES operations
 #[derive(Debug)]
 pub enum ECIESError {
+    /// Error during the encryption process (e.g., AES encryption failure)
     EncryptionError,
+    /// Error during the decryption process (e.g., AES decryption failure)
     DecryptionError,
+    /// Error during the key derivation process
     KeyDerivationError,
+    /// Error during signature verification (e.g., invalid signature)
     SignatureVerificationError,
+    /// Invalid nonce length encountered
+    InvalidNonce,
 }
 
-/// Represents a party in the ECIES communication
+/// Represents a party in the ECIES protocol
 pub struct ECIESParty {
+    /// The party's key pair (private key and public key)
     key_pair: KeyPair,
 }
 
 impl ECIESParty {
-    /// Creates a new ECIESParty with randomly generated keys
+    /// Creates a new ECIES party with a randomly generated key pair
     #[instrument]
     pub fn new() -> Self {
         debug!("Generating new ECIES party");
@@ -53,103 +70,15 @@ impl ECIESParty {
         self.key_pair.public_key
     }
 
-    /// Encrypts a message for a recipient
-    fn cipher_text(&self, message: &[u8], key: &[u8]) -> Vec<u8> {
-        message
-            .iter()
-            .zip(key.iter().cycle())
-            .map(|(&m, &k)| m ^ k)
-            .collect()
-    }
-
-    /// Decrypts a message
-    fn plain_text(&self, cipher_text: &[u8], key: &[u8]) -> Vec<u8> {
-        cipher_text
-            .iter()
-            .zip(key.iter().cycle())
-            .map(|(&c, &k)| c ^ k)
-            .collect()
-    }
-
-    /// Encrypts a message for a recipient and signs it for sender authentication
+    /// Derives a symmetric key from a shared secret using XMD-Keccak256
     ///
     /// # Arguments
     ///
-    /// * `recipient_public_key` - The recipient's public key
-    /// * `message` - The message to encrypt
+    /// * `shared_secret` - The shared secret from which to derive the key
     ///
     /// # Returns
     ///
-    /// A tuple containing:
-    /// * The ephemeral public key
-    /// * The encrypted message (ciphertext)
-    /// * The signature of the ciphertext
-    #[instrument(skip(self, recipient_public_key, message), fields(message_len = message.len()))]
-    pub fn encrypt(
-        &self,
-        recipient_public_key: &G2Projective,
-        message: &[u8],
-    ) -> Result<(G1Projective, Vec<u8>, G1Projective), ECIESError> {
-        debug!("Generating ephemeral key pair");
-        let ephemeral_private_key = Fp::new(Fr::rand(&mut OsRng).value());
-        let ephemeral_public_key = G1Projective::generator() * ephemeral_private_key;
-
-        debug!("Computing shared secret");
-        let shared_secret = *recipient_public_key * ephemeral_private_key;
-        let encryption_key = self.derive_key(&shared_secret)?;
-
-        debug!("Encrypting message");
-        let ciphertext: Vec<u8> = self.cipher_text(message, &encryption_key);
-
-        debug!("Signing ciphertext");
-        let signature = sign(&self.key_pair.secret_key, &ciphertext)
-            .map_err(|_| ECIESError::EncryptionError)?;
-
-        Ok((ephemeral_public_key, ciphertext, signature))
-    }
-
-    /// Decrypts a message and verifies the sender's identity
-    ///
-    /// # Arguments
-    ///
-    /// * `ephemeral_public_key` - The ephemeral public key used in encryption
-    /// * `ciphertext` - The encrypted message
-    /// * `signature` - The signature of the ciphertext
-    /// * `sender_public_key` - The sender's public key
-    ///
-    /// # Returns
-    ///
-    /// An Option containing the decrypted message if decryption and verification succeed,
-    /// or None if either fails
-    #[instrument(skip(self, ephemeral_public_key, ciphertext, signature, sender_public_key), fields(ciphertext_len = ciphertext.len()))]
-    pub fn decrypt(
-        &self,
-        ephemeral_public_key: &G1Projective,
-        ciphertext: &[u8],
-        signature: &G1Projective,
-        sender_public_key: &G2Projective,
-    ) -> Result<Vec<u8>, ECIESError> {
-        debug!("Verifying signature");
-        if !verify(sender_public_key, ciphertext, signature)
-            .map_err(|_| ECIESError::SignatureVerificationError)?
-        {
-            error!("Signature verification failed");
-            return Err(ECIESError::SignatureVerificationError);
-        }
-
-        debug!("Computing shared secret");
-        let shared_secret = *ephemeral_public_key * self.key_pair.secret_key;
-        let decryption_key = self.derive_key(&shared_secret)?;
-
-        debug!("Decrypting message");
-        let plaintext: Vec<u8> = self.plain_text(ciphertext, &decryption_key);
-
-        Ok(plaintext)
-    }
-
-    /// Derives a symmetric key from a shared secret
-    /// using the XMD-Keccak key derivation function
-    #[instrument(skip(self, shared_secret))]
+    /// A Result containing the derived key as a Vec<u8> or an ECIESError
     fn derive_key<G, const D: usize, const N: usize, F>(
         &self,
         shared_secret: &G,
@@ -162,22 +91,123 @@ impl ECIESParty {
         let secret_bytes = format!("{:?}", shared_secret).into_bytes();
 
         let expander = XMDExpander::<Keccak256>::new(DST, SECURITY_BITS);
-        let expanded = expander
+        expander
             .expand_message(&secret_bytes, KEY_LEN)
-            .map_err(|_| ECIESError::KeyDerivationError)?;
+            .map_err(|_| ECIESError::KeyDerivationError)
+    }
 
-        Ok(expanded)
+    /// Encrypts a message for a recipient using ECIES
+    ///
+    /// # Arguments
+    ///
+    /// * `recipient_public_key` - The recipient's public key
+    /// * `message` - The message to encrypt
+    ///
+    /// # Returns
+    ///
+    /// A Result containing a tuple of (ephemeral_public_key, encrypted_message, signature) or an ECIESError
+    #[instrument(skip(self, recipient_public_key, message), fields(message_len = message.len()))]
+    pub fn encrypt(
+        &self,
+        recipient_public_key: &G2Projective,
+        message: &[u8],
+    ) -> Result<(G1Projective, Vec<u8>, G1Projective), ECIESError> {
+        // Generate an ephemeral key pair for this encryption
+        debug!("Generating ephemeral key pair");
+        let ephemeral_private_key = Fp::new(Fr::rand(&mut OsRng).value());
+        let ephemeral_public_key = G1Projective::generator() * ephemeral_private_key;
+
+        // Compute the shared secret using ECDH
+        debug!("Computing shared secret");
+        let shared_secret = *recipient_public_key * ephemeral_private_key;
+        let encryption_key = self.derive_key(&shared_secret)?;
+
+        // Encrypt the message using AES-GCM
+        debug!("Encrypting message");
+        let cipher =
+            Aes256Gcm::new_from_slice(&encryption_key).map_err(|_| ECIESError::EncryptionError)?;
+        let nonce_bytes: [u8; NONCE_LEN] = OsRng.gen();
+        let nonce = Nonce::try_from(&nonce_bytes[..]).map_err(|_| ECIESError::EncryptionError)?;
+        let ciphertext = cipher
+            .encrypt(&nonce, message)
+            .map_err(|_| ECIESError::EncryptionError)?;
+
+        // Combine nonce and ciphertext
+        let mut encrypted_message = nonce.to_vec();
+        encrypted_message.extend_from_slice(&ciphertext);
+
+        // Sign the encrypted message for authentication
+        debug!("Signing ciphertext");
+        let signature = sign(&self.key_pair.secret_key, &encrypted_message)
+            .map_err(|_| ECIESError::EncryptionError)?;
+
+        Ok((ephemeral_public_key, encrypted_message, signature))
+    }
+
+    /// Decrypts a message and verifies the sender's identity
+    ///
+    /// # Arguments
+    ///
+    /// * `ephemeral_public_key` - The ephemeral public key used in encryption
+    /// * `ciphertext` - The encrypted message (including nonce)
+    /// * `signature` - The signature of the ciphertext
+    /// * `sender_public_key` - The sender's public key
+    ///
+    /// # Returns
+    ///
+    /// A Result containing the decrypted message as a Vec<u8> or an ECIESError
+    #[instrument(skip(self, ephemeral_public_key, ciphertext, signature, sender_public_key), fields(ciphertext_len = ciphertext.len()))]
+    pub fn decrypt(
+        &self,
+        ephemeral_public_key: &G1Projective,
+        ciphertext: &[u8],
+        signature: &G1Projective,
+        sender_public_key: &G2Projective,
+    ) -> Result<Vec<u8>, ECIESError> {
+        // Verify the signature to authenticate the sender
+        debug!("Verifying signature");
+        if !verify(sender_public_key, ciphertext, signature)
+            .map_err(|_| ECIESError::SignatureVerificationError)?
+        {
+            error!("Signature verification failed");
+            return Err(ECIESError::SignatureVerificationError);
+        }
+
+        // Compute the shared secret using ECDH
+        debug!("Computing shared secret");
+        let shared_secret = *ephemeral_public_key * self.key_pair.secret_key;
+        let decryption_key = self.derive_key(&shared_secret)?;
+
+        // Prepare for decryption
+        debug!("Decrypting message");
+        let cipher =
+            Aes256Gcm::new_from_slice(&decryption_key).map_err(|_| ECIESError::DecryptionError)?;
+
+        // Ensure the ciphertext is long enough to contain a nonce
+        if ciphertext.len() < NONCE_LEN {
+            return Err(ECIESError::InvalidNonce);
+        }
+
+        // Split the ciphertext into nonce and encrypted data
+        let (nonce, encrypted_data) = ciphertext.split_at(NONCE_LEN);
+        let nonce = Nonce::try_from(nonce).map_err(|_| ECIESError::DecryptionError)?;
+
+        // Decrypt the message
+        let plaintext = cipher
+            .decrypt(&nonce, encrypted_data)
+            .map_err(|_| ECIESError::DecryptionError)?;
+
+        Ok(plaintext)
     }
 }
 
-#[instrument]
 fn main() -> Result<(), ECIESError> {
-    // Initialize tracing
+    // Initialize tracing for better debugging and logging
     tracing_subscriber::fmt::init();
 
     info!("Demonstrating ECIES with sender authentication");
 
-    // Create parties
+    // Create parties (Alice and Bob)
     let alice = ECIESParty::new();
     let bob = ECIESParty::new();
 
