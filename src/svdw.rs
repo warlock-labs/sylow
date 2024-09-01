@@ -161,7 +161,7 @@ impl SvdWTrait for SvdW {
         };
         let e3 = Choice::from((bool::from(u.sgn0()) == bool::from(y.sgn0())) as u8);
         let y = cmov(&(-y), &y, &e3); // Select correct sign of y;
-        tracing::debug!(
+        tracing::trace!(
             ?tv1,
             ?tv2,
             ?tv3,

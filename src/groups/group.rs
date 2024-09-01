@@ -269,34 +269,34 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         let t0 = self.y * self.y;
         let z3 = t0 + t0;
         let z3 = z3 + z3;
-        tracing::debug!(?t0, ?z3, "GroupProjective::double 1");
+        tracing::trace!(?t0, ?z3, "GroupProjective::double 1");
 
         let z3 = z3 + z3;
         let t1 = self.y * self.z;
         let t2 = self.z * self.z;
-        tracing::debug!(?z3, ?t1, ?t2, "GroupProjective::double 2");
+        tracing::trace!(?z3, ?t1, ?t2, "GroupProjective::double 2");
 
         // the magic 3 below is an artifact directly from the algorithm itself,
         // see the main text in Ref (1) Alg. (9)
         let t2 = F::from(3) * F::curve_constant() * t2;
         let x3 = t2 * z3;
         let y3 = t0 + t2;
-        tracing::debug!(?t2, ?x3, ?y3, "GroupProjective::double 3");
+        tracing::trace!(?t2, ?x3, ?y3, "GroupProjective::double 3");
 
         let z3 = t1 * z3;
         let t1 = t2 + t2;
         let t2 = t1 + t2;
-        tracing::debug!(?z3, ?t1, ?t2, "GroupProjective::double 3");
+        tracing::trace!(?z3, ?t1, ?t2, "GroupProjective::double 3");
 
         let t0 = t0 - t2;
         let y3 = t0 * y3;
         let y3 = x3 + y3;
-        tracing::debug!(?t0, ?y3, "GroupProjective::double 4");
+        tracing::trace!(?t0, ?y3, "GroupProjective::double 4");
 
         let t1 = self.x * self.y;
         let x3 = t0 * t1;
         let x3 = x3 + x3;
-        tracing::debug!(?t1, ?x3, "GroupProjective::double 5");
+        tracing::trace!(?t1, ?x3, "GroupProjective::double 5");
         Self::conditional_select(
             &Self {
                 x: x3,
@@ -348,7 +348,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> ConstantTimeE
 
         let y0 = self.y * other.z;
         let y1 = other.y * self.z;
-        tracing::debug!(?x0, ?x1, ?y0, ?y1, "GroupProjective::ct_eq");
+        tracing::trace!(?x0, ?x1, ?y0, ?y1, "GroupProjective::ct_eq");
 
         let i_am_zero = self.z.is_zero();
         let you_are_zero = other.z.is_zero();
@@ -388,7 +388,7 @@ impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         let inverse = arg.z.inv(); // this is either a good value or zero, see `inv` in `fp.rs`
         let x = arg.x * inverse;
         let y = arg.y * inverse;
-        tracing::debug!(?x, ?y, "GroupAffine::from(GroupProjective)");
+        tracing::trace!(?x, ?y, "GroupAffine::from(GroupProjective)");
 
         GroupAffine::conditional_select(
             &GroupAffine {
@@ -443,32 +443,32 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         let t0 = self.x * other.x;
         let t1 = self.y * other.y;
         let t2 = self.z * other.z;
-        tracing::debug!(?t0, ?t1, ?t1, "GroupProjective::add 1");
+        tracing::trace!(?t0, ?t1, ?t1, "GroupProjective::add 1");
 
         let t3 = self.x + self.y;
         let t4 = other.x + other.y;
         let t3 = t3 * t4;
-        tracing::debug!(?t3, ?t4, "GroupProjective::add 2");
+        tracing::trace!(?t3, ?t4, "GroupProjective::add 2");
 
         let t4 = t0 + t1;
         let t3 = t3 - t4;
         let t4 = self.y + self.z;
-        tracing::debug!(?t3, ?t4, "GroupProjective::add 3");
+        tracing::trace!(?t3, ?t4, "GroupProjective::add 3");
 
         let x3 = other.y + other.z;
         let t4 = t4 * x3;
         let x3 = t1 + t2;
-        tracing::debug!(?x3, ?t4, "GroupProjective::add 4");
+        tracing::trace!(?x3, ?t4, "GroupProjective::add 4");
 
         let t4 = t4 - x3;
         let x3 = self.x + self.z;
         let y3 = other.x + other.z;
-        tracing::debug!(?t4, ?x3, ?y3, "GroupProjective::add 5");
+        tracing::trace!(?t4, ?x3, ?y3, "GroupProjective::add 5");
 
         let x3 = x3 * y3;
         let y3 = t0 + t2;
         let y3 = x3 - y3;
-        tracing::debug!(?x3, ?y3, "GroupProjective::add 6");
+        tracing::trace!(?x3, ?y3, "GroupProjective::add 6");
 
         // again, the magic 3 below is an artifact from the algorithm itself,
         // see the main text of Ref (1) Alg. (7) above
@@ -479,7 +479,7 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         let z3 = t1 + t2;
         let t1 = t1 - t2;
         let y3 = F::from(3) * F::curve_constant() * y3;
-        tracing::debug!(?x3, ?t0, ?t2, ?z3, ?t1, ?y3, "GroupProjective::add 7");
+        tracing::trace!(?x3, ?t0, ?t2, ?z3, ?t1, ?y3, "GroupProjective::add 7");
 
         let x3 = t4 * y3;
         let t2 = t3 * t1;
@@ -492,7 +492,7 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
         let t0 = t0 * t3;
         let z3 = z3 * t4;
         let z3 = z3 + t0;
-        tracing::debug!(?x3, ?t2, ?y3, ?t1, ?t0, ?z3, "GroupProjective::add 8");
+        tracing::trace!(?x3, ?t2, ?y3, ?t1, ?t0, ?z3, "GroupProjective::add 8");
         Self::Output {
             x: x3,
             y: y3,

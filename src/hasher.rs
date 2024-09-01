@@ -85,7 +85,7 @@ pub trait Expander {
                     .map_err(|_e: TryFromSliceError| HashError::CastToField)?,
             );
             *f = Fp::new(scalar);
-            tracing::debug!(
+            tracing::trace!(
                 ?i,
                 ?f,
                 ?tv,
@@ -146,7 +146,7 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
             &i2osp(self.dst_prime.len() as u64, 1)?,
         ]
         .concat();
-        tracing::debug!(?ell, ?dst_prime, "XMDExpander::expand_message");
+        tracing::trace!(?ell, ?dst_prime, "XMDExpander::expand_message");
         if 8 * b_in_bytes < 2 * self.security_param as usize
             || ell > 255
             || dst_prime.len() != self.dst_prime.len() + 1
@@ -167,7 +167,7 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
             .chain(dst_prime.iter())
             .finalize_fixed()
             .to_vec();
-        tracing::debug!(?z_pad, ?l_i_b_str, ?b_vals, "XMDExpander::expand_message");
+        tracing::trace!(?z_pad, ?l_i_b_str, ?b_vals, "XMDExpander::expand_message");
 
         for i in 1..ell {
             let xored: Vec<u8> = b_0
@@ -182,7 +182,7 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
                 .cloned()
                 .collect();
             b_vals[i] = D::default().chain(b_i).finalize_fixed().to_vec();
-            tracing::debug!(?xored, b_vals_i = ?b_vals[i], "XMDExpander::expand_message");
+            tracing::trace!(?xored, b_vals_i = ?b_vals[i], "XMDExpander::expand_message");
         }
 
         Ok(b_vals.into_iter().flatten().take(len_in_bytes).collect())
