@@ -154,8 +154,8 @@ impl KeyPair {
 ///
 /// # Returns
 ///
-/// * [`Ok(`[`G1Projective`]`)`] - The BLS signature as a point on the 𝔾₁ curve
-/// * [`Err(`[`GroupError`]`)`] - If the message cannot be hashed to a curve point
+/// * `Ok(`[`G1Projective`]`)` - The BLS signature as a point on the 𝔾₁ curve
+/// * `Err(`[`GroupError`]`)` - If the message cannot be hashed to a curve point
 ///
 /// # Examples
 ///
