@@ -186,7 +186,7 @@ impl<'a, 'b> Mul<&'b Fp12> for &'a Fp12 {
         // representation, see Alg 20 of <https://eprint.iacr.org/2010/354.pdf>
         let t0 = self.0[0] * other.0[0];
         let t1 = self.0[1] * other.0[1];
-        tracing::debug!(?t0, ?t1, "Fp12::mul");
+        tracing::trace!(?t0, ?t1, "Fp12::mul");
 
         Self::Output::new(&[
             t1.residue_mul() + t0,
@@ -213,7 +213,7 @@ impl Inv for Fp12 {
     fn inv(self) -> Self::Output {
         // Implements Alg 23 of <https://eprint.iacr.org/2010/354.pdf>
         let tmp = (self.0[0].square() - (self.0[1].square().residue_mul())).inv();
-        tracing::debug!(?tmp, "Fp12::inv");
+        tracing::trace!(?tmp, "Fp12::inv");
         Self([self.0[0] * tmp, -(self.0[1] * tmp)])
     }
 }
@@ -298,12 +298,12 @@ impl Fp12 {
         let z3 = self.0[1].0[0];
         let z4 = self.0[1].0[1];
         let z5 = self.0[1].0[2];
-        tracing::debug!(?z0, ?z1, ?z2, ?z3, ?z4, ?z5, "Fp12::sparse_mul");
+        tracing::trace!(?z0, ?z1, ?z2, ?z3, ?z4, ?z5, "Fp12::sparse_mul");
 
         let x0 = ell_0;
         let x2 = ell_vv;
         let x4 = ell_vw;
-        tracing::debug!(?x0, ?x2, ?x4, "Fp12::sparse_mul");
+        tracing::trace!(?x0, ?x2, ?x4, "Fp12::sparse_mul");
 
         let d0 = z0 * x0;
         let d2 = z2 * x2;
@@ -311,61 +311,61 @@ impl Fp12 {
         let t2 = z0 + z4;
         let t1 = z0 + z2;
         let s0 = z1 + z3 + z5;
-        tracing::debug!(?d0, ?d2, ?d4, ?t2, ?t1, ?s0, "Fp12::sparse_mul");
+        tracing::trace!(?d0, ?d2, ?d4, ?t2, ?t1, ?s0, "Fp12::sparse_mul");
 
         let s1 = z1 * x2;
         let t3 = s1 + d4;
         let t4 = t3.residue_mul() + d0;
         let z0 = t4;
-        tracing::debug!(?s1, ?t2, ?t4, ?z0, "Fp12::sparse_mul");
+        tracing::trace!(?s1, ?t2, ?t4, ?z0, "Fp12::sparse_mul");
 
         let t3 = z5 * x4;
         let s1 = s1 + t3;
-        tracing::debug!(?t3, ?s1, "Fp12::sparse_mul");
+        tracing::trace!(?t3, ?s1, "Fp12::sparse_mul");
         let t3 = t3 + d2;
         let t4 = t3.residue_mul();
-        tracing::debug!(?t3, ?t4, "Fp12::sparse_mul");
+        tracing::trace!(?t3, ?t4, "Fp12::sparse_mul");
         let t3 = z1 * x0;
         let s1 = s1 + t3;
         let t4 = t4 + t3;
         let z1 = t4;
-        tracing::debug!(?t3, ?s1, ?t4, ?z1, "Fp12::sparse_mul");
+        tracing::trace!(?t3, ?s1, ?t4, ?z1, "Fp12::sparse_mul");
 
         let t0 = x0 + x2;
         let t3 = t1 * t0 - d0 - d2;
         let t4 = z3 * x4;
         let s1 = s1 + t4;
         let t3 = t3 + t4;
-        tracing::debug!(?t0, ?t3, ?t4, ?s1, ?t3, "Fp12::sparse_mul");
+        tracing::trace!(?t0, ?t3, ?t4, ?s1, ?t3, "Fp12::sparse_mul");
 
         let t0 = z2 + z4;
         let z2 = t3;
-        tracing::debug!(?t0, ?z2, "Fp12::sparse_mul");
+        tracing::trace!(?t0, ?z2, "Fp12::sparse_mul");
 
         let t1 = x2 + x4;
         let t3 = t0 * t1 - d2 - d4;
         let t4 = t3.residue_mul();
-        tracing::debug!(?t1, ?t3, ?t4, "Fp12::sparse_mul");
+        tracing::trace!(?t1, ?t3, ?t4, "Fp12::sparse_mul");
         let t3 = z3 * x0;
         let s1 = s1 + t3;
         let t4 = t4 + t3;
         let z3 = t4;
-        tracing::debug!(?t3, ?s1, ?t4, ?z3, "Fp12::sparse_mul");
+        tracing::trace!(?t3, ?s1, ?t4, ?z3, "Fp12::sparse_mul");
 
         let t3 = z5 * x2;
         let s1 = s1 + t3;
         let t4 = t3.residue_mul();
         let t0 = x0 + x4;
-        tracing::debug!(?t3, ?s1, ?t4, ?t0, "Fp12::sparse_mul");
+        tracing::trace!(?t3, ?s1, ?t4, ?t0, "Fp12::sparse_mul");
         let t3 = t2 * t0 - d0 - d4;
         let t4 = t4 + t3;
         let z4 = t4;
-        tracing::debug!(?t3, ?t4, ?z4, "Fp12::sparse_mul");
+        tracing::trace!(?t3, ?t4, ?z4, "Fp12::sparse_mul");
 
         let t0 = x0 + x2 + x4;
         let t3 = s0 * t0 - s1;
         let z5 = t3;
-        tracing::debug!(?t0, ?t3, ?z5, "Fp12::sparse_mul");
+        tracing::trace!(?t0, ?t3, ?z5, "Fp12::sparse_mul");
 
         Fp12::new(&[Fp6::new(&[z0, z1, z2]), Fp6::new(&[z3, z4, z5])])
     }
@@ -386,13 +386,13 @@ impl Fp12 {
         let c0 = self.0[0] - self.0[1];
         let c3 = self.0[0] - self.0[1].residue_mul();
         let c2 = self.0[0] * self.0[1];
-        tracing::debug!(?c0, ?c2, ?c3, "Fp12::square 1");
+        tracing::trace!(?c0, ?c2, ?c3, "Fp12::square 1");
         let c0 = c0 * c3 + c2;
         let c1 = c2 + c2;
         let c2 = c2.residue_mul();
-        tracing::debug!(?c0, ?c1, ?c2, "Fp12::square 2");
+        tracing::trace!(?c0, ?c1, ?c2, "Fp12::square 2");
         let c0 = c0 + c2;
-        tracing::debug!(?c0, "Fp12::square 3");
+        tracing::trace!(?c0, "Fp12::square 3");
         Self::new(&[c0, c1])
     }
 }

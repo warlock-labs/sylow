@@ -109,7 +109,7 @@ impl Fp2 {
         if a0 == -Fp2::one() {
             return CtOption::new(Fp2::zero(), Choice::from(0u8));
         }
-        tracing::debug!(?alpha, ?a0, "Fp2::sqrt");
+        tracing::trace!(?alpha, ?a0, "Fp2::sqrt");
 
         if alpha == -Fp2::one() {
             let i = Fp2::new(&[Fp::ZERO, Fp::ONE]);
@@ -126,7 +126,7 @@ impl Fp2 {
         let a = self.0[0] + self.0[1];
         let b = self.0[0] - self.0[1];
         let c = self.0[0] + self.0[0];
-        tracing::debug!(?a, "Fp2::square");
+        tracing::trace!(?a, "Fp2::square");
         Self([a * b, c * self.0[1]])
     }
     pub fn is_square(&self) -> Choice {
@@ -142,7 +142,7 @@ impl Fp2 {
             }
         };
         let sum = self.0[0].square() + FP_QUADRATIC_NON_RESIDUE * (-self.0[0]).square();
-        tracing::debug!(?sum, "Fp2::is_square");
+        tracing::trace!(?sum, "Fp2::is_square");
         Choice::from((legendre(&sum) != -1) as u8)
     }
     /// Allows for the conversion of a byte array to a Fp2 element
