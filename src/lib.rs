@@ -1,4 +1,4 @@
-//! # Sylow: Elliptic Curve Cryptography for BN254
+//! # Sylow: Elliptic Curve Cryptography Suite for BN254
 //!
 //! Sylow is a Rust library implementing elliptic curve cryptography for the BN254 (alt-bn128) curve.
 //! It provides efficient implementations of finite fields, elliptic curve groups, and pairing-based
@@ -91,12 +91,12 @@ const SECURITY_BITS: u64 = 128;
 /// Represents a pair of secret and public keys for BLS signatures
 ///
 /// This struct contains both the secret key (a scalar in the base field)
-/// and the corresponding public key (a point on the G2 curve).
+/// and the corresponding public key (a point on the 𝔾₂ curve).
 #[derive(Debug, Copy, Clone)]
 pub struct KeyPair {
     /// The secret key, represented as a scalar in the base field
     pub secret_key: Fp,
-    /// The public key, represented as a point on the G2 curve
+    /// The public key, represented as a point on the 𝔾₂ curve
     pub public_key: G2Projective,
 }
 
@@ -126,12 +126,23 @@ impl KeyPair {
             public_key,
         }
     }
+
+    // TODO(We should be able to load a key pair from a string here, in addition to just generating one)
+    // The use case is when we already have key pair and then wish to use the library to sign, verify,
+    // and perform other operations.
+
+    // TODO(We should be able to save the generated key pair to a string here, in addition to just generating one)
+    // The use case is when we generate a key pair and then wish to save it for later use.
+
+    // In general, it might be useful here to look at other key pair libraries and see what they offer
+    // in terms of functionality for basic key management.
+    // It may be useful to have a struct for private key, and a struct for public key, and then a struct for key pair.
 }
 
-/// Signs a message using BLS signature scheme
+/// Signs a message using the BLS signature scheme
 ///
 /// This function takes a secret key and a message, hashes the message to a
-/// point on the G1 curve, and then multiplies this point by the secret key
+/// point on the 𝔾₁ curve, and then multiplies this point by the secret key
 /// to produce the signature.
 ///
 /// # Arguments
@@ -141,8 +152,8 @@ impl KeyPair {
 ///
 /// # Returns
 ///
-/// * `Ok(G1Projective)` - The BLS signature as a point on the G1 curve
-/// * `Err(GroupError)` - If the message cannot be hashed to a curve point
+/// * `Ok(`[`G1Projective`]`)` - The BLS signature as a point on the 𝔾₁ curve
+/// * `Err(`[`GroupError`]`)` - If the message cannot be hashed to a curve point
 ///
 /// # Examples
 ///
@@ -157,7 +168,9 @@ impl KeyPair {
 /// }
 /// ```
 pub fn sign(k: &Fp, msg: &[u8]) -> Result<G1Projective, GroupError> {
+    // Expand the message to a curve point using the DST and security bits
     let expander = XMDExpander::<Keccak256>::new(DST, SECURITY_BITS);
+    // Hash the message to a curve point, returning the point in 𝔾₁ multiplied by the secret key or an error
     match G1Projective::hash_to_curve(&expander, msg) {
         Ok(hashed_message) => Ok(hashed_message * *k),
         _ => Err(GroupError::CannotHashToGroup),
@@ -179,7 +192,7 @@ pub fn sign(k: &Fp, msg: &[u8]) -> Result<G1Projective, GroupError> {
 /// # Returns
 ///
 /// * `Ok(bool)` - `true` if the signature is valid, `false` otherwise
-/// * `Err(GroupError)` - If the message cannot be hashed to a curve point
+/// * `Err(`[`GroupError`]`)` - If the message cannot be hashed to a curve point
 ///
 /// # Examples
 ///
@@ -199,7 +212,10 @@ pub fn sign(k: &Fp, msg: &[u8]) -> Result<G1Projective, GroupError> {
 /// }
 /// ```
 pub fn verify(pubkey: &G2Projective, msg: &[u8], sig: &G1Projective) -> Result<bool, GroupError> {
+    // Expand the message to a curve point using the DST and security bits
     let expander = XMDExpander::<Keccak256>::new(DST, SECURITY_BITS);
+    // Assert that the message can be hashed to a curve point and the pairings compared,
+    // returning a boolean or an error
     match G1Projective::hash_to_curve(&expander, msg) {
         Ok(hashed_message) => {
             let lhs = pairing(sig, &G2Projective::generator());

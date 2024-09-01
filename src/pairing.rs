@@ -426,6 +426,10 @@ pub fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
     tmp.final_exponentiation()
 }
 
+// TODO(While the fact that this is a glued miller loop is interesting)
+// this would be better named `batch_pairing` or something similar
+// indicating what it is, rather than the implementation details.
+
 /// There are many times when we need to evaluate many pairings at the same time. This simply
 /// provides the ability to execute an array of pairings as succinctly as possible, for example
 /// in the context of threshold signature verification.
