@@ -28,6 +28,8 @@ fn i2osp(val: u64, length: usize) -> Result<Vec<u8>, HashError> {
     Ok(val.to_be_bytes()[8 - length..].to_vec())
 }
 
+/// Defines the message expansion and conversion to field element functions
+///
 /// The suggested way to generate a value in a base field from a byte array is to use a technique
 /// called message expansion, as described by RFC 9380, see
 /// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message>. This is a trait that

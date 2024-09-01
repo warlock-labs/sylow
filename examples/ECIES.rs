@@ -1,15 +1,54 @@
 //! # ECIES (Elliptic Curve Integrated Encryption Scheme) Example
 //!
-//! This example demonstrates the implementation of ECIES using the Sylow library.
-//! ECIES is a hybrid encryption scheme that combines elliptic curve cryptography
-//! with symmetric encryption to provide confidentiality, integrity, and authentication.
+//! This example demonstrates a comprehensive implementation of ECIES using the Sylow library.
+//! ECIES is a hybrid encryption scheme that combines elliptic curve cryptography (ECC) with
+//! symmetric encryption to provide confidentiality, integrity, and authentication.
 //!
-//! The implementation includes:
-//! - Key generation for parties
-//! - Encryption of messages
+//! ## Key Components
+//!
+//! 1. **Elliptic Curve Cryptography (ECC)**: Uses the BN254 curve for public key operations.
+//! 2. **ECDH (Elliptic Curve Diffie-Hellman)**: For deriving shared secrets.
+//! 3. **Key Derivation Function (KDF)**: Uses XMD-Keccak256 to derive symmetric keys.
+//! 4. **Symmetric Encryption**: AES-256-GCM for encrypting the actual message.
+//! 5. **Digital Signatures**: For sender authentication and message integrity.
+//!
+//! ## ECIES Process
+//!
+//! ### Encryption:
+//! 1. Generate an ephemeral ECC key pair.
+//! 2. Perform ECDH to obtain a shared secret.
+//! 3. Derive a symmetric key from the shared secret.
+//! 4. Encrypt the plaintext using the symmetric key.
+//! 5. Sign the ciphertext.
+//! 6. Output: (ephemeral public key, ciphertext, signature)
+//!
+//! ### Decryption:
+//! 1. Verify the signature of the ciphertext.
+//! 2. Perform ECDH using the recipient's private key and the ephemeral public key.
+//! 3. Derive the same symmetric key.
+//! 4. Decrypt the ciphertext.
+//!
+//! ## Security Considerations
+//!
+//! - This implementation uses constant-time operations where possible to mitigate timing attacks.
+//! - The use of ephemeral keys provides forward secrecy.
+//! - The digital signature prevents tampering and ensures sender authenticity.
+//!
+//! ## Limitations
+//!
+//! - This is an educational implementation and should not be used in production without further review and hardening.
+//! - The key compression functions are placeholders and need proper implementation for real-world use.
+//!
+//! ## Usage
+//!
+//! This example demonstrates:
+//! - Key pair generation for parties
+//! - ECDH key exchange
+//! - Key compression and decompression (placeholder implementations)
+//! - Encryption of messages using an ephemeral key pair
 //! - Decryption of messages
 //! - Digital signatures for sender authentication
-//! - An example of an impersonation attempt
+//! - An impersonation attempt to show the security properties of the scheme
 
 use aes_gcm::{
     aead::{Aead, KeyInit},
