@@ -1,5 +1,7 @@
 ![Logo](./sylow.png)
 
+# Sylow
+
 [![License](https://img.shields.io/crates/l/sylow)](https://choosealicense.com/licenses/mit/)
 [![Crates.io](https://img.shields.io/crates/v/sylow)](https://crates.io/crates/sylow)
 [![Docs](https://img.shields.io/crates/v/sylow?color=blue&label=docs)](https://docs.rs/sylow/)
@@ -7,25 +9,23 @@
 [![codecov](https://codecov.io/gh/warlock-labs/sylow/graph/badge.svg?token=MJNRUZHI1Z)](https://codecov.io/gh/warlock-labs/sylow)
 
 <!-- Generally seems to be pronounced SEE-low at least in American English, and perhaps note that it's being named after Ludwig. -->
-Sylow (*ˈsyːlɔv*) is a comprehensive Rust library for elliptic curve cryptography, specifically tailored for the BN254 
-(alt-bn128) curve. It provides a robust implementation of finite fields, elliptic curve groups, and pairing-based 
-cryptography, making it an ideal choice for applications in blockchain, zero-knowledge proofs, and other cryptographic 
+Sylow (*ˈsyːlɔv*) is a comprehensive Rust library for elliptic curve cryptography, specifically tailored for the BN254 (
+alt-bn128) curve. It provides a robust implementation of finite fields, elliptic curve groups, and pairing-based
+cryptography, making it an ideal choice for applications in blockchain, zero-knowledge proofs, and other cryptographic
 systems.
 
 ## Features
 
-- **Finite Field Arithmetic**: Efficient implementations of prime fields and their extensions $\mathbb{F}_ {p}, \mathbb
-  {F}_ {p^2}, 
-  \mathbb{F}_ {p^6}, 
-  \mathbb{F}_{p^{12}}$
-- **Elliptic Curve Groups**: Complete support for operations on $\mathbb{G}_ 1$, $\mathbb{G}_  2$, and $\mathbb{G}_{\rm 
-  T}$ groups of the BN254 curve
+- **Finite Field Arithmetic**: Efficient implementations of prime fields and their extensions 𝔽ₚ, 𝔽ₚ², 𝔽ₚ⁶, 𝔽ₚ¹²
+- **Elliptic Curve Groups**: Complete support for operations on 𝔾₁, 𝔾₂, and 𝔾ₜ groups of the BN254 curve
 - **Pairing Operations**: Optimized implementation of the optimal ate pairing
 - **Cryptographic Primitives**:
-  - Key generation
-  - BLS signature generation and verification
-  - Hash-to-curve functionality
-- **Compatibility**: Designed to be compatible with Ethereum's precompiled contracts for BN254 operations.
+    - Key generation
+    - BLS signature generation and verification
+    - Hash-to-curve functionality
+- **Compatibility**: Designed to be compatible with Ethereum's precompiled 
+                     contracts for BN254 operations and [Warlock](https://warlock.xyz/)'s 
+                     [SolBLS](https://github.com/warlock-labs/solbls) library.
 
 ## Installation
 
@@ -33,8 +33,10 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-sylow = "0.0.1"
+sylow = "0.1.0"
 ```
+
+## Usage
 
 Here's a basic example demonstrating key generation, signing, and verification:
 
@@ -65,16 +67,17 @@ fn main() {
 }
 ```
 
-For more, please see [the examples](https://github.com/warlock-labs/sylow/tree/main/examples), and for 
-advanced usage details, see the [API documentation](https://docs.rs/sylow).
+For more examples, please see [the examples directory](https://github.com/warlock-labs/sylow/tree/main/examples).
 
 ## Core Concepts
 
-- **Finite fields**: The foundation of the library, providing arithmetic operations in prime fields and their extensions.
-- **Elliptic Curve Groups**: Implementations of the $\mathbb{G}_ 1$, $\mathbb{G}_  2$, and $\mathbb{G}_{\rm
-  T}$ groups on the BN254 curve, supporting both affine and projective coordinates.
+- **Finite fields**: The foundation of the library, providing arithmetic operations in prime fields and their
+  extensions.
+- **Elliptic Curve Groups**: Implementations of the 𝔾₁, 𝔾₂, and 𝔾ₜ groups on the BN254 curve, supporting both affine and
+  projective coordinates.
 - **Pairing**: Efficient implementation of the optimal ate pairing, crucial for many cryptographic protocols.
-- **alt-bn128 (BN254) Curve**: A pairing-friendly elliptic curve widely used in zkSNARKs and supported by Ethereum precompiles.
+- **alt-bn128 (BN254) Curve**: A pairing-friendly elliptic curve widely used in zkSNARKs and supported by Ethereum
+  precompiles.
 
 ## Advanced Features
 
@@ -86,44 +89,42 @@ advanced usage details, see the [API documentation](https://docs.rs/sylow).
 
 ## Performance
 
-Sylow is designed with performance in mind, leveraging optimized algorithms for $j$-invariant zero curves, the 
-optimal ate pairing for efficient signature verification, as well as multiprecision Montgomery arithmetic.
+Sylow is designed with performance in mind, leveraging optimized algorithms for j-invariant zero curves, the optimal ate
+pairing for efficient signature verification, as well as multiprecision Montgomery arithmetic.
 
 ## Security
 
-In order to ensure the highest level of security, Sylow is designed in compliance with the recommendations set forth 
-by Cloudflare in [RFC 9380](https://datatracker.ietf.org/doc/html/rfc9380), especially in regard to hashing an
-arbitrary byte array to an element of the curve. Namely, we provide multiple secure implementations of the 
-`hash_to_field` standard, as well as implement the Shallue-van de Woestijne encoding for elliptic curve points.
+Sylow is designed in compliance with the recommendations set forth by Cloudflare
+in [RFC 9380](https://datatracker.ietf.org/doc/html/rfc9380), especially regarding hashing an arbitrary byte array to an
+element of the curve. We provide multiple secure implementations of the `hash_to_field` standard and implement the
+Shallue-van de Woestijne encoding for elliptic curve points.
 
-Furthermore, the multiprecision arithmetic operations are implemented in constant time, ensuring resistance to side 
-channel attacks, and constant-time operations are used whenever possible. There are currently no variable-time
-functions used in Sylow.
+The multiprecision arithmetic operations are implemented in constant time, ensuring resistance to side-channel attacks.
+Constant-time operations are used whenever possible, and there are currently no variable-time functions used in Sylow.
 
-## Roadmap
+If you discover any security issues, please report them to [team@warlock.xyz](mailto:team@warlock.xyz).
 
-The following features and improvements are planned for future releases:
+## Documentation
 
-- [x] Basic signature implementation
-- [x] Key generation utilities
-- [x] Optimizations for common operations
-- [x] Extended test suite and benchmarks
-- [ ] Support for serialization formats used in blockchain contexts
+For detailed API documentation, please refer to [docs.rs/sylow](https://docs.rs/sylow).
 
 ## Contributing
 
-We welcome contributions to Sylow! Whether it's bug reports, feature requests, or code contributions, please feel free 
-to engage with the project by submitting issues, feature requests, or pull requests on the [GitHub repository](https://github.com/warlock-labs/sylow).
+We welcome contributions to Sylow! Whether it's bug reports, feature requests, or code contributions, please feel free
+to engage with the project by submitting issues, feature requests, or pull requests on
+the [GitHub repository](https://github.com/warlock-labs/sylow).
 
 ## License
 
-This project is licensed under the [MIT License](https://choosealicense.com/licenses/mit/).
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Contact
 
 This project is maintained by:
-- Tristan Britt [tristan@warlock.xyz](mailto:tristan@warlock.xyz)
-- 0xAlcibiades [alcibiades@warlock.xyz](mailto:alcibiades@warlock.xyz)
+
+- [@trbritt](https://github.com/trbritt) - [tristan@warlock.xyz](mailto:tristan@warlock.xyz)
+- [@0xAlcibiades](https://github.com/0xAlcibiades) - [alcibiades@warlock.xyz](mailto:alcibiades@warlock.xyz)
+- [@merolish](https://github.com/merolish) - [michael@warlock.xyz](mailto:michael@warlock.xyz)
 
 Warlock Labs - [https://github.com/warlock-labs](https://github.com/warlock-labs)
 
