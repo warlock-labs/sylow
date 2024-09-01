@@ -10,18 +10,27 @@ use num_traits::{Inv, One};
 use std::ops::{Mul, MulAssign, Neg};
 use subtle::{Choice, ConditionallySelectable};
 
-/// This is the value 6*BLS_X+2, which is the bound of iterations on the Miller loops. Why weird?
-/// Well, great question. This is the (windowed) non-adjacent form of the number 65, meaning that
-/// no nonzero digits are adjacent in this form. The benefit is that during the double and add
+/// The value 6*BLS_X+2, which is the bound of iterations on the Miller loops.
+///
+/// Why weird? Well, great question.
+///
+/// This is the (windowed) non-adjacent form of the number 65, meaning that
+/// no non-zero digits are adjacent in this form. The benefit is that during the double and add
 /// algorithm of multiplication, the number of operations needed to iterate is directly related
 /// to the Hamming weight (number of zeros in a binary representation) of a number. In binary
-/// base 2, on average half of the digits will be zero, whereas in the trinary base 3 of the NAF,
+/// base 2, on average half of the digits will be zero, whereas in trinary base 3 of the NAF,
 /// this moves down to 1/3 on average, improving the loop speed.
 const ATE_LOOP_COUNT_NAF: [i8; 64] = [
     1, 0, 1, 0, 0, 0, -1, 0, -1, 0, 0, 0, -1, 0, 1, 0, -1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, -1, 0,
     1, 0, 0, -1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, -1, 0, -1, 0, 0, 1, 0, 0, 0, -1, 0, 0, -1, 0, 1, 0,
     1, 0, 0, 0,
 ];
+
+// TODO(This should be called `BatchPairingIntermediate` and have a `finalize` method)
+// The fact that it's a miller loop is cool commentary inside the function comment
+// but speaks about what it is, rather than what it does.
+// Moreover, if it's a `Result` of some kind, then it should be wrapped in a `Result` type.
+// with the intermediate representation inside of it.
 
 /// This is mainly a struct on convenience. The whole multiplicative versus additive notation for
 /// an element is confusing, so we just enforce that the results of miller loops are handled with
@@ -65,20 +74,26 @@ impl<'b> MulAssign<&'b MillerLoopResult> for MillerLoopResult {
     }
 }
 
-/// There are many evaluations in Fp12 throughout this. As you can see directly from Algs. 27 and 28
-/// in <https://eprint.iacr.org/2010/354.pdf>, for example, regarding the double and addition
+/// There are many evaluations in 𝔽ₚ¹² throughout this module.
+/// One can see this directly from algorithms
+/// 27 and 28 in <https://eprint.iacr.org/2010/354.pdf>,
+/// for example, regarding the double and addition
 /// formulae:
-/// //      let l0 = Fp6::new(&[t10, Fp2::zero(), Fp2::zero()]);
-/// //      let l1 = Fp6::new(&[t1, t9, Fp2::zero()]);
-/// //      return Fp12::new(&[l0, l1])
-///
+/// ```text
+///      let l0 = Fp6::new(&[t10, Fp2::zero(), Fp2::zero()]);
+///      let l1 = Fp6::new(&[t1, t9, Fp2::zero()]);
+///      return Fp12::new(&[l0, l1])
+///  ```
 /// which is very, very sparse, resulting in many unnecessary multiplications and additions by
-/// zero, which is not ideal. We therefore only keep the 3 nonzero coefficients returned by these
-/// evaluations. These nonzero coeffs are stored in the struct below.
+/// zero, which is not ideal.
+/// We therefore only keep the three non-zero coefficients returned by these
+/// evaluations.
+/// These non-zero coefficients are stored in the struct below.
 #[derive(PartialEq, Default, Clone, Copy, Debug)]
 pub(crate) struct Ell(Fp2, Fp2, Fp2);
 
 impl MillerLoopResult {
+    // TODO(Rename this to `finalize`)
     /// Indeed performs the final exponentiation step, which equates to f^((p^12-1)/r) in the
     /// case of BN254. This is nasty to compute cleverly, since the naive approach is insane for
     /// a value that large. Therefore, there are tricks that involve what are known as cyclotomic
@@ -263,7 +278,7 @@ impl MillerLoopResult {
 /// for the entire loop, this discretization does not change, only the point at which we evaluate
 /// this function! Therefore, we simply precompute the values on the line, and then use a cheap
 /// evaluation in each iteration of the Miller loop to avoid recomputing these "constants" each
-/// time. Again, because of the sparse nature of the returned Fp12 from the doubling and addition
+/// time. Again, because of the sparse nature of the returned 𝔽ₚ¹² from the doubling and addition
 /// steps, we store only the 3 non-zero coefficients in an arr of EllCoeffs
 ///
 /// There's two components to this struct. First, is the original value at which we are
@@ -429,25 +444,100 @@ pub fn pairing(p: &G1Projective, q: &G2Projective) -> Gt {
 // TODO(While the fact that this is a glued miller loop is interesting)
 // this would be better named `batch_pairing` or something similar
 // indicating what it is, rather than the implementation details.
+// With that said, we'd need to preserve the idea that there is a `finalize` step required
+// for batch pairings.
 
-/// There are many times when we need to evaluate many pairings at the same time. This simply
-/// provides the ability to execute an array of pairings as succinctly as possible, for example
-/// in the context of threshold signature verification.
+/// Performs a batched pairing calculation for multiple pairs of 𝔾₁ and 𝔾₂ points.
+///
+/// This function uses a glued Miller loop, which is an optimization technique
+/// used in pairing-based cryptography to compute multiple pairings using intermediate representations.
+/// This function is particularly useful for scenarios like threshold signature verification where
+/// multiple pairings need to be calculated and subsequently combined.
+///
+/// # Algorithm
+///
+/// The function implements an optimized version of the Miller loop that:
+/// 1. Iterates through the NAF (Non-Adjacent Form) representation of the ate pairing loop count.
+/// 2. Performs line evaluations for all input pairs in each iteration.
+/// 3. Combines the results of these evaluations efficiently.
+///
 /// # Arguments
-/// * `g1s` - an array of G1 points
-/// * `g2s` - an array of G2 points
+///
+/// * `g2_precomps` - A slice of precomputed 𝔾₂ points. Each [`G2PreComputed`] contains:
+///   - The original 𝔾₂ point
+///   - Precomputed line coefficients for efficient evaluation
+/// * `g1s` - A slice of 𝔾₁ affine points, [`G1Affine`] to be paired with the 𝔾₂ points
+///
+/// The number of 𝔾₁ and 𝔾₂ points must be the same.
+///
 /// # Returns
-/// * the result of the pairing, doing each one individually and then aggregating their result
+///
+/// * [`MillerLoopResult`] - The combined result of the Miller loop calculations
+///
+/// # Performance Considerations
+///
+/// This function is more efficient than calculating individual pairings and then combining
+/// the results, as it reduces the number of extension field operations required.
+///
+/// # Example
+///
+/// This example demonstrates how to use the [`glued_miller_loop`] function, including
+/// point generation, precomputation, and result verification:
+///
+/// ```
+/// use crypto_bigint::{Pow, PowBoundedExp};
+/// use sylow::{
+///     Fp, Fr, G1Affine, G1Projective, G2Affine, G2Projective, G2PreComputed,
+///     glued_miller_loop, FieldExtensionTrait, GroupTrait, pairing
+/// };
+/// use crypto_bigint::rand_core::OsRng;
+///
+/// // Number of pairs to generate and compute
+/// const NUM_PAIRS: usize = 3;
+///
+/// // Generate random G1 and G2 points
+/// let g1_points: Vec<G1Projective> = (0..NUM_PAIRS)
+///     .map(|_| G1Projective::rand(&mut OsRng))
+///     .collect();
+/// let g2_points: Vec<G2Projective> = (0..NUM_PAIRS)
+///     .map(|_| G2Projective::rand(&mut OsRng))
+///     .collect();
+///
+/// // Convert G1 points to affine representation
+/// let g1_affine: Vec<G1Affine> = g1_points.iter().map(|p| G1Affine::from(p)).collect();
+///
+/// // Precompute G2 points
+/// let g2_precomps: Vec<G2PreComputed> = g2_points
+///     .iter()
+///     .map(|g2| G2Affine::from(g2).precompute())
+///     .collect();
+///
+/// // Perform the glued Miller loop
+/// let glued_result = glued_miller_loop(&g2_precomps, &g1_affine);
+/// let result = glued_result.final_exponentiation();
+/// ```
 pub fn glued_miller_loop(g2_precomps: &[G2PreComputed], g1s: &[G1Affine]) -> MillerLoopResult {
+    // Initialize the accumulator for the Miller loop result
     let mut f = Fp12::one();
     let mut idx = 0;
+
+    // TODO(Check the length of the input slices and return an error if they are not equal)
+    // TODO(Dry the 4 repeated code chunks below)
+
+    // Iterate through the NAF representation of the ate pairing loop count
     for i in ATE_LOOP_COUNT_NAF.iter() {
+        // Square the accumulator (this is part of the standard Miller loop)
         f = f.square();
+
+        // Perform line evaluations for all pairs and update the accumulator
         for (g2_precomp, g1) in g2_precomps.iter().zip(g1s.iter()) {
             let c = &g2_precomp.coeffs[idx];
+            // Sparse multiplication optimization
             f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
         }
         idx += 1;
+
+        // Additional step for non-zero NAF digits
         if *i != 0 {
             for (g2_precomp, g1) in g2_precomps.iter().zip(g1s.iter()) {
                 let c = &g2_precomp.coeffs[idx];
@@ -456,20 +546,26 @@ pub fn glued_miller_loop(g2_precomps: &[G2PreComputed], g1s: &[G1Affine]) -> Mil
             idx += 1;
         }
     }
-    tracing::debug!(?f, "glued_miller_loop 1");
+
+    // Final line evaluations after the main loop
+    for (g2_precompute, g1) in g2_precomps.iter().zip(g1s.iter()) {
+        let c = &g2_precompute.coeffs[idx];
+        f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
+    }
+    idx += 1;
 
     for (g2_precompute, g1) in g2_precomps.iter().zip(g1s.iter()) {
         let c = &g2_precompute.coeffs[idx];
         f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
     }
-    tracing::debug!(?f, "glued_miller_loop 2");
-    idx += 1;
-    for (g2_precompute, g1) in g2_precomps.iter().zip(g1s.iter()) {
-        let c = &g2_precompute.coeffs[idx];
-        f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
-    }
+
+    // TODO(Rename this similarly to BatchPairingResult or similar)
+    // Wrap the final result in a MillerLoopResult
     MillerLoopResult(f)
 }
+
+// TODO(Why is this never used?)
+// We should not be shipping dead code to audit
 /// The driver code for the glued miller loop execution, see comments above.
 /// # Arguments
 /// * `g1s` - an array of G1 points

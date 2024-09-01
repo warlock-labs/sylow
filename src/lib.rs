@@ -2,8 +2,8 @@
 //!
 //! Sylow is a Rust library implementing elliptic curve cryptography for the BN254 (alt-bn128) curve.
 //! It provides efficient implementations of finite fields, elliptic curve groups, and pairing-based
-//! cryptography, suitable for applications in blockchain, zero-knowledge proofs, and other
-//! cryptographic systems.
+//! cryptography, suitable for applications in a blockchain environment,
+//! in zero-knowledge proving, and in other cryptographic systems.
 //!
 //! ## Quick Start
 //!
@@ -18,7 +18,7 @@
 //!
 //! - Finite field arithmetic (𝔽ₚ, 𝔽ₚ², 𝔽ₚ⁶, 𝔽ₚ¹²)
 //! - Elliptic curve group operations (𝔾₁, 𝔾₂, 𝔾ₜ)
-//! - Optimal ate pairing
+//! - Highly optimized optimal ate pairing
 //! - BLS signature scheme
 //! - Hash-to-curve functionality
 //!
@@ -52,12 +52,14 @@
 //! ## Performance and Security
 //!
 //! Sylow uses optimized algorithms and constant-time implementations to ensure both efficiency and
-//! security. It follows best practices outlined in RFC 9380 for operations like hashing to curve points.
+//! security.
+//! It follows best practices outlined in RFC 9380 for operations like hashing to curve points.
 //!
 //! ## Further Reading
 //!
 //! For more detailed information, examples, and advanced usage, please refer to the
-//! [full documentation](https://docs.rs/sylow) and the [GitHub repository](https://github.com/warlock-labs/sylow).
+//! [full documentation](https://docs.rs/sylow)
+//! and the [GitHub repository](https://github.com/warlock-labs/sylow).
 
 mod fields;
 mod groups;
@@ -77,7 +79,7 @@ pub use crate::fields::fp2::Fp2;
 pub use crate::fields::fp6::Fp6;
 
 pub use crate::hasher::{XMDExpander, XOFExpander};
-pub use crate::pairing::{glued_miller_loop, pairing, G2PreComputed};
+pub use crate::pairing::{glued_miller_loop, pairing, G2PreComputed, MillerLoopResult};
 use crypto_bigint::rand_core::OsRng;
 use sha3::Keccak256;
 use subtle::ConstantTimeEq;
@@ -90,7 +92,7 @@ const SECURITY_BITS: u64 = 128;
 
 /// Represents a pair of secret and public keys for BLS signatures
 ///
-/// This struct contains both the secret key (a scalar in the base field)
+/// This struct contains both the secret key (a scalar in the 𝔽ₚ base field)
 /// and the corresponding public key (a point on the 𝔾₂ curve).
 #[derive(Debug, Copy, Clone)]
 pub struct KeyPair {
@@ -109,7 +111,7 @@ impl KeyPair {
     ///
     /// # Returns
     ///
-    /// A new `KeyPair` instance with randomly generated keys
+    /// A new [`KeyPair`] instance with randomly generated keys
     ///
     /// # Examples
     ///
@@ -152,8 +154,8 @@ impl KeyPair {
 ///
 /// # Returns
 ///
-/// * `Ok(`[`G1Projective`]`)` - The BLS signature as a point on the 𝔾₁ curve
-/// * `Err(`[`GroupError`]`)` - If the message cannot be hashed to a curve point
+/// * [`Ok(`[`G1Projective`]`)`] - The BLS signature as a point on the 𝔾₁ curve
+/// * [`Err(`[`GroupError`]`)`] - If the message cannot be hashed to a curve point
 ///
 /// # Examples
 ///
@@ -225,3 +227,6 @@ pub fn verify(pubkey: &G2Projective, msg: &[u8], sig: &G1Projective) -> Result<b
         _ => Err(GroupError::CannotHashToGroup),
     }
 }
+
+// TODO(In the future it would be ideal to have methods here for encrypting and decrypting messages)
+// Or general functionality such as ECDH, etc.
