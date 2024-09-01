@@ -43,12 +43,13 @@ use num_traits::{Euclid, Inv, One, Pow, Zero};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use subtle::CtOption;
 
-pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words([
+const BN254_FP_MODULUS_WORDS: [u64; 4] = [
     0x3C208C16D87CFD47,
     0x97816A916871CA8D,
     0xB85045B68181585D,
     0x30644E72E131A029,
-]));
+];
+pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words(BN254_FP_MODULUS_WORDS));
 pub(crate) const FP_QUADRATIC_NON_RESIDUE: Fp = Fp::new(U256::from_words([
     4332616871279656262,
     10917124144477883021,
@@ -531,6 +532,75 @@ impl Fp {
 
         (np, nm)
     }
+    /// This generates an element in the base field from the byte array. It could be as simple as
+    /// doing `Self::new(U256::from_be_slice(arr))`, but the issue is that this will
+    /// automatically place the value around the modulus if it's greater than `p`, which will
+    /// result in the returned value not being the same as what the user input, so we choose to
+    /// circumvent this by doing the conversion manually, and returning a null value if the input
+    /// would yield a value greater than the modulus. Doing the arithmetic on the limbs
+    /// themselves is cheaper than doing it on the full U256 object, but also crypto_bigint will
+    /// straight up panic if there is an issue in many places, which is not ideal, so we do things
+    /// in u64 to handle the potential errors ourselves.
+    ///
+    /// The below is inspired by the equivalent implementation in zkcrypto/bls12_381/fp.rs, which
+    /// is an implementation of Alg 14.9 of Handbook for Applied Cryptography, Ch 14
+    /// <https://cacr.uwaterloo.ca/hac/about/chap14.pdf>
+    /// # Arguments
+    /// * `arr` - &[u8; 32] - the byte array to convert to an element in the base field
+    /// # Returns
+    /// * `CtOption<Self>` - the element in the base field, or None if the value is greater than the
+    /// Note that the CtOption is designed to panic during `unwrap` if the option is none, which
+    /// will require the user to handle the error themselves with the `is_none` or `is_some` methods
+    pub fn from_be_bytes(arr: &[u8; 32]) -> CtOption<Self> {
+        // a simple subtraction that returns the borrow
+        #[inline(always)]
+        const fn sbb(a: u64, b: u64, borrow: u64) -> (u64, u64) {
+            let ret = (a as u128).wrapping_sub((b as u128) + ((borrow >> 63) as u128));
+            (ret as u64, (ret >> 64) as u64)
+        }
+        // generate the words themselves from the byte array
+        let a4 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[0..8]).expect("Conversion of u8 array failed"),
+        );
+        let a3 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[8..16]).expect("Conversion of u8 array failed"),
+        );
+        let a2 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[16..24]).expect("Conversion of u8 array failed"),
+        );
+        let a1 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[24..32]).expect("Conversion of u8 array failed"),
+        );
+
+        // determine if the value is greater than the modulus
+        let (_, borrow) = sbb(a1, BN254_FP_MODULUS_WORDS[0], 0);
+        let (_, borrow) = sbb(a2, BN254_FP_MODULUS_WORDS[1], borrow);
+        let (_, borrow) = sbb(a3, BN254_FP_MODULUS_WORDS[2], borrow);
+        let (_, borrow) = sbb(a4, BN254_FP_MODULUS_WORDS[3], borrow);
+
+        // there's underflow if the value is below the modulus, aka borrow != 0
+        let is_some = (borrow as u8) & 1;
+        CtOption::new(
+            Self::new(U256::from_words([a1, a2, a3, a4])),
+            Choice::from(is_some),
+        )
+    }
+    /// This method takes an instance of the base fields, and translates it into a byte array.
+    /// # Arguments
+    /// * `self` - &Self - the element in the base field to convert to a byte array
+    /// # Returns
+    /// * [u8; 32] - the byte array representation of the element in the base field
+    pub fn to_be_bytes(&self) -> [u8; 32] {
+        let words = self.value().to_words();
+        let mut res = [0; 32];
+
+        res[0..8].copy_from_slice(&words[3].to_be_bytes());
+        res[8..16].copy_from_slice(&words[2].to_be_bytes());
+        res[16..24].copy_from_slice(&words[1].to_be_bytes());
+        res[24..32].copy_from_slice(&words[0].to_be_bytes());
+
+        res
+    }
 }
 impl Fr {
     pub(crate) fn compute_naf(self) -> (U256, U256) {
@@ -563,6 +633,30 @@ mod tests {
 
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
+    }
+    mod byte_tests {
+        use super::*;
+        #[test]
+        fn test_conversion() {
+            let a = create_field([1, 2, 3, 4]);
+            let bytes = a.value().to_be_bytes();
+            let b = Fp::from_be_bytes(&bytes).unwrap();
+            assert_eq!(a, b, "From bytes failed")
+        }
+        #[test]
+        fn test_over_modulus() {
+            let a = (BN254_FP_MODULUS - Fp::ONE).value() + U256::from(10u64);
+            let bytes = a.to_be_bytes();
+            let b = Fp::from_be_bytes(&bytes);
+            assert!(bool::from(b.is_none()), "Over modulus failed")
+        }
+        #[test]
+        #[should_panic(expected = "assertion `left == right` failed")]
+        fn test_over_modulus_panic() {
+            let a = (BN254_FP_MODULUS - Fp::ONE).value() + U256::from(10u64);
+            let bytes = a.to_be_bytes();
+            let _b = Fp::from_be_bytes(&bytes).unwrap();
+        }
     }
     mod addition_tests {
         use super::*;

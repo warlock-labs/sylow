@@ -38,6 +38,8 @@ pub enum GroupError {
     NotInSubgroup,
     /// if the point cannot be hashed to the group
     CannotHashToGroup,
+    /// if the point cannot be decoded
+    DecodeError,
 }
 
 /// This trait implements the basic requirements of an element to be a group element.
@@ -47,7 +49,15 @@ pub enum GroupError {
 // a group trait
 
 pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
-    Sized + Copy + Clone + std::fmt::Debug + Neg + ConstantTimeEq + ConditionallySelectable + PartialEq
+    Sized
+    + Copy
+    + Clone
+    + std::fmt::Debug
+    + Neg
+    + ConstantTimeEq
+    + ConditionallySelectable
+    + PartialEq
+    + Default
 {
     /// this is how we'll make more elements of the field from a scalar value
     /// The value returned by this will be a hard-coded compile-time constant that will depend on
@@ -209,6 +219,13 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupAffine<D
         bool::from(self.infinity)
     }
 }
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Default
+    for GroupAffine<D, N, F>
+{
+    fn default() -> Self {
+        Self::zero()
+    }
+}
 #[derive(Copy, Clone, Debug)]
 pub struct GroupProjective<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> {
     /// We now define the projective representation of a point on the curve. Here, the point(s) at
@@ -291,7 +308,13 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
         )
     }
 }
-
+impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Default
+    for GroupProjective<D, N, F>
+{
+    fn default() -> Self {
+        Self::zero()
+    }
+}
 impl<'a, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Neg
     for &'a GroupProjective<D, N, F>
 {
