@@ -106,7 +106,7 @@ const GT: Fp12 = Fp12::new(&[
 ]);
 
 /// A simple wrapper around the `Fp12` type, which represents the target group of the pairing
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct Gt(pub(crate) Fp12);
 
 impl<'a> Neg for &'a Gt {
