@@ -90,6 +90,7 @@ const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
 /// Security parameter in bits
 const SECURITY_BITS: u64 = 128;
 
+// TODO(Secret values should perhaps use the secrets crate so they are in protected memory and don’t leak to logs)
 /// Represents a pair of secret and public keys for BLS signatures
 ///
 /// This struct contains both the secret key (a scalar in the 𝔽ₚ base field)

@@ -13,12 +13,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[example]]
-name = "dkg"
-path = "examples/dkg.rs"
+name = "DKG"
+path = "examples/DKG.rs"
 
 [[example]]
-name = "fields"
-path = "examples/fields.rs"
+name = "ECDH"
+path = "examples/ECDH.rs"
+
+[[example]]
+name = "threshold_signing"
+path = "examples/threshold_signing.rs"
+
+[[example]]
+name = "sign_and_verify_multiple_messages"
+path = "examples/verify_multiple_messages_same_signer.rs"
 
 [dependencies]
 crypto-bigint = "0.6.0-rc.2"
