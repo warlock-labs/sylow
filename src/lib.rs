@@ -78,7 +78,7 @@ pub use crate::fields::fp12::Fp12;
 pub use crate::fields::fp2::Fp2;
 pub use crate::fields::fp6::Fp6;
 
-pub use crate::hasher::{XMDExpander, XOFExpander};
+pub use crate::hasher::{Expander, XMDExpander, XOFExpander};
 pub use crate::pairing::{glued_miller_loop, pairing, G2PreComputed, MillerLoopResult};
 use crypto_bigint::rand_core::OsRng;
 use sha3::Keccak256;
