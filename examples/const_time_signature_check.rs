@@ -8,6 +8,7 @@ const K: u64 = 128;
 const MIN_MSG_LEN: usize = 1;
 const MAX_MSG_LEN: usize = 1024;
 
+// TODO(Move to benchmarks rather than examples)
 fn generate_random_message(rng: &mut BenchRng) -> Vec<u8> {
     let len = rng.gen_range(MIN_MSG_LEN..=MAX_MSG_LEN);
     (0..len).map(|_| rng.gen::<u8>()).collect()

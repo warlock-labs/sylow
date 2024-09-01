@@ -1,1 +1,3 @@
-quorum = 5
+quorum = 3
+n_participants = 5
+n_rounds = 3

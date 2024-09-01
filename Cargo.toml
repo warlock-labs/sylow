@@ -20,14 +20,6 @@ path = "examples/dkg.rs"
 name = "fields"
 path = "examples/fields.rs"
 
-[[example]]
-name = "key"
-path = "examples/key.rs"
-
-[[example]]
-name = "basic_pairing"
-path = "examples/basic_pairing.rs"
-
 [dependencies]
 crypto-bigint = "0.6.0-rc.2"
 lazy_static = "1.5.0"
@@ -55,4 +47,5 @@ name = "mod"
 harness = false
 
 [profile.bench]
+# TODO(Why, it seems like we'd want to bench in max performance mode)
 debug = true

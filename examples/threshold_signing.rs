@@ -5,6 +5,7 @@ use sylow::{
     glued_miller_loop, FieldExtensionTrait, Fr, G1Affine, G1Projective, G2Affine, G2Projective,
     GroupTrait, Gt, XMDExpander,
 };
+use tracing::{debug, info, trace};
 
 // Constants for the signature scheme
 const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
@@ -80,6 +81,10 @@ impl ThresholdSignature {
         let hashed_message = G1Projective::hash_to_curve(&expander, message)
             .expect("Failed to hash message to curve");
 
+        trace!(
+            participant_id,
+            "Generated partial signature for participant"
+        );
         hashed_message * Fr::into(participant.secret_key)
     }
 
@@ -130,6 +135,10 @@ impl ThresholdSignature {
             aggregated_signature = aggregated_signature + (*signature * Fr::into(lambda));
         }
 
+        trace!(
+            num_signatures = partial_signatures.len(),
+            "Aggregated partial signatures"
+        );
         aggregated_signature
     }
 
@@ -164,24 +173,28 @@ impl ThresholdSignature {
 }
 
 fn main() {
+    // Initialize tracing subscriber
+    tracing_subscriber::fmt::init();
+
     // Set up the threshold signature scheme
     let t = 3; // threshold
     let n = 5; // total number of participants
 
-    println!(
-        "Initializing threshold signature scheme with t = {} and n = {}",
-        t, n
+    info!(
+        threshold = t,
+        num_participants = n,
+        "Initializing threshold signature scheme"
     );
     let scheme = ThresholdSignature::new(t, n);
 
     let message = b"Hello, Sylow!";
-    println!(
-        "Message to be signed: {:?}",
-        std::str::from_utf8(message).unwrap()
+    debug!(
+        message = std::str::from_utf8(message).unwrap(),
+        "Message to be signed"
     );
 
     // Generate partial signatures
-    println!("Generating partial signatures...");
+    info!("Generating partial signatures");
     let mut partial_signatures = HashMap::new();
     for i in 1..=scheme.n {
         let signature = scheme.partial_sign(i, message);
@@ -189,24 +202,28 @@ fn main() {
     }
 
     // Batch verify partial signatures
-    println!("Batch verifying partial signatures...");
-    assert!(
-        scheme.batch_verify_partial(message, &partial_signatures),
-        "Invalid partial signatures"
-    );
-    println!("All partial signatures verified successfully!");
+    info!("Batch verifying partial signatures");
+    let verification_result = scheme.batch_verify_partial(message, &partial_signatures);
+    if verification_result {
+        info!("All partial signatures verified successfully");
+    } else {
+        tracing::error!("Invalid partial signatures");
+        return;
+    }
 
     // Aggregate signatures
-    println!("Aggregating partial signatures...");
+    info!("Aggregating partial signatures");
     let aggregated_signature = scheme.aggregate(&partial_signatures);
 
     // Verify aggregated signature
-    println!("Verifying aggregated signature...");
-    assert!(
-        scheme.verify(message, &aggregated_signature),
-        "Invalid aggregated signature"
-    );
-    println!("Aggregated signature verified successfully!");
+    info!("Verifying aggregated signature");
+    let aggregated_verification = scheme.verify(message, &aggregated_signature);
+    if aggregated_verification {
+        info!("Aggregated signature verified successfully");
+    } else {
+        tracing::error!("Invalid aggregated signature");
+        return;
+    }
 
-    println!("Threshold signature scheme demonstration completed successfully!");
+    info!("Threshold signature scheme demonstration completed successfully");
 }

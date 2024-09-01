@@ -3,6 +3,7 @@ use num_traits::Inv;
 use sylow::{Fp, Fp2};
 use tracing::info;
 
+// TODO(What are we demonstrating here which is useful to the end user?)
 fn fp_example() {
     info!("Examples with Fp...");
     let mut f = Fp::ONE;
