@@ -73,7 +73,7 @@ pub(crate) trait SvdWTrait: Sized {
     /// * `b` - the B coefficient of the curve
     /// # Returns
     /// * `Result<SvdW, MapError>` - the struct containing the constants for the SvdW algorithm,
-    /// or an error otherwise
+    ///   or an error otherwise
     fn precompute_constants(a: Fp, b: Fp) -> Result<SvdW, MapError> {
         let g = |x: &Fp| -> Fp { (*x) * (*x) * (*x) + a * (*x) + b };
         let z = Self::find_z_svdw(a, b);

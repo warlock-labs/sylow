@@ -126,7 +126,7 @@ where
 /// * `$modulus`: The modulus of the field as a string.
 /// * `$degree`: The degree of the field extension.
 /// * `$nreps`: The number of elements required for a unique representation of an element in the
-/// extension.
+///             extension.
 #[allow(unused_macros)]
 macro_rules! define_finite_prime_field {
     ($wrapper_name:ident, $mod_struct:ident, $output:ident, $uint_type:ty, $limbs:expr,
@@ -549,8 +549,9 @@ impl Fp {
     /// * `arr` - &[u8; 32] - the byte array to convert to an element in the base field
     /// # Returns
     /// * `CtOption<Self>` - the element in the base field, or None if the value is greater than the
-    /// Note that the CtOption is designed to panic during `unwrap` if the option is none, which
-    /// will require the user to handle the error themselves with the `is_none` or `is_some` methods
+    ///                      Note that the CtOption is designed to panic during `unwrap` if the
+    ///                      option is none, whichwill require the user to handle the error
+    ///                      themselves with the `is_none` or `is_some` methods
     pub fn from_be_bytes(arr: &[u8; 32]) -> CtOption<Self> {
         // a simple subtraction that returns the borrow
         #[inline(always)]
