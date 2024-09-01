@@ -56,7 +56,9 @@ pub(crate) const FP_QUADRATIC_NON_RESIDUE: Fp = Fp::new(U256::from_words([
     13281191951274694749,
     3486998266802970665,
 ]));
-/// This defines the key properties of a field extension. Now, mathematically,
+/// This defines the key properties of a field extension.
+///
+/// Now, mathematically,
 /// a finite field satisfies many rigorous mathematical properties. The
 /// (non-exhaustive) list below simply suffices to illustrate those properties
 /// that are purely relevant to the task at hand here.

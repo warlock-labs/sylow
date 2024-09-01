@@ -28,6 +28,7 @@ use std::ops::{Add, Mul, Neg, Sub};
 
 /// This is a simple error struct that specifies the three errors
 /// that are expected for the generation of a point on the curve.
+///
 /// Either, the coordinates given are not even on the curve,
 /// or they are not in the correct subgroup, aka the r-torsion.
 #[derive(Debug, Copy, Clone)]
@@ -43,11 +44,11 @@ pub enum GroupError {
 }
 
 /// This trait implements the basic requirements of an element to be a group element.
+///
 /// Unfortunately, `Default` cannot be implemented without `One`, which cannot be implemented
 /// without addition, which is very specific to the choice of affine,
 // projective, or mixed addition, and therefore cannot be defined for all instances satisfying
 // a group trait
-
 pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>:
     Sized
     + Copy

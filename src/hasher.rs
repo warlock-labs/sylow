@@ -102,6 +102,7 @@ pub trait Expander {
 
 /// This implements the XMD function, which produces a uniformly random
 /// byte string using a hash function that outputs b bits.
+///
 /// Usage of this function is recommended only with Sha2 and Sha3 hashes.
 /// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message_xmd>
 #[derive(Debug)]
@@ -190,8 +191,9 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
 }
 
 /// This implements the XOF function, which produces a uniformly random
-/// byte string using an extendable output function (XOF) H. In this instance,
-/// the Shake XOF family are the only recommended choices.
+/// byte string using an extendable output function (XOF) H.
+///
+/// In this instance, the Shake XOF family are the only recommended choices.
 /// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message_xof>
 #[derive(Debug)]
 pub struct XOFExpander<D: Default + ExtendableOutput> {
