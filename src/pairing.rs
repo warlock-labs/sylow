@@ -259,15 +259,17 @@ impl MillerLoopResult {
         ///
         /// # Notes
         ///
+        /// ```text
         /// As part of the cyclotomic acceleration of the final exponentiation step, there is a
-        ///  shortcut to take when using multiplication in Fp4. We built the tower of extensions using
-        ///  degrees 2, 6, and 12, but there is an additional way to write Fp12:
-        ///      Fp4 = Fp2[w^3]/((w^3)^2-(9+u))
-        ///      Fp12 = Fp4[w]/(w^3-w^3)
-        ///   This lets us do magic on points in the twist curve with cheaper operations :)
-        ///   This implements algorithm 9 from https://eprint.iacr.org/2010/354.pdf, with the notable
-        ///   difference that instead of passing an element of Fp4 (which I did not implement), we pass
-        ///   in only the two components from Fp2 that comprise the Fp4 element.
+        /// shortcut to take when using multiplication in Fp4. We built the tower of extensions using
+        /// degrees 2, 6, and 12, but there is an additional way to write Fp12:
+        ///     Fp4 = Fp2[w^3]/((w^3)^2-(9+u))
+        ///     Fp12 = Fp4[w]/(w^3-w^3)
+        /// This lets us do magic on points in the twist curve with cheaper operations :)
+        /// This implements algorithm 9 from https://eprint.iacr.org/2010/354.pdf, with the notable
+        /// difference that instead of passing an element of Fp4 (which I did not implement), we pass
+        /// in only the two components from Fp2 that comprise the Fp4 element.
+        /// ```
         #[must_use]
         fn fp4_square(a: Fp2, b: Fp2) -> (Fp2, Fp2) {
             // Line 1
