@@ -410,12 +410,12 @@ macro_rules! define_finite_prime_field {
                     .1
                     .retrieve()
                     .div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
-                tracing::debug!(?_q, ?_r, "finite_prime_field::rem_euclid");
+                tracing::trace!(?_q, ?_r, "finite_prime_field::rem_euclid");
 
                 if self.1.retrieve().bit(255).into() {
                     // _q = _q - <$uint_type>::ONE;
                     _r = other.1.retrieve() - _r;
-                    tracing::debug!(?_r, "finite_prime_field::rem_euclid high bit");
+                    tracing::trace!(?_r, "finite_prime_field::rem_euclid high bit");
                 }
                 Self::new(_r)
             }
@@ -492,7 +492,7 @@ impl Fp {
     pub fn sqrt(&self) -> CtOption<Self> {
         let arg = ((Self::new(Self::characteristic()) + Self::one()) / Self::from(4)).value();
         let sqrt = self.pow(arg);
-        tracing::debug!(?arg, ?sqrt, "Fp::sqrt");
+        tracing::trace!(?arg, ?sqrt, "Fp::sqrt");
         CtOption::new(sqrt, sqrt.square().ct_eq(self))
     }
     /// Returns the square of the element in the base field
@@ -505,14 +505,14 @@ impl Fp {
         let p_minus_1_div_2 =
             ((Self::new(Self::characteristic()) - Self::from(1)) / Self::from(2)).value();
         let retval = self.pow(p_minus_1_div_2);
-        tracing::debug!(?p_minus_1_div_2, ?retval, "Fp::is_square");
+        tracing::trace!(?p_minus_1_div_2, ?retval, "Fp::is_square");
         Choice::from((retval == Self::zero() || retval == Self::one()) as u8)
     }
     /// Determines the 'sign' of a value in the base field,
     /// see <https://datatracker.ietf.org/doc/html/rfc9380#section-4.1> for more details
     pub fn sgn0(&self) -> Choice {
         let a = *self % Self::TWO;
-        tracing::debug!(?a, "Fp::sgn0");
+        tracing::trace!(?a, "Fp::sgn0");
         if a.is_zero() {
             Choice::from(0u8)
         } else {

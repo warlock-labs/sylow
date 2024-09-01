@@ -80,13 +80,13 @@ impl G1Affine {
             let x2 = v[0].square();
             let lhs = y2 - (x2 * v[0]);
             let rhs = <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
-            tracing::debug!(?y2, ?x2, ?lhs, ?rhs, "G1Affine::new");
+            tracing::trace!(?y2, ?x2, ?lhs, ?rhs, "G1Affine::new");
             lhs.ct_eq(&rhs)
         };
 
         // every point in G1 on the curve is in the r-torsion of BN254,
         // so we don't need to check for subgroup membership
-        tracing::debug!(?is_on_curve, "G1Affine::new");
+        tracing::trace!(?is_on_curve, "G1Affine::new");
         match bool::from(is_on_curve) {
             true => Ok(Self {
                 x: v[0],
@@ -218,7 +218,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
         let scalars = exp
             .hash_to_field(msg, COUNT, L)
             .expect("Hashing to base field failed");
-        tracing::debug!(?scalars, "GroupTrait::hash_to_curve");
+        tracing::trace!(?scalars, "GroupTrait::hash_to_curve");
         match get_bn254_svdw() {
             Ok(bn254_g1_svdw) => {
                 let a = G1Projective::from(
@@ -231,7 +231,7 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
                         .unchecked_map_to_point(scalars[1])
                         .expect("Failed to hash"),
                 );
-                tracing::debug!(?a, ?b, "GroupTrait::hash_to_curve");
+                tracing::trace!(?a, ?b, "GroupTrait::hash_to_curve");
                 Ok(a + b)
             }
             _ => Err(GroupError::CannotHashToGroup),
@@ -277,10 +277,10 @@ impl G1Projective {
             let z2 = v[2].square();
             let lhs = y2 * v[2];
             let rhs = x2 * v[0] + z2 * v[2] * <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
-            tracing::debug!(?y2, ?x2, ?z2, ?lhs, ?rhs, "G1Projective::new");
+            tracing::trace!(?y2, ?x2, ?z2, ?lhs, ?rhs, "G1Projective::new");
             lhs.ct_eq(&rhs) | Choice::from(v[2].is_zero() as u8)
         };
-        tracing::debug!(?is_on_curve, "G1Projective::new");
+        tracing::trace!(?is_on_curve, "G1Projective::new");
         match bool::from(is_on_curve) {
             true => Ok(Self {
                 x: v[0],

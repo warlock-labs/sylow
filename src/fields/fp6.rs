@@ -197,7 +197,7 @@ impl Fp6 {
         let s3 = bc + bc;
         let mut s4 = self.0[2];
         s4 = s4.square();
-        tracing::debug!(?t0, ?cross, ?t1, ?t2, ?bc, ?s3, ?s4, "Fp6::square");
+        tracing::trace!(?t0, ?cross, ?t1, ?t2, ?bc, ?s3, ?s4, "Fp6::square");
 
         Self([
             t0 + s3.residue_mul(),
@@ -226,7 +226,7 @@ impl<'a, 'b> Mul<&'b Fp6> for &'a Fp6 {
         // // let t0 = self.0[0] * other.0[0];
         // // let t1 = self.0[1] * other.0[1];
         // // let t2 = self.0[2] * other.0[2];
-        // // tracing::debug!(?t0, ?t1, ?t2, "Fp6::mul");
+        // // tracing::trace!(?t0, ?t1, ?t2, "Fp6::mul");
         // //
         // // Self::Output::new(&[
         // //     ((self.0[1] + self.0[2]) * (other.0[1] + other.0[2]) - t1 - t2).residue_mul() + t0,
@@ -331,7 +331,7 @@ impl Inv for Fp6 {
         let t2 = self.0[1].square() - self.0[0] * self.0[2];
 
         let inverse = ((self.0[2] * t1 + self.0[1] * t2).residue_mul() + self.0[0] * t0).inv();
-        tracing::debug!(?t0, ?t1, ?t2, ?inverse, "Fp6::inv");
+        tracing::trace!(?t0, ?t1, ?t2, ?inverse, "Fp6::inv");
         Self([inverse * t0, inverse * t1, inverse * t2])
     }
 }
