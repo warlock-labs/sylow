@@ -3,6 +3,10 @@ pub(crate) mod g2;
 pub(crate) mod group;
 pub(crate) mod gt;
 
+// TODO(Why not load the reference data once and pass it around from a copy in memory?)
+// TODO(This seems like a big hunk of test code in one place which could potentially be broken up into smaller pieces)
+// across the implementation of the group operations in the other files
+
 /// This test suite takes time, the biggest culprit of which is the multiplication. Really the
 /// biggest bottleneck is assuredly the loading of the reference data from disk. The
 /// multiplication just takes time due to the debugging symbols created by default when invoking
