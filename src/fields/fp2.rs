@@ -1,7 +1,11 @@
-//! This describes the quadratic field extension of the base field of BN254
-//! defined by the tower $F_{p^2} = F_p(X) / (X^2-\beta)$. Further, the quadratic nature implies
-//! that elements of this field are represented as $a_0 + a_1*X$. This implements
-//! the specific behaviour for this extension, such as multiplication.
+//! Quadratic Extension Field 𝔽ₚ² for BN254 Elliptic Curve Cryptography
+//!
+//! This module implements the quadratic extension field on the base field of BN254,
+//! defined by the tower 𝔽ₚ²= 𝔽ₚ(X) / (X² - β). Elements of this field are represented
+//! as a₀ + a₁X, where a₀ and a₁ are elements of the base field 𝔽ₚ.
+//!
+//! The implementation provides specific behavior for this extension, such as
+//! multiplication, inversion, and operations required for elliptic curve arithmetic.
 
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp, BN254_FP_MODULUS, FP_QUADRATIC_NON_RESIDUE};
@@ -10,6 +14,7 @@ use num_traits::{Inv, One, Pow, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::{Choice, ConstantTimeEq, CtOption};
 
+/// Constant representing 1/2 in the base field 𝔽ₚ
 pub(crate) const TWO_INV: Fp = Fp::new(U256::from_words([
     11389680472494603940,
     14681934109093717318,
@@ -17,20 +22,23 @@ pub(crate) const TWO_INV: Fp = Fp::new(U256::from_words([
     1743499133401485332,
 ]));
 
-// (BN254_FP_MODULUS - Fp::THREE)/Fp::FOUR
+/// Constant representing (p - 3) / 4 in the base field 𝔽ₚ
 const P_MINUS_3_OVER_4: Fp = Fp::new(U256::from_words([
     5694840236247301969,
     7340967054546858659,
     7931984006246061591,
     871749566700742666,
 ]));
-// (BN254_FP_MODULUS - Fp::ONE)/Fp::TWO
+
+/// Constant representing (p - 1) / 2 in the base field 𝔽ₚ
 const P_MINUS_1_OVER_2: Fp = Fp::new(U256::from_words([
     11389680472494603939,
     14681934109093717318,
     15863968012492123182,
     1743499133401485332,
 ]));
+
+/// Constant representing the curve constant for the twisted curve in 𝔽ₚ²
 const FP2_TWIST_CURVE_CONSTANT: Fp2 = Fp2::new(&[
     Fp::new(U256::from_words([
         3632125457679333605,
@@ -45,18 +53,29 @@ const FP2_TWIST_CURVE_CONSTANT: Fp2 = Fp2::new(&[
         42524369107353300,
     ])),
 ]);
-/// type alias for the quadratic extension of the base field
+
+/// Type alias for the quadratic extension of the base field
 pub type Fp2 = FieldExtension<2, 2, Fp>;
 
 // there are some specific things that must be defined as
 // helper functions for us on this specific extension, but
 // don't generalize to any extension.
 impl Fp2 {
-    /// A simple square and multiply algorithm for exponentiation
-    /// # Arguments
-    /// * `by` - Fp, the exponent to raise the element to
+    /// Raises the field element to a power.
     ///
-    /// Note that the argument is required to be an element of the base field, and the expansion
+    /// This method uses a simple square-and-multiply algorithm for exponentiation.
+    ///
+    /// # Arguments
+    ///
+    /// * `by` - The exponent as an element of the base field 𝔽ₚ
+    ///
+    /// # Returns
+    ///
+    /// The result of self^by in 𝔽ₚ²
+    ///
+    /// # Notes
+    ///
+    /// The argument `by` is required to be an element of the base field, and the expansion
     /// of this element via `to_words()` always returns &[u64; 4], which lets this run constant time
     /// for any field element.
     pub fn pow(&self, by: &Fp) -> Self {
@@ -72,6 +91,10 @@ impl Fp2 {
         }
         res
     }
+
+    /// Multiplies the element by the quadratic non-residue of the field.
+    ///
+    /// This operation is optimized to avoid full multiplication.
     #[inline(always)]
     pub(crate) fn residue_mul(&self) -> Self {
         // Instead of simply `self * &FP2_QUADRATIC_NON_RESIDUE`, we do
@@ -82,9 +105,16 @@ impl Fp2 {
             self.0[0] + Fp::NINE * self.0[1],
         ])
     }
-    /// Frobenius mapping of a quadratic extension element to a given power
+
+    /// Applies the Frobenius endomorphism to the field element.
+    ///
     /// # Arguments
-    /// * `exponent` - usize, the power to raise the element to
+    ///
+    /// * `exponent` - The power of the Frobenius endomorphism to apply
+    ///
+    /// # Returns
+    ///
+    /// The result of applying the Frobenius endomorphism `exponent` times
     #[inline(always)]
     pub fn frobenius(&self, exponent: usize) -> Self {
         let frobenius_coeff_fp2: &[Fp; 2] = &[
@@ -101,6 +131,12 @@ impl Fp2 {
             ]),
         }
     }
+
+    /// Computes the square root of the field element, if it exists.
+    ///
+    /// # Returns
+    ///
+    /// A `CtOption` containing the square root if it exists, or `None` if it doesn't
     pub fn sqrt(&self) -> CtOption<Self> {
         let a1 = self.pow(&P_MINUS_3_OVER_4);
 
@@ -121,6 +157,10 @@ impl Fp2 {
             CtOption::new(sqrt, sqrt.square().ct_eq(self))
         }
     }
+
+    /// Computes the square of the field element.
+    ///
+    /// This method is optimized to avoid full multiplication.
     pub fn square(&self) -> Self {
         // We implement manual squaring here and avoid multiplications at all costs
         let a = self.0[0] + self.0[1];
@@ -129,6 +169,12 @@ impl Fp2 {
         tracing::trace!(?a, "Fp2::square");
         Self([a * b, c * self.0[1]])
     }
+
+    /// Determines if the element is a quadratic residue (square) in the field.
+    ///
+    /// # Returns
+    ///
+    /// A `Choice` representing whether the element is a square (1) or not (0)
     pub fn is_square(&self) -> Choice {
         let legendre = |x: &Fp| -> i32 {
             let res = x.pow(P_MINUS_1_OVER_2.value());
@@ -145,11 +191,16 @@ impl Fp2 {
         tracing::trace!(?sum, "Fp2::is_square");
         Choice::from((legendre(&sum) != -1) as u8)
     }
-    /// Allows for the conversion of a byte array to a Fp2 element
+
+    /// Converts a byte array to an 𝔽ₚ² element.
+    ///
     /// # Arguments
-    /// * `bytes` - &[u8], the byte array to convert
+    ///
+    /// * `arr` - A 64-byte array representing the 𝔽ₚ² element
+    ///
     /// # Returns
-    /// * `CtOption<Self>`, the Fp2 element if the byte array is valid
+    ///
+    /// A `CtOption` containing the 𝔽ₚ² element if the byte array is valid
     pub fn from_be_bytes(arr: &[u8; 64]) -> CtOption<Self> {
         let b = Fp::from_be_bytes(
             &<[u8; 32]>::try_from(&arr[0..32]).expect("Conversion of u32 array failed"),
@@ -165,9 +216,12 @@ impl Fp2 {
             CtOption::new(Self::zero(), Choice::from(0u8))
         }
     }
-    /// Allows for the conversion of a Fp2 element to a byte array
+
+    /// Converts the 𝔽ₚ² element to a big-endian byte array.
+    ///
     /// # Returns
-    /// * [u8; 64], the byte array representation of the Fp2 element
+    ///
+    ///  * [u8; 64], A 64-byte array representing the 𝔽ₚ² element
     pub fn to_be_bytes(self) -> [u8; 64] {
         let mut res = [0u8; 64];
         let a = self.0[0].to_be_bytes();
@@ -179,21 +233,54 @@ impl Fp2 {
         res
     }
 }
+
 impl FieldExtensionTrait<2, 2> for Fp2 {
+    /// Generates a random element in the 𝔽ₚ² field.
+    ///
+    /// # Arguments
+    ///
+    /// * `rng` - A cryptographically secure random number generator
+    ///
+    /// # Returns
+    ///
+    /// A random element in 𝔽ₚ²
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self([
             <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
             <Fp as FieldExtensionTrait<1, 1>>::rand(rng),
         ])
     }
+
+    /// Returns the curve constant for the twist curve in 𝔽ₚ².
+    ///
+    /// In short Weierstrass form, the curve over the twist is y'² = x'³ + b,
+    /// where b = 3 / (9 + u).
+    ///
+    /// # Returns
+    ///
+    /// The curve constant for the twisted curve in 𝔽ₚ²
     fn curve_constant() -> Self {
         // this is the curve constant for the twist curve in Fp2. In short Weierstrass form the
         // curve over the twist is $y'^2 = x'^3 + b$, where $b=3/(9+u)$, which is the below.
         FP2_TWIST_CURVE_CONSTANT
     }
 }
+
 impl<'a, 'b> Mul<&'b Fp2> for &'a Fp2 {
     type Output = Fp2;
+
+    /// Multiplies two elements in 𝔽ₚ².
+    ///
+    /// This implementation uses the schoolbook (sum of products) approach to
+    /// run in constant time.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Another 𝔽ₚ² element to multiply with
+    ///
+    /// # Returns
+    ///
+    /// The product of the two 𝔽ₚ² elements
     #[inline]
     fn mul(self, other: &'b Fp2) -> Self::Output {
         // This requires a bit more consideration. In Fp2,
@@ -218,8 +305,21 @@ impl<'a, 'b> Mul<&'b Fp2> for &'a Fp2 {
         ])
     }
 }
+
 impl Mul<Fp2> for Fp2 {
     type Output = Self;
+
+    /// Multiplies two 𝔽ₚ² elements.
+    ///
+    /// This implementation delegates to the reference multiplication.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Another 𝔽ₚ² element to multiply with
+    ///
+    /// # Returns
+    ///
+    /// The product of the two 𝔽ₚ² elements
     #[inline]
     fn mul(self, other: Fp2) -> Self::Output {
         // TODO linter complains about this being a needless reference if I do &a * &b, so this
@@ -227,7 +327,13 @@ impl Mul<Fp2> for Fp2 {
         (&self).mul(&other)
     }
 }
+
 impl MulAssign for Fp2 {
+    /// Performs multiplication by assignment in 𝔽ₚ².
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The 𝔽ₚ² element to multiply with
     #[inline]
     fn mul_assign(&mut self, other: Self) {
         *self = *self * other;
@@ -236,6 +342,15 @@ impl MulAssign for Fp2 {
 
 impl Inv for Fp2 {
     type Output = Self;
+
+    /// Computes the multiplicative inverse of an 𝔽ₚ² element.
+    ///
+    /// This method uses the fact that for a + bi in 𝔽ₚ²,
+    /// (a + bi)⁻¹ = (a - bi) / (a² + b²).
+    ///
+    /// # Returns
+    ///
+    /// The multiplicative inverse of the 𝔽ₚ² element
     #[inline]
     fn inv(self) -> Self {
         let c0_squared = self.0[0].square();
@@ -245,14 +360,26 @@ impl Inv for Fp2 {
     }
 }
 
+// TODO(It may make sense to have a complex number type scalar for this sort of thing)
 // because mult cannot be implemented generally for all degrees
 // this must be defined only for the specific case here, aka not
 // in extensions.rs
 impl One for Fp2 {
+    /// Returns the multiplicative identity element of 𝔽ₚ².
+    ///
+    /// # Returns
+    ///
+    /// The 𝔽ₚ² element representing 1 + 0i
     #[inline]
     fn one() -> Self {
         Self::new(&[Fp::ONE, Fp::ZERO])
     }
+
+    /// Checks if the 𝔽ₚ² element is the multiplicative identity.
+    ///
+    /// # Returns
+    ///
+    /// true if the element is 1 + 0i, false otherwise
     fn is_one(&self) -> bool {
         self.0[0].is_one() && self.0[1].is_zero()
     }
@@ -261,12 +388,30 @@ impl One for Fp2 {
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl Div for Fp2 {
     type Output = Self;
+
+    /// Performs division in 𝔽ₚ².
+    ///
+    /// This operation is implemented as multiplication by the inverse.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The 𝔽ₚ² element to divide by
+    ///
+    /// # Returns
+    ///
+    /// The result of the division
     #[inline]
     fn div(self, other: Self) -> Self {
         self * other.inv()
     }
 }
+
 impl DivAssign for Fp2 {
+    /// Performs division assignment in 𝔽ₚ².
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The 𝔽ₚ² element to divide by
     #[inline]
     fn div_assign(&mut self, other: Self) {
         *self = *self / other;
@@ -274,6 +419,17 @@ impl DivAssign for Fp2 {
 }
 
 impl ConditionallySelectable for Fp2 {
+    /// Performs constant-time conditional selection between two 𝔽ₚ² elements.
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - The first 𝔽ₚ² element
+    /// * `b` - The second 𝔽ₚ² element
+    /// * `choice` - A `Choice` value determining which element to select
+    ///
+    /// # Returns
+    ///
+    /// `a` if `choice` is 0, `b` if `choice` is 1
     #[inline(always)]
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         Self::new(&[
@@ -286,13 +442,33 @@ impl ConditionallySelectable for Fp2 {
 // the below is again to make the quadratic extension visible to
 // higher order sextic extension
 impl FieldExtensionTrait<6, 3> for Fp2 {
+    /// Generates a random element in the 𝔽ₚ² field.
+    ///
+    /// This implementation delegates to the FieldExtensionTrait<2, 2> implementation.
+    ///
+    /// # Arguments
+    ///
+    /// * `rng` - A cryptographically secure random number generator
+    ///
+    /// # Returns
+    ///
+    /// A random element in 𝔽ₚ²
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng)
     }
+
+    /// Returns the curve constant for the twist curve in 𝔽ₚ².
+    ///
+    /// This implementation delegates to the FieldExtensionTrait<2, 2> implementation.
+    ///
+    /// # Returns
+    ///
+    /// The curve constant for the twisted curve in 𝔽ₚ²
     fn curve_constant() -> Self {
         <Fp2 as FieldExtensionTrait<2, 2>>::curve_constant()
     }
 }
+
 // Tests of associativity, commutativity, etc., follow directly from
 // these properties in the base field, as the extension simply performs
 // these operations elementwise. The only tests are really to be done

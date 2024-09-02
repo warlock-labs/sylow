@@ -36,7 +36,7 @@ use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 ///
 /// The struct cannot have `const` fields due to limitations with the underlying
 /// `Mul`, `Add`, etc., traits. Const traits are a work in progress in Rust.
-/// See: https://github.com/rust-lang/rust/issues/67792
+/// See: <https://github.com/rust-lang/rust/issues/67792>
 #[derive(Copy, Clone, Debug)]
 pub struct FieldExtension<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>(
     pub(crate) [F; N],
@@ -82,7 +82,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> FieldExtensio
     ///
     /// # References
     ///
-    /// See https://eprint.iacr.org/2010/354.pdf for more information.
+    /// See <https://eprint.iacr.org/2010/354.pdf> for more information.
     pub(crate) fn scale(&self, factor: F) -> Self {
         let mut i = 0;
         let mut retval = [F::zero(); N];
