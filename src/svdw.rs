@@ -171,8 +171,8 @@ pub(crate) trait SvdWTrait: Sized {
     /// Having determined the constants for the SvdW algorithm, we actually perform the mapping
     /// to an element of the group. The issue here is that we do not explicitly check the result
     /// of this operation to verify that it satisfies the curve equation, since that
-    /// functionality is nearly contained in `groups.rs` etc. Therefore, this private method is
-    /// called by `g1.rs` etc., which then calls its `new` method to perform the subgroup and
+    /// functionality is nearly contained in `groups/groups.rs` etc. Therefore, this private method is
+    /// called by `groups/g1.rs` etc., which then calls its `new` method to perform the subgroup and
     /// curve checks, meaning that it is ok for those checks to not occur here.
     fn unchecked_map_to_point(&self, u: Fp) -> Result<[Fp; 2], MapError>;
 }
