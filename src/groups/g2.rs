@@ -30,6 +30,9 @@
 //! - Conversions between affine and projective representations are used internally.
 //! - Subgroup membership is verified using optimized endomorphism-based checks.
 
+// TODO(Notably missing here is the representation as 𝔾₂(𝔽ₚ⁶))
+// rather than as projective or affine coordinates.
+
 use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
 use crate::fields::fp2::Fp2;
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};

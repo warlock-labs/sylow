@@ -14,6 +14,9 @@
 //! The curve has a generator point (1, 2), which is used as the base for scalar multiplication
 //! and other operations.
 
+// TODO(Notably missing here is the representation as 𝔾₁(𝔽ₚ²))
+// rather than as projective or affine coordinates
+
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
