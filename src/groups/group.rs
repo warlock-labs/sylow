@@ -46,6 +46,9 @@ pub enum GroupError {
     DecodeError,
 }
 
+// TODO(Why not just call this `Group`?)
+// Also, wen noether?
+
 /// Defines the basic operations for elliptic curve group elements.
 ///
 /// This trait implements the basic requirements of an element to be a group element.

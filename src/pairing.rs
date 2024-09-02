@@ -34,7 +34,7 @@ const ATE_LOOP_COUNT_NAF: [i8; 64] = [
 // but speaks about what it is, rather than what it does.
 // Moreover, if it's a `Result` of some kind, then it should be wrapped in a `Result` type.
 // with the intermediate representation inside of it.
-// Additionally, making the Fp12 opaque here leads to a bit of a leaky abstraction.
+// Additionally, making the 𝔽ₚ¹² opaque here leads to a bit of a leaky abstraction.
 
 /// Represents the result of a Miller loop computation in pairing-based cryptography.
 ///
