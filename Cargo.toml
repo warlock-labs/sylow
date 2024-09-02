@@ -14,11 +14,11 @@ edition = "2021"
 
 [[example]]
 name = "DKG"
-path = "examples/DKG.rs"
+path = "examples/dkg.rs"
 
 [[example]]
 name = "ECDH"
-path = "examples/ECDH.rs"
+path = "examples/simple_ecdh.rs"
 
 [[example]]
 name = "threshold_signing"

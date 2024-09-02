@@ -1002,14 +1002,13 @@ pub fn glued_miller_loop(g2_precomps: &[G2PreComputed], g1s: &[G1Affine]) -> Mil
         }
         tracing::trace!(?f, "glued_miller_loop 2");
     }
-    tracing::trace!(?f, "glued_miller_loop 1");
 
     // Final line evaluations after the main loop
     for (g2_precompute, g1) in g2_precomps.iter().zip(g1s.iter()) {
         let c = &g2_precompute.coeffs[idx];
         f = f.sparse_mul(c.0, c.1.scale(g1.y), c.2.scale(g1.x));
     }
-    tracing::trace!(?f, "glued_miller_loop 2");
+    tracing::trace!(?f, "final_evaluations_miller_loop");
     idx += 1;
 
     for (g2_precompute, g1) in g2_precomps.iter().zip(g1s.iter()) {
