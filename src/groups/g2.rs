@@ -1,14 +1,14 @@
 //! Implementation of the 𝔾₂ group for BN254 elliptic curve.
 //!
 //! This module defines 𝔾₂ = (r)E(𝔽ₚ²), where E is the BN254 elliptic curve over the quadratic
-//! extension field 𝔽ₚ². Unlike 𝔾₁, the prime order subgroup is not the entire curve, which
+//! extension field 𝔽ₚ². Unlike [`crate::groups::g1::G1Affine`], the prime order subgroup is not the entire curve, which
 //! introduces additional security considerations and complexity. This introduces many security
 //! considerations in regard to generating points on the correct subgroup for instance.
 //!
 //! This is the source of many headaches.
 //!
 //! There is an unfortunate combination of factors here to consider regarding the representation of
-//! group elements. Because, as mentioned in `group.rs`, of the fact that the point at infinity
+//! group elements. Because, as mentioned in [`crate::groups::group`], of the fact that the point at infinity
 //! has no unique representation in affine coordinates, all arithmetic must be performed in
 //! projective coordinates. However, there are many formulae that we will use in the subgroup
 //! checks that require explicit expressions in affine coordinates. Therefore, all arithmetic
@@ -151,7 +151,21 @@ impl GroupTrait<2, 2, Fp2> for G2Affine {
         Self::new_unchecked([x_endo, y_endo]).expect("Endomorphism failed")
     }
 
-    /// Generates a random point in the r-torsion subgroup of 𝔾₂ group.
+    /// Generates a random point in the r-torsion subgroup of 𝔾₂.
+    ///
+    /// This function first generates a random point on the twist curve E'(𝔽ₚ²),
+    /// then applies cofactor clearing to ensure the result is in the r-torsion subgroup.
+    /// It is then passed through the [`Self::new`] function to ensure it passes the curve and
+    /// subgroup checks.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sylow::*;
+    /// use crypto_bigint::rand_core::OsRng;
+    /// let mut rng = OsRng;
+    /// let random_point = G2Projective::rand(&mut rng);
+    /// ```
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self::from(G2Projective::rand(rng))
     }
@@ -256,7 +270,7 @@ impl G2Affine {
     ///
     /// # Arguments
     ///
-    /// * `v` - An array of two Fp2 elements representing the x and y coordinates of the point
+    /// * `v` - An array of two [`Fp2`] elements representing the x and y coordinates of the point
     ///
     /// # Returns
     ///
@@ -331,7 +345,7 @@ impl G2Affine {
     ///
     /// * `CtOption<G2Projective>` - A point on the curve or the point at infinity, if the evaluation is valid
     ///
-    /// Note: Returns a [`G2Projective`], since this is the version of the elements on which
+    /// Note: Returns a [`crate::groups::g2::G2Projective`], since this is the version of the elements on which
     ///       arithmetic can be performed.
     ///       Thus, we define this method though on the affine representation
     ///       which requires 64 fewer bytes to instantiate for the same point.
@@ -426,7 +440,7 @@ impl G2Projective {
     ///
     /// # Arguments
     ///
-    /// * `v` - An array of three Fp2 elements representing the x, y, and z coordinates of the point
+    /// * `v` - An array of three [`Fp2`] elements representing the x, y, and z coordinates of the point
     ///
     /// # Returns
     ///

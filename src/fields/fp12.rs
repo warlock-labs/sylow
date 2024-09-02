@@ -171,7 +171,7 @@ const FROBENIUS_COEFF_FP12_C1: &[Fp2; 12] = &[
     ]),
 ];
 
-/// Represents an element of the 𝔽ₚ¹² field.
+/// Represents an element the dodecic (𝔽ₚ¹²) extension of the base field (𝔽ₚ)
 ///
 /// Elements are represented as a₀ + a₁w, where a₀ and a₁ are elements of 𝔽ₚ⁶,
 /// and w is the solution to w² = v in 𝔽ₚ¹².
@@ -224,7 +224,7 @@ impl<'a, 'b> Mul<&'b Fp12> for &'a Fp12 {
     /// The product of the two 𝔽ₚ¹² elements
     ///
     /// # References
-    /// * Algorithm 20 from https://eprint.iacr.org/2010/354.pdf
+    /// * Algorithm 20 from <https://eprint.iacr.org/2010/354.pdf>
     #[inline]
     fn mul(self, other: &'b Fp12) -> Self::Output {
         let t0 = self.0[0] * other.0[0];

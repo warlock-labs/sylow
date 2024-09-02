@@ -178,7 +178,7 @@ const FROBENIUS_COEFF_FP6_C2: &[Fp2; 6] = &[
     ]),
 ];
 
-/// Type alias for the sextic (𝔽ₚ⁶) extension of the base field (𝔽ₚ)
+/// Represents an element the sextic (𝔽ₚ⁶) extension of the base field (𝔽ₚ)
 pub type Fp6 = FieldExtension<6, 3, Fp2>;
 
 impl Fp6 {

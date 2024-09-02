@@ -172,7 +172,7 @@ macro_rules! define_finite_prime_field {
         /// Type alias for constant-time arithmetic on Montgomery form integers modulo p
         type $output = crypto_bigint::modular::ConstMontyForm<$mod_struct, { $mod_struct::LIMBS }>;
 
-        /// Represents an element of the finite prime field
+        /// Represents an element in the base field 𝔽ₚ or the r-torsion subgroup 𝔽ᵣ.
         ///
         /// This is the actual struct that serves as our finite field implementation, containing
         ///  the modulus of the field, as well as the output type that contains the internal

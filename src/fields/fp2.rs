@@ -54,7 +54,7 @@ const FP2_TWIST_CURVE_CONSTANT: Fp2 = Fp2::new(&[
     ])),
 ]);
 
-/// Type alias for the quadratic extension of the base field
+/// Represents an element in the quadratic extension (𝔽ₚ²) of the base field (𝔽ₚ).
 pub type Fp2 = FieldExtension<2, 2, Fp>;
 
 // there are some specific things that must be defined as
