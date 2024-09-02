@@ -91,6 +91,9 @@ const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
 const SECURITY_BITS: u64 = 128;
 
 // TODO(Secret values should perhaps use the secrets crate so they are in protected memory and don’t leak to logs)
+// TODO(Should the private key be represented in the r-torsion group instead of the base field?)
+// Perhaps as a G1Projective element, so that it can be used directly in the pairing operation?
+
 /// Represents a pair of secret and public keys for BLS signatures
 ///
 /// This struct contains both the secret key (a scalar in the 𝔽ₚ base field)
@@ -230,4 +233,4 @@ pub fn verify(pubkey: &G2Projective, msg: &[u8], sig: &G1Projective) -> Result<b
 }
 
 // TODO(In the future it would be ideal to have methods here for encrypting and decrypting messages)
-// Or general functionality such as ECDH, etc.
+// Or general functionality such as ECDH, etc. gated behind feature flags.

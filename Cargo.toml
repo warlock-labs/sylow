@@ -1,5 +1,7 @@
 [package]
-authors = ["Tristan Britt <hello@tbritt.xyz>", "0xAlcibiades <alcibiades.eth@protonmail.com>"]
+authors = ["Tristan Britt <tristan@warlock.xyz>",
+           "0xAlcibiades <alcibiades@warlock.xyz>",
+           "Michael Rolish <michael@warlock.xyz>"]
 categories = ["cryptography", "mathematics"]
 description = "Implementation of the BLS signature scheme using the alt-bn128 curve."
 homepage = "https://github.com/warlock-labs/sylow"
@@ -13,11 +15,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[example]]
-name = "DKG"
+name = "dkg"
 path = "examples/dkg.rs"
 
 [[example]]
-name = "ECDH"
+name = "ecdh"
 path = "examples/simple_ecdh.rs"
 
 [[example]]
@@ -28,9 +30,12 @@ path = "examples/threshold_signing.rs"
 name = "sign_and_verify_multiple_messages"
 path = "examples/verify_multiple_messages_same_signer.rs"
 
+[[example]]
+name = "simple_xor_ecies"
+path = "examples/simple_xor_ecies.rs"
+
 [dependencies]
 crypto-bigint = "0.6.0-rc.2"
-lazy_static = "1.5.0"
 num-traits = "0.2.19"
 sha3 = "0.11.0-pre.4"
 subtle = "2.6.1"
@@ -40,19 +45,17 @@ tracing = "0.1.40"
 confy = "0.6.1"
 criterion = { version = "0.5", features = ["html_reports"] }
 dudect-bencher = "0.6.0"
+lazy_static = "1.5.0"
 proptest = "1.5.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 rand = "0.8.5"
+rand_core = "0.6.4"
 serde = { version = "1.0.204", features = ["derive"] }
 serde_json = "1.0.120"
 sha2 = "0.11.0-pre.4"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
-aes-gcm = "0.11.0-pre.1"
-aead = "0.6.0-rc.0"
-rand_core = "0.6.4"
-hkdf = "0.13.0-pre.4"
 
 [[bench]]
 name = "mod"
