@@ -1,6 +1,13 @@
-// //! This module implements the message expansion as dictated by RFC9380.
-// //! Specifically, we take a domain separation tag (DST), and the binary string
-// //! and convert it into an element in the base field.
+//! This module implements the message expansion as dictated by RFC9380.
+//! Specifically, we take a domain separation tag (DST), and the binary string
+//! and convert it into an element in the base field [`Fp`].
+//!
+//! The module provides implementations for two types of message expansion functions:
+//! 1. XMD (Expand Message XOF) - using a hash function with fixed output length
+//! 2. XOF (Expand Message XOF) - using an extendable output function
+//!
+//! These expansion functions are crucial for secure hashing to curve operations,
+//! ensuring uniform distribution and domain separation in cryptographic protocols.
 
 use crate::fields::fp::Fp;
 use crate::utils::u256_to_u512;
@@ -8,19 +15,29 @@ use crypto_bigint::{Encoding, NonZero, U256, U512};
 use sha3::digest::crypto_common::BlockSizeUser;
 use sha3::digest::{ExtendableOutput, FixedOutput};
 use std::array::TryFromSliceError;
+
+/// Possible errors which may occur during hashing operations.
 #[derive(Debug, Copy, Clone)]
 pub enum HashError {
+    /// Error when casting to a field element fails
     CastToField,
+    /// Error during message expansion
     ExpandMessage,
+    /// Error when converting integers
     ConvertInt,
 }
 
-/// This is a simple integer to octet representation of the given length conversion tool.
+/// Converts an integer to its octet string representation of a specified length.
+///
+/// This function is used in various parts of the expansion algorithms to ensure
+/// consistent byte representations of integers.
+///
 /// # Arguments
-/// * `val` - the integer to be converted
-/// * `length` - the length of the output octet string
+/// * `val` - The integer value to convert
+/// * `length` - The desired length of the output octet string
+///
 /// # Returns
-/// * a Result containing the octet string or an error if the conversion fails
+/// * `Result<Vec<u8>, HashError>` - The octet string representation or an error
 fn i2osp(val: u64, length: usize) -> Result<Vec<u8>, HashError> {
     if val >= (1 << (8 * length)) {
         return Err(HashError::ConvertInt);
@@ -30,32 +47,40 @@ fn i2osp(val: u64, length: usize) -> Result<Vec<u8>, HashError> {
 
 /// Defines the message expansion and conversion to field element functions
 ///
-/// The suggested way to generate a value in a base field from a byte array is to use a technique
-/// called message expansion, as described by RFC 9380, see
-/// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message>. This is a trait that
-/// must be satisfied for any version of this standard.
+/// This trait encapsulates the core functionality required for hashing to curve
+/// operations as specified in RFC 9380. Implementors of this trait provide methods
+/// for expanding messages and converting byte strings to field elements.
+/// see: <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message>
+/// for more details.
 pub trait Expander {
-    // If the domain separation tag is above 255 characters, then this prefix must be added as
-    // required by the standard.
+    /// Prefix used when the domain separation tag exceeds 255 characters.
     const OVERSIZE_DST_PREFIX: &'static [u8] = b"H2C-OVERSIZE-DST-";
 
-    // Actually performs the message expansion to the target length in bytes.
-    // # Arguments
-    // * `msg` - the message to be expanded
-    // * `len_in_bytes` - the length of the output in bytes
-    // # Returns
-    // * a Result containing the expanded message or an error if the expansion fails
+    /// Expands a message to a specified length in bytes.
+    ///
+    /// This method is the core of the expansion process, taking a message and
+    /// producing a uniformly random byte string of the specified length.
+    ///
+    /// # Arguments
+    /// * `msg` - The message to be expanded
+    /// * `len_in_bytes` - The desired length of the output in bytes
+    ///
+    /// # Returns
+    /// * `Result<Vec<u8>, HashError>` - The expanded message or an error
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError>;
-    // This function is used to convert a byte array to a field element. The standard technically
-    // defines this function to work for any field extension degree, and allows for the
-    // partitioning of the expanded message into multiple field elements. For our cases here,
-    // we're interested in the base field (degree=1), and two elements of 48 bytes each.
-    // # Arguments
-    // * `msg` - the message to be expanded
-    // * `count` - the number of field elements to be returned
-    // * `size` - the size of each field element in bytes
-    // # Returns
-    // * a Result containing the field elements or an error if the conversion fails
+
+    /// Converts a byte array to field elements.
+    ///
+    /// This method expands the input message and converts it into field elements.
+    /// It's designed to work with the base field and produces two elements of 48 bytes each.
+    ///
+    /// # Arguments
+    /// * `msg` - The message to be converted
+    /// * `counts` - The number of field elements to be returned (always 2 in this implementation)
+    /// * `size` - The size of each field element in bytes (always 48 in this implementation)
+    ///
+    /// # Returns
+    /// * `Result<[Fp; 2], HashError>` - An array of two field elements or an error
     fn hash_to_field(&self, msg: &[u8], count: usize, size: usize) -> Result<[Fp; 2], HashError> {
         // const COUNT: usize = 2;
         // const L: usize = 48;
@@ -67,11 +92,12 @@ pub trait Expander {
         for (i, f) in retval.iter_mut().enumerate() {
             let elm_offset = size * i;
             let tv = &exp_msg[elm_offset..elm_offset + size];
-            // this just simply copies the relevant slice of bytes cleanly into a full 64-byte slice
+
+            // Prepare a 64-byte array with the relevant slice of an expanded message
             let mut bs = [0u8; 64];
             bs[16..].copy_from_slice(tv);
 
-            // the next step requires taking the value of current chunk of bytes and modulo'ing
+            // This next step requires taking the value of the current chunk of bytes and modulo'ing
             // it by the base field order. However, because the slice of the expanded message was
             // fit into a 64-byte array (bigger than the definition of our modulus = 256 = 32
             // bytes), we have to up-cast our modulus to a U512 to perform the arithmetic
@@ -102,10 +128,10 @@ pub trait Expander {
     }
 }
 
-/// This implements the XMD function, which produces a uniformly random
-/// byte string using a hash function that outputs b bits.
+/// Implements the XMD (Expand Message XOF) function, which produces a uniformly random
+/// byte string using a hash function that outputs a fixed-length of b bits.
 ///
-/// Usage of this function is recommended only with Sha2 and Sha3 hashes.
+/// It's recommended for use with only SHA2 and SHA3 hash functions.
 /// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message_xmd>
 #[derive(Debug)]
 pub struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
@@ -115,12 +141,19 @@ pub struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
 }
 
 impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
-    /// Generate a new instance of the expander based on a domain separation tag, and desired bit
-    /// level of security. For BN254, this is in theory 128, but has been shown recently to be
-    /// ~100, see <https://eprint.iacr.org/2015/1027.pdf>.
+    /// Creates a new XMDExpander instance.
+    ///
     /// # Arguments
-    /// * `dst` - the domain separation tag
-    /// * `security_param` - the desired bit level of security
+    /// * `dst` - The domain separation tag
+    /// * `security_param` - The desired bit-level of security (e.g., 128 for BN254)
+    ///
+    /// # Returns
+    /// * A new XMDExpander instance
+    ///
+    /// # Note
+    ///
+    /// For BN254, this is in theory 128, but has been shown recently to be
+    ///  ~100, see <https://eprint.iacr.org/2015/1027.pdf>.
     pub fn new(dst: &[u8], security_param: u64) -> Self {
         let dst_prime = if dst.len() > 255 {
             let mut hasher = D::default();
@@ -140,6 +173,31 @@ impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
 }
 
 impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
+    /// Expands a message to a specified length using the XMD (Expand Message XOF) algorithm.
+    ///
+    /// This method implements the expand_message_xmd function as defined in RFC 9380.
+    /// It uses a hash function with a fixed output length to produce a uniformly random
+    /// byte string of the specified length.
+    ///
+    /// # Arguments
+    /// * `msg` - The input message to be expanded
+    /// * `len_in_bytes` - The desired length of the output in bytes
+    ///
+    /// # Returns
+    /// * `Result<Vec<u8>, HashError>` - The expanded message as a byte vector, or an error
+    ///
+    /// # Algorithm Overview
+    /// 1. Initialize parameters based on the hash function properties
+    /// 2. Construct DST_prime (domain separation tag)
+    /// 3. Perform security checks
+    /// 4. Construct the initial block (b_0)
+    /// 5. Iteratively compute subsequent blocks (b_1, b_2, ...)
+    /// 6. Concatenate and truncate the results to the desired length
+    ///
+    /// # Security Considerations
+    /// - Ensures the hash function output is sufficiently large for the security parameter
+    /// - Limits the number of blocks to prevent excessive computation
+    /// - Uses domain separation to prevent attacks across different contexts
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError> {
         let b_in_bytes = D::output_size();
         let r_in_bytes = D::block_size();
@@ -192,10 +250,10 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
     }
 }
 
-/// This implements the XOF function, which produces a uniformly random
+/// Implements the XOF (Expand Message XOF) function, which produces a uniformly random
 /// byte string using an extendable output function (XOF) H.
 ///
-/// In this instance, the Shake XOF family are the only recommended choices.
+/// It's recommended for use with the SHAKE XOF family of hash functions.
 /// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message_xof>
 #[derive(Debug)]
 pub struct XOFExpander<D: Default + ExtendableOutput> {
@@ -205,6 +263,14 @@ pub struct XOFExpander<D: Default + ExtendableOutput> {
 
 #[allow(dead_code)]
 impl<D: Default + ExtendableOutput> XOFExpander<D> {
+    /// Creates a new XOFExpander instance.
+    ///
+    /// # Arguments
+    /// * `dst` - The domain separation tag
+    /// * `security_param` - The desired bit-level of security
+    ///
+    /// # Returns
+    /// * A new XOFExpander instance
     fn new(dst: &[u8], security_param: u64) -> Self {
         let dst_prime = if dst.len() > 255 {
             let mut hasher = D::default();
@@ -224,14 +290,39 @@ impl<D: Default + ExtendableOutput> XOFExpander<D> {
 }
 
 impl<D: Default + ExtendableOutput> Expander for XOFExpander<D> {
+    /// Expands a message to a specified length using the XOF (Expand Message XOF) algorithm.
+    ///
+    /// This method implements the expand_message_xof function as defined in RFC 9380.
+    /// It uses an extendable output function (XOF) to produce a uniformly random byte string
+    /// of the specified length.
+    ///
+    /// # Arguments
+    /// * `msg` - The input message to be expanded
+    /// * `len_in_bytes` - The desired length of the output in bytes
+    ///
+    /// # Returns
+    /// * `Result<Vec<u8>, HashError>` - The expanded message as a byte vector, or an error
+    ///
+    /// # Algorithm Overview
+    /// 1. Construct DST_prime (domain separation tag)
+    /// 2. Create msg_prime by concatenating the message, desired length, and DST_prime
+    /// 3. Use the XOF to generate the required number of bytes
+    ///
+    /// # Security Considerations
+    /// - Uses domain separation to prevent attacks across different contexts
+    /// - The XOF naturally provides variable-length output, making it suitable for
+    ///   generating arbitrarily long expansions
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError> {
         let dst_prime = [
             self.dst_prime.as_slice(),
             &i2osp(self.dst_prime.len() as u64, 1)?,
         ]
         .concat();
+
+        // Construct msg_prime as per the XOF algorithm
         let msg_prime = [msg, &i2osp(len_in_bytes as u64, 2)?, &dst_prime].concat();
 
+        // Perform XOF expansion
         let mut hasher = D::default();
         hasher.update(&msg_prime);
         Ok(hasher.finalize_boxed(len_in_bytes).to_vec())
