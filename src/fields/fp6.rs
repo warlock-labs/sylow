@@ -1,7 +1,12 @@
-// we likewise define the specifics of the sextic extension of
-// bn254 here. there are some additional helper functions we create
-// just as with the quadratic extension. The sextic extension is
-// defined by the tower F_{p^6} = F_{p^2}(v) / (v^3-(9+u))
+//! Sextic Extension Field 𝔽ₚ⁶ for BN254 Elliptic Curve Cryptography
+//!
+//! This module implements the sextic extension field of the quadratic extension field of BN254,
+//! defined by the tower 𝔽ₚ⁶ = 𝔽ₚ²(v) / (v³ - (9 + u)). Elements of this field are represented
+//! as a₀ + a₁v + a₂v², where a₀, a₁, and a₂ are elements of 𝔽ₚ².
+//!
+//! The implementation provides specific behavior for this extension, such as
+//! multiplication, inversion, and operations required for elliptic curve arithmetic.
+
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::fields::fp2::Fp2;
@@ -27,6 +32,11 @@ use subtle::Choice;
 
 // This is a lot of overhead, but it is doable with the components already provided
 // within should someone be interested
+
+/// Frobenius coefficients for 𝔽ₚ⁶
+///
+/// These constants are precomputed values used in the Frobenius endomorphism.
+/// They are calculated as powers of the quadratic non-residue in 𝔽ₚ².
 const FROBENIUS_COEFF_FP6_C1: &[Fp2; 6] = &[
     // Fp2::quadratic_non_residue().pow( ( p^0 - 1) / 3)
     Fp2::new(&[Fp::ONE, Fp::ZERO]),
@@ -96,6 +106,8 @@ const FROBENIUS_COEFF_FP6_C1: &[Fp2; 6] = &[
         ])),
     ]),
 ];
+
+/// Additional Frobenius coefficients for 𝔽ₚ⁶
 const FROBENIUS_COEFF_FP6_C2: &[Fp2; 6] = &[
     // Fp2::quadratic_non_residue().pow( (2 * p^0 - 2) / 3)
     Fp2::new(&[Fp::ONE, Fp::ZERO]),
@@ -166,14 +178,27 @@ const FROBENIUS_COEFF_FP6_C2: &[Fp2; 6] = &[
     ]),
 ];
 
-/// type alias for the sextic extension of the base field
+/// Type alias for the sextic (𝔽ₚ⁶) extension of the base field (𝔽ₚ)
 pub type Fp6 = FieldExtension<6, 3, Fp2>;
 
 impl Fp6 {
+    /// Multiplies the element by the sextic non-residue of the field.
+    ///
+    /// This operation is optimized for the specific structure of 𝔽ₚ⁶.
     #[inline(always)]
     pub(crate) fn residue_mul(&self) -> Self {
         Self([self.0[2].residue_mul(), self.0[0], self.0[1]])
     }
+
+    /// Applies the Frobenius endomorphism to the field element.
+    ///
+    /// # Arguments
+    ///
+    /// * `exponent` - The power of the Frobenius endomorphism to apply
+    ///
+    /// # Returns
+    ///
+    /// The result of applying the Frobenius endomorphism `exponent` times
     #[inline(always)]
     pub(crate) fn frobenius(&self, exponent: usize) -> Self {
         Self::new(&[
@@ -187,6 +212,10 @@ impl Fp6 {
     // however, there are some simple algebraic reductions
     // you can do with squaring. this just implements that,
     // but functionally it is the same as the `Mul` trait below
+
+    /// Computes the square of the field element.
+    ///
+    /// This method implements an optimized squaring algorithm for 𝔽ₚ⁶ elements.
     pub(crate) fn square(&self) -> Self {
         let t0 = self.0[0].square();
         let cross = self.0[0] * self.0[1];
@@ -206,7 +235,18 @@ impl Fp6 {
         ])
     }
 }
+
+// TODO(Encapsulate crypto-bigint rng to the more general rng if possible)
 impl FieldExtensionTrait<6, 3> for Fp6 {
+    /// Generates a random element in the 𝔽ₚ⁶ field.
+    ///
+    /// # Arguments
+    ///
+    /// * `rng` - A cryptographically secure random number generator
+    ///
+    /// # Returns
+    ///
+    /// A random element in 𝔽ₚ⁶
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self([
             <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
@@ -214,12 +254,31 @@ impl FieldExtensionTrait<6, 3> for Fp6 {
             <Fp2 as FieldExtensionTrait<2, 2>>::rand(rng),
         ])
     }
+
+    /// Returns the curve constant for 𝔽ₚ⁶.
+    ///
+    /// # Returns
+    ///
+    /// The constant 3 in 𝔽ₚ⁶
     fn curve_constant() -> Self {
         Self::from(3)
     }
 }
 impl<'a, 'b> Mul<&'b Fp6> for &'a Fp6 {
     type Output = Fp6;
+
+    /// Multiplies two elements in 𝔽ₚ⁶.
+    ///
+    /// This implementation uses an optimized schoolbook multiplication algorithm
+    /// tailored for the specific structure of 𝔽ₚ⁶ which runs in constant time.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Another 𝔽ₚ⁶ element to multiply with
+    ///
+    /// # Returns
+    ///
+    /// The product of the two 𝔽ₚ⁶ elements
     #[inline]
     fn mul(self, other: &'b Fp6) -> Self::Output {
         // We could do Karatsuba multiplication here, which would look simpler:
@@ -309,12 +368,29 @@ impl<'a, 'b> Mul<&'b Fp6> for &'a Fp6 {
 }
 impl Mul for Fp6 {
     type Output = Self;
+
+    /// Multiplies two 𝔽ₚ⁶ elements.
+    ///
+    /// This implementation delegates to the reference multiplication implementation.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Another 𝔽ₚ⁶ element to multiply with
+    ///
+    /// # Returns
+    ///
+    /// The product of the two 𝔽ₚ⁶ elements
     #[inline]
     fn mul(self, other: Self) -> Self::Output {
         (&self).mul(&other)
     }
 }
 impl MulAssign for Fp6 {
+    /// Performs multiplication by assignment in 𝔽ₚ⁶.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The 𝔽ₚ⁶ element to multiply with
     #[inline]
     fn mul_assign(&mut self, other: Self) {
         *self = *self * other;
@@ -323,9 +399,20 @@ impl MulAssign for Fp6 {
 
 impl Inv for Fp6 {
     type Output = Self;
+
+    /// Computes the multiplicative inverse of an 𝔽ₚ⁶ element.
+    ///
+    /// This method implements an optimized inversion algorithm for 𝔽ₚ⁶ elements.
+    ///
+    /// # Returns
+    ///
+    /// The multiplicative inverse of the 𝔽ₚ⁶ element
+    ///
+    /// # References
+    ///
+    /// * Implements a low-overhead version of Alg 17 of <https://eprint.iacr.org/2010/354.pdf>
     #[inline]
     fn inv(self) -> Self::Output {
-        // Implements a low-overhead version of Alg 17 of <https://eprint.iacr.org/2010/354.pdf>
         let t0 = self.0[0].square() - self.0[1] * self.0[2].residue_mul();
         let t1 = self.0[2].square().residue_mul() - self.0[0] * self.0[1];
         let t2 = self.0[1].square() - self.0[0] * self.0[2];
@@ -337,10 +424,21 @@ impl Inv for Fp6 {
 }
 
 impl One for Fp6 {
+    /// Returns the multiplicative identity element of 𝔽ₚ⁶.
+    ///
+    /// # Returns
+    ///
+    /// The 𝔽ₚ⁶ element representing 1 + 0v + 0v²
     #[inline]
     fn one() -> Self {
         Self::new(&[Fp2::one(), Fp2::zero(), Fp2::zero()])
     }
+
+    /// Checks if the 𝔽ₚ⁶ element is the multiplicative identity.
+    ///
+    /// # Returns
+    ///
+    /// The boolean `true` if the element is 1 + 0v + 0v², false otherwise
     fn is_one(&self) -> bool {
         self.0[0].is_one() && self.0[1].is_zero() && self.0[2].is_zero()
     }
@@ -349,12 +447,30 @@ impl One for Fp6 {
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl Div for Fp6 {
     type Output = Self;
+
+    /// Performs division in 𝔽ₚ⁶.
+    ///
+    /// This operation is implemented as multiplication by the inverse, which is possible
+    /// in prime cyclic Abelian groups, which feature fully symmetrical multiplication tables.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The 𝔽ₚ⁶ element to divide by
+    ///
+    /// # Returns
+    ///
+    /// The result of the division
     #[inline]
     fn div(self, other: Self) -> Self::Output {
         self * other.inv()
     }
 }
 impl DivAssign for Fp6 {
+    /// Performs division assignment in 𝔽ₚ⁶.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The 𝔽ₚ⁶ element to divide by
     #[inline]
     fn div_assign(&mut self, other: Self) {
         *self = *self / other;
@@ -362,6 +478,17 @@ impl DivAssign for Fp6 {
 }
 
 impl ConditionallySelectable for Fp6 {
+    /// Performs constant-time conditional selection between two 𝔽ₚ⁶ elements.
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - The first 𝔽ₚ⁶ element
+    /// * `b` - The second 𝔽ₚ⁶ element
+    /// * `choice` - A `Choice` value determining which element to select
+    ///
+    /// # Returns
+    ///
+    /// `a` if `choice` is 0, `b` if `choice` is 1
     #[inline(always)]
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         Self::new(&[
@@ -372,11 +499,31 @@ impl ConditionallySelectable for Fp6 {
     }
 }
 
-// make sextic extension visible to the dodectic extension
+// Make the sextic extension "visible" to the dodectic extension
 impl FieldExtensionTrait<12, 2> for Fp6 {
+    // TODO(Encapsulate crypto-bigint rng to the more general rng if possible)
+    /// Generates a random element in the 𝔽ₚ⁶ field.
+    ///
+    /// This implementation delegates to the FieldExtensionTrait<6, 3> implementation.
+    ///
+    /// # Arguments
+    ///
+    /// * `rng` - A cryptographically secure random number generator
+    ///
+    /// # Returns
+    ///
+    /// A random element in 𝔽ₚ⁶
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng)
     }
+
+    /// Returns the curve constant for 𝔽ₚ⁶.
+    ///
+    /// This implementation delegates to the FieldExtensionTrait<6, 3> implementation.
+    ///
+    /// # Returns
+    ///
+    /// The constant 3 in 𝔽ₚ⁶
     fn curve_constant() -> Self {
         <Fp6 as FieldExtensionTrait<6, 3>>::curve_constant()
     }
