@@ -35,7 +35,7 @@ name = "simple_xor_ecies"
 path = "examples/simple_xor_ecies.rs"
 
 [dependencies]
-crypto-bigint = "0.6.0-rc.2"
+crypto-bigint = "0.6.0-rc.3"
 num-traits = "0.2.19"
 sha3 = "0.11.0-pre.4"
 subtle = "2.6.1"
@@ -51,8 +51,8 @@ quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 rand = "0.8.5"
 rand_core = "0.6.4"
-serde = { version = "1.0.204", features = ["derive"] }
-serde_json = "1.0.120"
+serde = { version = "1.0.209", features = ["derive"] }
+serde_json = "1.0.127"
 sha2 = "0.11.0-pre.4"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
