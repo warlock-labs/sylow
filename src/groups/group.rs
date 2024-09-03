@@ -331,12 +331,12 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
 
     /// Checks if this point is the point at infinity.
     #[inline(always)]
-    pub(crate) fn is_zero(&self) -> bool {
+    pub fn is_zero(&self) -> bool {
         self.z.is_zero()
     }
 
     /// Doubles this point using an optimized algorithm for curves with j-invariant 0.
-    pub(crate) fn double(&self) -> Self {
+    pub fn double(&self) -> Self {
         // This implementation is based on Algorithm 9 from a Ref (1) above - since BN254 has
         // j-invariant 0, we can use some nice simplifications to the arithmetic.
         //
