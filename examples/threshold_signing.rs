@@ -1,65 +1,34 @@
 use num_traits::{Inv, One, Zero};
-use serde::{Deserialize, Serialize};
 use sha3::Keccak256;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use sylow::{
     glued_miller_loop, FieldExtensionTrait, Fr, G1Affine, G1Projective, G2Affine, G2Projective,
     GroupTrait, Gt, XMDExpander,
 };
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, trace};
 
-/// Domain Separation Tag for hash-to-curve operations
+// Constants for the signature scheme
 const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
-
-/// Security parameter in bits
 const SECURITY_BITS: u64 = 128;
 
-/// Configuration for the DKG scheme
-#[derive(Debug, Serialize, Deserialize, Default)]
-struct DkgConfig {
-    /// Minimum number of participants required to reconstruct the secret
-    quorum: u32,
-    /// Total number of participants in the DKG scheme
-    n_participants: u32,
-    /// Number of DKG rounds to perform
-    n_rounds: u32,
-}
-
-/// Represents a participant in the DKG scheme
+/// Represents a participant in the threshold signature scheme
 #[derive(Clone, Debug)]
 struct Participant {
-    /// Unique identifier for the participant
     id: usize,
-    /// Participant's secret key share
     secret_key: Fr,
-    /// Participant's public key share
     public_key: G2Projective,
 }
 
-/// Represents the DKG scheme
-struct DistributedKeyGeneration {
-    /// Threshold number of participants required to reconstruct the secret
+/// Represents the threshold signature scheme
+struct ThresholdSignature {
     t: usize,
-    /// Total number of participants
     n: usize,
-    /// List of all participants
     participants: Vec<Participant>,
-    /// Group public key
     group_public_key: G2Projective,
 }
 
-impl DistributedKeyGeneration {
-    /// Creates a new DKG scheme
-    ///
-    /// # Arguments
-    ///
-    /// * `t` - Threshold number of participants required to reconstruct the secret
-    /// * `n` - Total number of participants
-    ///
-    /// # Panics
-    ///
-    /// Panics if `t` is greater than `n`
+impl ThresholdSignature {
+    /// Creates a new threshold signature scheme
     fn new(t: usize, n: usize) -> Self {
         assert!(
             t <= n,
@@ -70,11 +39,11 @@ impl DistributedKeyGeneration {
         let secret_polynomial: Vec<Fr> = (0..t).map(|_| Fr::rand(&mut rng)).collect();
 
         let participants: Vec<Participant> = (1..=n)
-            .map(|id| {
-                let secret_key = Self::evaluate_polynomial(&secret_polynomial, id);
+            .map(|i| {
+                let secret_key = Self::evaluate_polynomial(&secret_polynomial, i);
                 let public_key = G2Projective::generator() * Fr::into(secret_key);
                 Participant {
-                    id,
+                    id: i,
                     secret_key,
                     public_key,
                 }
@@ -83,7 +52,7 @@ impl DistributedKeyGeneration {
 
         let group_public_key = G2Projective::generator() * Fr::into(secret_polynomial[0]);
 
-        DistributedKeyGeneration {
+        ThresholdSignature {
             t,
             n,
             participants,
@@ -92,15 +61,6 @@ impl DistributedKeyGeneration {
     }
 
     /// Evaluates a polynomial at a given point
-    ///
-    /// # Arguments
-    ///
-    /// * `coeffs` - Coefficients of the polynomial
-    /// * `x` - Point at which to evaluate the polynomial
-    ///
-    /// # Returns
-    ///
-    /// The value of the polynomial at point `x` as an [`Fr`] element
     fn evaluate_polynomial(coeffs: &[Fr], x: usize) -> Fr {
         let x = Fr::from(x as u64);
         coeffs
@@ -110,15 +70,6 @@ impl DistributedKeyGeneration {
     }
 
     /// Generates a partial signature for a given message and participant
-    ///
-    /// # Arguments
-    ///
-    /// * `participant_id` - ID of the participant generating the partial signature
-    /// * `message` - Message to be signed
-    ///
-    /// # Returns
-    ///
-    /// A partial signature as a [`G1Projective`] point
     fn partial_sign(&self, participant_id: usize, message: &[u8]) -> G1Projective {
         let participant = self
             .participants
@@ -130,19 +81,14 @@ impl DistributedKeyGeneration {
         let hashed_message = G1Projective::hash_to_curve(&expander, message)
             .expect("Failed to hash message to curve");
 
+        trace!(
+            participant_id,
+            "Generated partial signature for participant"
+        );
         hashed_message * Fr::into(participant.secret_key)
     }
 
     /// Verifies multiple partial signatures at once using the glued Miller loop
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The message that was signed
-    /// * `signatures` - A map of participant IDs to their partial signatures
-    ///
-    /// # Returns
-    ///
-    /// `true` if all partial signatures are valid, `false` otherwise
     fn batch_verify_partial(
         &self,
         message: &[u8],
@@ -175,18 +121,6 @@ impl DistributedKeyGeneration {
     }
 
     /// Aggregates partial signatures into a full signature
-    ///
-    /// # Arguments
-    ///
-    /// * `partial_signatures` - A map of participant IDs to their partial signatures
-    ///
-    /// # Returns
-    ///
-    /// The aggregated signature as a [`G1Projective`] point
-    ///
-    /// # Panics
-    ///
-    /// Panics if there are not enough partial signatures to meet the threshold
     fn aggregate(&self, partial_signatures: &HashMap<usize, G1Projective>) -> G1Projective {
         assert!(
             partial_signatures.len() >= self.t,
@@ -201,19 +135,14 @@ impl DistributedKeyGeneration {
             aggregated_signature = aggregated_signature + (*signature * Fr::into(lambda));
         }
 
+        trace!(
+            num_signatures = partial_signatures.len(),
+            "Aggregated partial signatures"
+        );
         aggregated_signature
     }
 
     /// Calculates the Lagrange coefficient for a participant
-    ///
-    /// # Arguments
-    ///
-    /// * `i` - ID of the participant
-    /// * `participants` - List of participant IDs involved in the signature
-    ///
-    /// # Returns
-    ///
-    /// The Lagrange coefficient as an [`Fr`] element
     fn lagrange_coefficient(&self, i: usize, participants: &[usize]) -> Fr {
         let x_i = Fr::from(i as u64);
         participants
@@ -226,15 +155,6 @@ impl DistributedKeyGeneration {
     }
 
     /// Verifies the aggregated signature using the glued Miller loop
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The message that was signed
-    /// * `signature` - The aggregated signature to verify
-    ///
-    /// # Returns
-    ///
-    /// `true` if the signature is valid, `false` otherwise
     fn verify(&self, message: &[u8], signature: &G1Projective) -> bool {
         let expander = XMDExpander::<Keccak256>::new(DST, SECURITY_BITS);
         let hashed_message = G1Projective::hash_to_curve(&expander, message)
@@ -252,71 +172,58 @@ impl DistributedKeyGeneration {
     }
 }
 
-/// Runs a single round of the DKG protocol
-///
-/// # Arguments
-///
-/// * `round_id` - The ID of the current round
-/// * `config` - The DKG configuration
-///
-/// # Returns
-///
-/// The group public key for this round as a [`G2Projective`] point
-fn run_dkg_round(round_id: u32, config: &DkgConfig) -> G2Projective {
-    info!("Begin round {}", round_id);
+fn main() {
+    // Initialize tracing subscriber
+    tracing_subscriber::fmt::init();
 
-    let dkg = DistributedKeyGeneration::new(config.quorum as usize, config.n_participants as usize);
+    // Set up the threshold signature scheme
+    let t = 3; // threshold
+    let n = 5; // total number of participants
+
+    info!(
+        threshold = t,
+        num_participants = n,
+        "Initializing threshold signature scheme"
+    );
+    let scheme = ThresholdSignature::new(t, n);
 
     let message = b"Hello, Sylow!";
-    debug!("Generating partial signatures...");
+    debug!(
+        message = std::str::from_utf8(message).unwrap(),
+        "Message to be signed"
+    );
+
+    // Generate partial signatures
+    info!("Generating partial signatures");
     let mut partial_signatures = HashMap::new();
-    for i in 1..=dkg.n {
-        let signature = dkg.partial_sign(i, message);
+    for i in 1..=scheme.n {
+        let signature = scheme.partial_sign(i, message);
         partial_signatures.insert(i, signature);
     }
 
-    debug!("Batch verifying partial signatures...");
-    let signatures_valid = dkg.batch_verify_partial(message, &partial_signatures);
-    if signatures_valid {
-        info!("All partial signatures verified successfully!");
+    // Batch verify partial signatures
+    info!("Batch verifying partial signatures");
+    let verification_result = scheme.batch_verify_partial(message, &partial_signatures);
+    if verification_result {
+        info!("All partial signatures verified successfully");
     } else {
-        warn!("Some partial signatures failed verification");
+        tracing::error!("Invalid partial signatures");
+        return;
     }
 
-    debug!("Aggregating partial signatures...");
-    let aggregated_signature = dkg.aggregate(&partial_signatures);
+    // Aggregate signatures
+    info!("Aggregating partial signatures");
+    let aggregated_signature = scheme.aggregate(&partial_signatures);
 
-    debug!("Verifying aggregated signature...");
-    let aggregated_valid = dkg.verify(message, &aggregated_signature);
-    if aggregated_valid {
-        info!("Aggregated signature verified successfully!");
+    // Verify aggregated signature
+    info!("Verifying aggregated signature");
+    let aggregated_verification = scheme.verify(message, &aggregated_signature);
+    if aggregated_verification {
+        info!("Aggregated signature verified successfully");
     } else {
-        error!("Aggregated signature verification failed");
+        tracing::error!("Invalid aggregated signature");
+        return;
     }
 
-    info!("Round {} completed", round_id);
-    dkg.group_public_key
-}
-
-fn main() -> Result<(), confy::ConfyError> {
-    tracing_subscriber::fmt().init();
-    info!("Begin DKG process");
-
-    let config_path = PathBuf::from("examples/dkg.toml");
-    let cfg: DkgConfig = confy::load_path(config_path)?;
-    debug!("Loaded config: {:?}", cfg);
-
-    let mut aggregate_public_key = G2Projective::default();
-
-    for round_id in 0..cfg.n_rounds {
-        let round_public_key = run_dkg_round(round_id, &cfg);
-        aggregate_public_key = aggregate_public_key + round_public_key;
-    }
-
-    info!("DKG process completed");
-    debug!(
-        "Aggregate public key across all rounds: {:?}",
-        aggregate_public_key
-    );
-    Ok(())
+    info!("Threshold signature scheme demonstration completed successfully");
 }

@@ -11,9 +11,12 @@ use num_traits::{One, Zero};
 use std::ops::{Add, Mul, Neg, Sub};
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
-/// Do you have vertigo? Then you may want to close your eyes when you scroll by this massive
-/// wall of text ...
-/// this magic number is `pairing(&G1Affine::generator(), &G2Affine::generator())`
+// Do you have vertigo?
+// Then you may want to close your eyes when you scroll by this massive
+// wall of text...
+
+/// The result of pairing the generators of 𝔾₁ and 𝔾₂.
+/// This constant is the generator of the target group 𝔾₁ ⨯ 𝔾₂ => 𝔾ₜ.
 const GT: Fp12 = Fp12::new(&[
     Fp6::new(&[
         Fp2::new(&[
@@ -105,22 +108,28 @@ const GT: Fp12 = Fp12::new(&[
     ]),
 ]);
 
-/// A simple wrapper around the `Fp12` type, which represents the target group of the pairing
+/// Represents an element of the target group 𝔾ₜ in the BN254 pairing.
+///
+/// This is a simple wrapper around [`Fp12`], which is the extension field where 𝔾ₜ elements live.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Gt(pub(crate) Fp12);
 
 impl<'a> Neg for &'a Gt {
     type Output = Gt;
 
+    /// Negates a 𝔾ₜ element.
+    ///
+    /// Since 𝔾ₜ elements are unitary, negation is equivalent to conjugation.
     #[inline]
     fn neg(self) -> Gt {
-        // The element is unitary, so we just conjugate.
         Gt(self.0.unitary_inverse())
     }
 }
+
 impl Neg for Gt {
     type Output = Gt;
 
+    /// Negates a 𝔾ₜ element, deferring to the reference implementation.
     #[inline]
     fn neg(self) -> Gt {
         -&self
@@ -128,28 +137,38 @@ impl Neg for Gt {
 }
 
 impl ConstantTimeEq for Gt {
+    /// Compares two 𝔾ₜ elements for equality in constant time.
     fn ct_eq(&self, other: &Self) -> Choice {
         self.0.ct_eq(&other.0)
     }
 }
 
 impl ConditionallySelectable for Gt {
+    /// Selects between two 𝔾ₜ elements in constant time based on a [`Choice`] value.
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         Gt(Fp12::conditional_select(&a.0, &b.0, choice))
     }
 }
 
 impl PartialEq for Gt {
+    /// Compares two 𝔾ₜ elements for partial equality.
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         bool::from(self.ct_eq(other))
     }
 }
+
+// Following the fact that this is a well-ordered set, since we have partial
+// equality, we can derive a total equality.
 impl Eq for Gt {}
+
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl<'a, 'b> Add<&'b Gt> for &'a Gt {
     type Output = Gt;
 
+    /// Adds two 𝔾ₜ elements.
+    ///
+    /// In the target group, addition is implemented as multiplication in 𝔽ₚ¹².
     #[inline]
     fn add(self, rhs: &'b Gt) -> Gt {
         Gt(self.0 * rhs.0)
@@ -159,6 +178,7 @@ impl<'a, 'b> Add<&'b Gt> for &'a Gt {
 impl<'a, 'b> Sub<&'b Gt> for &'a Gt {
     type Output = Gt;
 
+    /// Subtracts one 𝔾ₜ element from another.
     #[inline]
     fn sub(self, rhs: &'b Gt) -> Gt {
         self + &(-rhs)
@@ -166,13 +186,15 @@ impl<'a, 'b> Sub<&'b Gt> for &'a Gt {
 }
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl<'a, 'b> Mul<&'b Fr> for &'a Gt {
-    /// This is simply the `double-and-add` algorithm for multiplication, which is the ECC
-    /// equivalent of the `square-and-multiply` algorithm used in modular exponentiation. It uses
-    //  the lower Hamming weight representation of the scalar to reduce the number of operations
-    ///
-    /// <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
     type Output = Gt;
+
+    /// Multiplies a 𝔾ₜ element by a scalar in the r-torsion of 𝔽ₚ.
     fn mul(self, other: &'b Fr) -> Self::Output {
+        // This is simply the `double-and-add` algorithm for multiplication, which is the ECC
+        // equivalent of the `square-and-multiply` algorithm used in modular exponentiation. It uses
+        //  the lower Hamming weight representation of the scalar to reduce the number of operations
+        //
+        // <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
         let (np, nm) = other.compute_naf();
         let mut res = Self::Output::identity();
 
@@ -194,20 +216,26 @@ impl<'a, 'b> Mul<&'b Fr> for &'a Gt {
 
 impl Mul<Fr> for Gt {
     type Output = Self;
+
+    /// Multiplies a 𝔾ₜ element by a scalar in the r-torsion of 𝔽ₚ.
     #[inline]
     fn mul(self, rhs: Fr) -> Self::Output {
         &self * &rhs
     }
 }
+
 impl GroupTrait<12, 2, Fp12> for Gt {
+    /// Returns the generator of the target group 𝔾ₜ.
     fn generator() -> Self {
         Self(GT)
     }
 
+    /// The endomorphism is not implemented for the target group 𝔾ₜ.
     fn endomorphism(&self) -> Self {
         unimplemented!()
     }
 
+    /// Generates a random element of the target group 𝔾ₜ.
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         loop {
             let inner = Fp12::rand(rng);
@@ -217,6 +245,7 @@ impl GroupTrait<12, 2, Fp12> for Gt {
         }
     }
 
+    /// Hashing to the target group 𝔾ₜ is not implemented.
     fn hash_to_curve<E: Expander>(_exp: &E, _msg: &[u8]) -> Result<Self, GroupError> {
         unimplemented!()
     }

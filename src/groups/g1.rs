@@ -1,14 +1,21 @@
-//! This creates the specific instance of G1 for BN254. Namely,
-//! $\mathbb{G}_1=(r)E(\mathbb{F}_p)=E(\mathbb{F}_p)$, where we take advantage of the fact that
-//! for BN254's G1, the r-torsion in the base field is the entire curve itself. There are
-//! therefore no subgroup checks needed for membership in G1 other than the point being on the
-//! curve itself.
+//! This module contains the implementations of the 𝔾₁ group for BN254 elliptic curve.
 //!
-//! The curve also has a generator (1,2), which is used to create points on the curve from a scalar
-//! value.
+//! This module defines 𝔾₁ as the r-torsion subgroup of E(𝔽ₚ), where E is the BN254 elliptic curve
+//! over the base field 𝔽ₚ. For BN254, the entire curve E(𝔽ₚ) is the r-torsion subgroup, simplifying
+//! the implementation as no additional subgroup checks are needed beyond ensuring points are on the curve.
 //!
-//! Notice that there is not much here left to specialise to G1 on BN254! This abstraction should
-//! make the implementation of the more complicated G2 easier to handle.
+//! Key features:
+//! - Affine and projective coordinate representations
+//! - Point operations (addition, scalar multiplication, etc.)
+//! - Hashing to curve points
+//! - Serialization and deserialization of curve points
+//!
+//! The curve equation is y² = x³ + 3 over 𝔽ₚ.
+//! The curve has a generator point (1, 2), which is used as the base for scalar multiplication
+//! and other operations.
+
+// TODO(Notably missing here is the representation as 𝔾₁(𝔽ₚ²))
+// rather than as projective or affine coordinates
 
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
@@ -19,21 +26,31 @@ use num_traits::{One, Zero};
 use std::sync::OnceLock;
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
-/// type alias for affine representation on base field
+/// Affine representation of a point in the 𝔾₁ group
 pub type G1Affine = GroupAffine<1, 1, Fp>;
-/// type alias for projective representation on base field
+
+/// Projective representation of a point in the 𝔾₁ group
 pub type G1Projective = GroupProjective<1, 1, Fp>;
 
-/// this just creates a static instance of the SvdW map for G1
+/// Static instance of the Shallue-van de Woestijne map for 𝔾₁ on the BN254 curve
 static BN254_SVDW: OnceLock<Result<SvdW, MapError>> = OnceLock::new();
 
-/// This function returns the SvdW map for G1 on BN254
+/// Returns the Shallue-van de Woestijne map for 𝔾₁ on the BN254 curve
+///
+/// This function initializes the SvdW map if it hasn't been initialized yet,
+/// and returns a reference to it.
+///
+/// # Returns
+///
+/// A result containing either a reference to the SvdW map or a reference to a [`MapError`]
 pub fn get_bn254_svdw() -> Result<&'static SvdW, &'static MapError> {
     BN254_SVDW
         .get_or_init(|| SvdW::precompute_constants(Fp::ZERO, Fp::THREE))
         .as_ref()
 }
+
 impl GroupTrait<1, 1, Fp> for G1Affine {
+    /// Returns the generator point (1, 2) for the 𝔾₁ group
     fn generator() -> Self {
         Self {
             x: Fp::ONE,
@@ -42,20 +59,27 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
         }
     }
 
-    /// the endomorphism is used in subgroup checks, but since we don't use this for G1, it
-    /// doesn't actually matter what this is set to.
+    /// Returns the generator point for 𝔾₁
+    ///
+    /// Note: The endomorphism is not used for 𝔾₁, so this just returns the generator
     fn endomorphism(&self) -> Self {
         Self::generator()
     }
+
+    /// Generates a random point in the 𝔾₁ group
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self::from(G1Projective::rand(rng))
     }
+
+    /// Hashes a message to a point in the 𝔾₁ group
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError> {
         match G1Projective::hash_to_curve(exp, msg) {
             Ok(d) => Ok(Self::from(d)),
             Err(e) => Err(e),
         }
     }
+
+    /// Signs a message using a private key and returns a point in the 𝔾₁ group
     fn sign_message<E: Expander>(exp: &E, msg: &[u8], private_key: Fp) -> Result<Self, GroupError> {
         match G1Projective::sign_message(exp, msg, private_key) {
             Ok(d) => Ok(Self::from(d)),
@@ -65,11 +89,21 @@ impl GroupTrait<1, 1, Fp> for G1Affine {
 }
 
 impl G1Affine {
-    /// Instantiate a new element in affine coordinates in G1. The input values must simply pass
-    /// the curve check, since the r-torsion of the curve on the base field is the entire curve
-    /// and therefore no subgroup check is required in G1.
+    /// Instantiates a new element in affine coordinates in 𝔾₁.
+    ///
+    /// The input values must pass the curve equation check y² = x³ + 3.
+    /// No additional subgroup check is required for 𝔾₁ in BN254 as the entire curve E(𝔽ₚ) is the r-torsion subgroup.
+    ///
     /// # Arguments
-    /// * `v` - a tuple of field elements that represent the x and y coordinates of the point
+    ///
+    /// * `v` - An array of two field elements representing the x and y coordinates of the point
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Self, GroupError>` - A new point if the coordinates are on the curve, or an error if they're not
+    ///
+    /// # Examples
+    ///
     /// ```
     /// use sylow::*;
     /// let generator = G1Affine::new([Fp::ONE, Fp::TWO]);
@@ -96,13 +130,19 @@ impl G1Affine {
             false => Err(GroupError::NotOnCurve),
         }
     }
-    /// Serializes an element of G1 into uncompressed big endian form. The most significant bit is
-    /// set if the point is the point at infinity. Elements are G1 are two elements of Fp, so the
-    /// total byte size of a G1 element is 32 + 32 = 64 bytes.
-    /// # Arguments
-    /// * `self` - the point to serialize
+
+    // TODO(Expose this as to bytes big endian)
+    /// Serializes an element of 𝔾₁ into uncompressed big-endian form.
+    ///
+    /// The most significant bit is set if the point is the point at infinity.
+    /// Elements in 𝔾₁ are two elements of 𝔽ₚ, so the total byte size of a 𝔾₁ element is 32 + 32 = 64 bytes.
+    ///
     /// # Returns
-    /// * a 64 byte array representing the point
+    ///
+    /// * `[u8; 64]` - A 64-byte array representing the point
+    ///
+    /// # Examples
+    ///
     /// ```
     /// use sylow::*;
     ///
@@ -123,16 +163,26 @@ impl G1Affine {
 
         res
     }
-    /// This function deserializes a point from an uncompressed big endian form. The most
-    /// significant bit is set if the point is the point at infinity, and therefore must be
-    /// explicitly checked to correctly evaluate the bytes.
+
+    // TODO(Expose this as from bytes big endian)
+    /// Deserializes an element of 𝔾₁ from an uncompressed big-endian form.
+    ///
+    /// The most significant bit indicates if the point is at infinity.
+    ///
     /// # Arguments
-    /// * `bytes` - a 64 byte array representing the point
+    ///
+    /// * `bytes` - A 64-byte array representing the point
+    ///
     /// # Returns
-    /// * `CtOption<G1Projective>` - a point on the curve or the point at infinity, if the evaluation is valid
-    /// Note that this returns a G1Projective, since this is the version of the elements on which
-    /// arithmetic can be performed. We define this method though on the affine representation
-    /// which requires 32 fewer bytes to instantiate for the same point.
+    ///
+    /// * `CtOption<G1Projective>` - A point on the curve or the point at infinity, if the evaluation is valid
+    ///
+    /// Note: This returns a G1Projective, as it's the representation used for arithmetic operations.
+    ///       We define this method though on the affine representation
+    ///       which requires 32 fewer bytes to instantiate for the same point.
+    ///
+    /// # Examples
+    ///
     /// ```
     /// use sylow::*;
     /// let p = G1Affine::generator();
@@ -140,6 +190,12 @@ impl G1Affine {
     /// let p2 = G1Affine::from_uncompressed(&bytes).unwrap();
     /// assert_eq!(p, p2.into(), "Deserialization failed");
     /// ```
+    ///
+    /// # Notes
+    ///
+    /// This function deserializes a point from an uncompressed big endian form. The most
+    /// significant bit is set if the point is the point at infinity, and therefore must be
+    /// explicitly checked to correctly evaluate the bytes.
     pub fn from_uncompressed(bytes: &[u8; 64]) -> CtOption<G1Projective> {
         Self::from_uncompressed_unchecked(bytes).and_then(|p| {
             let infinity_flag = bool::from(p.infinity);
@@ -153,6 +209,7 @@ impl G1Affine {
             }
         })
     }
+
     /// This is a helper function to `Self::from_uncompressed` that does the extraction of the
     /// relevant information from the bytes themselves. This function can be thought of as
     /// handling the programmatic aspects of the byte array (correct length, correct evaluation
@@ -198,20 +255,30 @@ impl G1Affine {
     }
 }
 impl GroupTrait<1, 1, Fp> for G1Projective {
+    /// Returns the generator point for 𝔾₁ in projective coordinates
     fn generator() -> Self {
         Self::from(G1Affine::generator())
     }
+
+    // Returns the generator point for 𝔾₁
+    ///
+    /// Note: The endomorphism is not used for 𝔾₁, so this just returns the generator
     fn endomorphism(&self) -> Self {
         Self::generator()
     }
+
+    /// Generates a random point in the 𝔾₁ group
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self::generator() * <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
     }
-    /// There are two steps in the process of taking a byte array and putting it to an element in
-    /// the group. First, hash the array to a string into two elements from the base field using
-    /// the `expand_msg` standard, and map each of these to an element of the group, and then add
-    /// those group elements to arrive at the final hash, see `hasher.rs` and `svdw.rs` for more
-    /// details.
+
+    /// Hashes a message to a point on the 𝔾₁ group
+    ///
+    /// This process involves two steps:
+    /// 1. Hash the message to two field elements using the `expand_message` function
+    /// 2. Map these field elements to curve points and combine them
+    ///
+    /// See `hasher.rs` and `svdw.rs` for more details on the underlying algorithms.
     fn hash_to_curve<E: Expander>(exp: &E, msg: &[u8]) -> Result<Self, GroupError> {
         const COUNT: usize = 2;
         const L: usize = 48;
@@ -237,16 +304,23 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
             _ => Err(GroupError::CannotHashToGroup),
         }
     }
-    /// Basic signature on G1
+
+    /// Signs a message using a private key in the base field [`Fp`], returning a point on the 𝔾₁ group
+    ///
+    /// # Examples
+    ///
     /// ```
     /// use sylow::*;
     /// use crypto_bigint::rand_core::OsRng;
     /// use sha3::Keccak256;
-    /// const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";    
-    /// const MSG: &[u8; 4] = &20_i32.to_be_bytes();     
+    ///
+    /// const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
+    /// const MSG: &[u8; 4] = &20_i32.to_be_bytes();
     /// const K: u64 = 128;
+    ///
     /// let expander = XMDExpander::<Keccak256>::new(DST, K);
     /// let rando = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng);
+    ///
     /// if let Ok(d) = G1Projective::sign_message(&expander, MSG, rando) {
     ///     println!("DST: {:?}", String::from_utf8_lossy(DST));
     ///     println!("Message: {:?}", String::from_utf8_lossy(MSG));
@@ -261,10 +335,21 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
     }
 }
 impl G1Projective {
-    /// Instantiate a new element in projective coordinates in G1. The input values must simply pass
-    /// the curve check, since the r-torsion of the curve on the base field is the entire curve.
+    /// Instantiates a new element in projective coordinates in 𝔾₁.
+    ///
+    /// The input values must pass the curve equation checks in projective form:
+    /// Y²Z = X³ + 3Z³
+    ///
     /// # Arguments
-    /// * `v` - a tuple of field elements that represent the x, y, and z coordinates of the point
+    ///
+    /// * `v` - An array of three field elements representing the X, Y, and Z coordinates of the point
+    ///
+    /// # Returns
+    ///
+    /// * `Result<Self, GroupError>` - A new point if the coordinates satisfy the curve equation, or an error if they don't
+    ///
+    /// # Examples
+    ///
     /// ```
     /// use sylow::*;
     /// let generator = G1Projective::new([Fp::ONE, Fp::TWO, Fp::ONE]);
@@ -291,14 +376,44 @@ impl G1Projective {
         }
     }
 }
+
 impl<'a> From<&'a [Fp; 2]> for G1Projective {
+    /// Converts an array of two field elements (representing affine coordinates) to a projective point.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - A reference to an array of two field elements [x, y]
+    ///
+    /// # Returns
+    ///
+    /// * `G1Projective` - The corresponding point in projective coordinates
+    ///
+    /// # Panics
+    ///
+    /// If the affine coordinates do not represent a valid point on the curve.
     fn from(value: &'a [Fp; 2]) -> Self {
         G1Affine::new(*value)
             .expect("Conversion to affine failed")
             .into()
     }
 }
+
 impl From<[Fp; 2]> for G1Projective {
+    /// Converts an array of two field elements (representing affine coordinates) to a projective point.
+    ///
+    /// This is a convenience wrapper around the implementation of `From<&[Fp; 2]>`.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - An array of two field elements [x, y]
+    ///
+    /// # Returns
+    ///
+    /// * `G1Projective` - The corresponding point in projective coordinates
+    ///
+    /// # Panics
+    ///
+    /// If the affine coordinates do not represent a valid point on the curve.
     fn from(value: [Fp; 2]) -> Self {
         G1Projective::from(&value)
     }

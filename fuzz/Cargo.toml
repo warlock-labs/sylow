@@ -1,0 +1,24 @@
+[package]
+name = "sylow-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+sha3 = "0.11.0-pre.4"
+crypto-bigint = "0.6.0-rc.3"
+num-traits = "0.2.19"
+
+[dependencies.sylow]
+path = ".."
+
+[[bin]]
+name = "fuzz_sylow_api"
+path = "fuzz_targets/fuzz_sylow_api.rs"
+test = false
+doc = false
+bench = false

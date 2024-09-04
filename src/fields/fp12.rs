@@ -1,14 +1,17 @@
-//! We likewise define the specifics of the dodectic extension of
-//! bn254 here, defined by the tower F_{p^{12}} = F_{p^6}(w) / (w^2 - v)
-//! Now, there is some flexibility in how we define this. Why?
-//! Well, we can either represent an element of F_{p^{12}} as 2 elements
-//! of F_{p^6}, which the tower definition above gives us. OR, we can
-//! represent it as 6 elements from F_{p^2}! The equivalent definition
-//! would then be F_{p^{12}} = F_{p^2}(w) / (w^6 - (9+u)). This entirely
-//! depends on the performance. While requiring two implementations,
-//! one may be more efficient than the other. We would have to
-//! build both and compare to be totally rigorous. For now,
-//! we just do the (F_{p^6}, F_{p^6}) representation for simplicity.
+//! Implementation of the dodecic extension field 𝔽ₚ¹² for BN254 elliptic curve cryptography.
+//!
+//! This module defines the extension field 𝔽ₚ¹² = 𝔽ₚ⁶(w) / (w² - v), where v is the quadratic
+//! non-residue used to construct 𝔽ₚ². Elements of this field are represented as a₀ + a₁w,
+//! where a₀ and a₁ are elements of 𝔽ₚ⁶.
+//!
+//! The implementation provides efficient arithmetic operations, Frobenius endomorphism,
+//! and specialized functions required for pairing computations on the BN254 curve.
+//!
+//! # Note
+//!
+//! While it's possible to represent 𝔽ₚ¹² as 6 elements of 𝔽ₚ², this implementation uses
+//! the (𝔽ₚ⁶, 𝔽ₚ⁶) representation for simplicity. Future optimizations might explore
+//! alternative representations for performance improvements.
 
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp};
@@ -18,6 +21,11 @@ use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U
 use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::Choice;
+
+/// Frobenius coefficients for 𝔽ₚ¹².
+///
+/// These constants are used in the Frobenius endomorphism computation.
+/// They are precomputed as powers of the quadratic non-residue in 𝔽ₚ².
 const FROBENIUS_COEFF_FP12_C1: &[Fp2; 12] = &[
     // Fp2::quadratic_non_residue().pow( ( p^0 - 1) / 6)
     Fp2::new(&[Fp::ONE, Fp::ZERO]),
@@ -163,16 +171,37 @@ const FROBENIUS_COEFF_FP12_C1: &[Fp2; 12] = &[
     ]),
 ];
 
-/// type alias for dodectic extension in the representation a + bw for a,b\in Fp6
+/// Represents an element the dodecic (𝔽ₚ¹²) extension of the base field (𝔽ₚ)
+///
+/// Elements are represented as a₀ + a₁w, where a₀ and a₁ are elements of 𝔽ₚ⁶,
+/// and w is the solution to w² = v in 𝔽ₚ¹².
 pub type Fp12 = FieldExtension<12, 2, Fp6>;
 
 impl FieldExtensionTrait<12, 2> for Fp12 {
+    // TODO(Encapsulate the rng if possible)
+    /// Generates a random element in the 𝔽ₚ¹² field.
+    ///
+    /// # Arguments
+    ///
+    /// * `rng` - A cryptographically secure random number generator
+    ///
+    /// # Returns
+    ///
+    /// A random element in 𝔽ₚ¹²
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         Self([
             <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng),
             <Fp6 as FieldExtensionTrait<6, 3>>::rand(rng),
         ])
     }
+
+    /// Returns the curve constant for 𝔽ₚ¹².
+    ///
+    /// For BN254, this is always 3.
+    ///
+    /// # Returns
+    ///
+    /// The constant 3 in 𝔽ₚ¹²
     fn curve_constant() -> Self {
         Self::from(3)
     }
@@ -180,10 +209,24 @@ impl FieldExtensionTrait<12, 2> for Fp12 {
 
 impl<'a, 'b> Mul<&'b Fp12> for &'a Fp12 {
     type Output = Fp12;
+
+    /// Multiplies two elements in 𝔽ₚ¹².
+    ///
+    /// This implementation uses simple FOIL'ing of the 𝔽ₚ¹² multiplication
+    /// in their (𝔽ₚ⁶, 𝔽ₚ⁶) representations, which runs in constant time.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Another 𝔽ₚ¹² element to multiply with
+    ///
+    /// # Returns
+    ///
+    /// The product of the two 𝔽ₚ¹² elements
+    ///
+    /// # References
+    /// * Algorithm 20 from <https://eprint.iacr.org/2010/354.pdf>
     #[inline]
     fn mul(self, other: &'b Fp12) -> Self::Output {
-        // this is simple FOIL'ing of the multiplication of the Fp12 elements in their (Fp6, Fp6)
-        // representation, see Alg 20 of <https://eprint.iacr.org/2010/354.pdf>
         let t0 = self.0[0] * other.0[0];
         let t1 = self.0[1] * other.0[1];
         tracing::trace!(?t0, ?t1, "Fp12::mul");
@@ -196,12 +239,29 @@ impl<'a, 'b> Mul<&'b Fp12> for &'a Fp12 {
 }
 impl Mul for Fp12 {
     type Output = Self;
+
+    /// Multiplies two 𝔽ₚ¹² elements.
+    ///
+    /// This implementation delegates to the reference multiplication implementation.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - Another 𝔽ₚ¹² element to multiply with
+    ///
+    /// # Returns
+    ///
+    /// The product of the two 𝔽ₚ¹² elements
     #[inline]
     fn mul(self, other: Self) -> Self::Output {
         (&self).mul(&other)
     }
 }
 impl MulAssign for Fp12 {
+    /// Performs multiplication by assignment in 𝔽ₚ¹².
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The 𝔽ₚ¹² element to multiply with
     #[inline]
     fn mul_assign(&mut self, other: Self) {
         *self = *self * other;
@@ -209,6 +269,14 @@ impl MulAssign for Fp12 {
 }
 impl Inv for Fp12 {
     type Output = Self;
+
+    /// Computes the multiplicative inverse of an 𝔽ₚ¹² element.
+    ///
+    /// This method implements Algorithm 23 from <https://eprint.iacr.org/2010/354.pdf>.
+    ///
+    /// # Returns
+    ///
+    /// The multiplicative inverse of the 𝔽ₚ¹² element
     #[inline]
     fn inv(self) -> Self::Output {
         // Implements Alg 23 of <https://eprint.iacr.org/2010/354.pdf>
@@ -219,10 +287,21 @@ impl Inv for Fp12 {
 }
 
 impl One for Fp12 {
+    /// Returns the multiplicative identity element of 𝔽ₚ¹².
+    ///
+    /// # Returns
+    ///
+    /// The 𝔽ₚ¹² element representing 1 + 0w
     #[inline]
     fn one() -> Self {
         Self::new(&[Fp6::one(), Fp6::zero()])
     }
+
+    /// Checks if the 𝔽ₚ¹² element is the multiplicative identity.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the element is 1 + 0w, `false` otherwise
     fn is_one(&self) -> bool {
         self.0[0].is_one() && self.0[1].is_zero()
     }
@@ -230,6 +309,22 @@ impl One for Fp12 {
 
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl Div for Fp12 {
+    // TODO(What occurs here in divide by zero? I assume it's calling all the way down to Fp2 implicitly and panics)
+    /// Performs division in 𝔽ₚ¹².
+    ///
+    /// This operation is implemented as multiplication by the inverse.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The 𝔽ₚ¹² element to divide by
+    ///
+    /// # Returns
+    ///
+    /// The result of the division
+    ///
+    /// # Panics
+    ///
+    /// Panics if `other` is zero.
     type Output = Self;
     #[inline]
     fn div(self, other: Self) -> Self::Output {
@@ -237,6 +332,15 @@ impl Div for Fp12 {
     }
 }
 impl DivAssign for Fp12 {
+    /// Performs division assignment in 𝔽ₚ¹².
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The 𝔽ₚ¹² element to divide by
+    ///
+    /// # Panics
+    ///
+    /// Panics if `other` is zero.
     #[inline]
     fn div_assign(&mut self, other: Self) {
         *self = *self / other;
@@ -244,6 +348,17 @@ impl DivAssign for Fp12 {
 }
 
 impl ConditionallySelectable for Fp12 {
+    /// Performs constant-time conditional selection between two 𝔽ₚ¹² elements.
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - The first 𝔽ₚ¹² element
+    /// * `b` - The second 𝔽ₚ¹² element
+    /// * `choice` - A `Choice` value determining which element to select
+    ///
+    /// # Returns
+    ///
+    /// `a` if `choice` is 0, `b` if `choice` is 1
     #[inline(always)]
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         Self::new(&[
@@ -252,45 +367,62 @@ impl ConditionallySelectable for Fp12 {
         ])
     }
 }
-/// Below are additional functions needed on Fp12 for the pairing operations
+
+/// Implements additional functions needed on Fp12 for the pairing operations
 impl Fp12 {
+    /// Computes the unitary inverse of an 𝔽ₚ¹² element.
+    ///
+    /// For an element a + bw, the unitary inverse is a - bw.
+    ///
+    /// # Returns
+    ///
+    /// The unitary inverse of the 𝔽ₚ¹² element
     #[inline]
     pub(crate) fn unitary_inverse(&self) -> Self {
         Self::new(&[self.0[0], -self.0[1]])
     }
 
-    /// Due to the efficiency considerations of storing only the nonzero entries in the sparse
-    /// Fp12, there is a need to implement sparse multiplication on Fp12, which is what the
+    /// Performs a sparse multiplication in 𝔽ₚ¹².
+    ///
+    /// This method is an optimization for multiplying an 𝔽ₚ¹² element with
+    /// a sparse 𝔽ₚ¹² element represented by three 𝔽ₚ² coefficients.
+    ///
+    /// # Arguments
+    ///
+    /// * `ell_0` - 𝔽ₚ², the first entry of the sparse element
+    /// * `ell_vw` - 𝔽ₚ², the second entry of the sparse element
+    /// * `ell_vv` - 𝔽ₚ², the third entry of the sparse element
+    ///
+    /// # Returns
+    /// * The result of the sparse multiplication as a dense 𝔽ₚ¹² element
+    ///
+    /// # Notes
+    ///
+    /// Due to the efficiency considerations of storing only the non-zero entries in the sparse
+    /// Fp12, there is a need to implement sparse multiplication on 𝔽ₚ¹², which is what the
     /// madness below is. It is an amalgamation of Algs 21-25 of <https://eprint.iacr.org/2010/354.pdf>
     /// and is really just un-sparsing the value, and doing the multiplication manually. In order
-    /// to get around all the zeros that would arise if we just instantiated the full Fp12,
+    /// to get around all the zeros that would arise if we just instantiated the full 𝔽ₚ¹²,
     /// we have to manually implement all the required multiplication as far down the tower as
     /// we can go.
     ///
-    /// The following code relies on a separate representation of an element in Fp12.
-    /// Namely, hereunto we have defined Fp12 as a pair of Fp6 elements. However, it is just as
-    /// valid to define Fp12 as a pair of Fp2 elements. For f\in Fp12, f = g+hw, where g, h \in Fp6,
+    /// The following code relies on a separate representation of an element in 𝔽ₚ¹².
+    /// Namely, hereunto we have defined 𝔽ₚ¹² as a pair of 𝔽ₚ⁶ elements. However, it is just as
+    /// valid to define 𝔽ₚ¹² as a vector six of 𝔽ₚ² elements, or twelve 𝔽ₚ elements.
+    /// For f\in 𝔽ₚ¹², f = g+hw, where g, h \in 𝔽ₚ⁶,
     /// with g = g_0 + g_1v + g_2v^2, and h = h_0 + h_1v + h_2v^2, we can then write:
     ///
     /// f = g_0 + h_0w + g_1w^2 + h_1w^3 + g_2w^4 + h_2w^5
     ///
-    /// where the representation of Fp12 is not Fp12 = Fp2(w)/(w^6-(9+u))
+    /// where the representation of 𝔽ₚ¹² is not 𝔽ₚ¹² = 𝔽ₚ²(w)/(w^6-(9+u))
     ///
     /// This is a massive headache to get correct, and relied on existing implementations tbh.
     /// Unfortunately for me, the performance boost is noticeable by early estimates (100s us).
     /// Therefore, worth it.
     ///
     /// The function below is called by `zcash`, `bn`, and `arkworks` as `mul_by_024`, referring to
-    /// the indices of the non-zero elements in the 6x Fp2 representation above for the
+    /// the indices of the non-zero elements in the 6x 𝔽ₚ² representation above for the
     /// multiplication.
-    ///
-    /// # Arguments
-    /// * `ell_0` - Fp2, the first entry of the sparse element
-    /// * `ell_vw` - Fp2, the second entry of the sparse element
-    /// * `ell_vv` - Fp2, the third entry of the sparse element
-    ///
-    /// # Returns
-    /// * A dense Fp12 element
     pub(crate) fn sparse_mul(&self, ell_0: Fp2, ell_vw: Fp2, ell_vv: Fp2) -> Fp12 {
         let z0 = self.0[0].0[0];
         let z1 = self.0[0].0[1];
@@ -369,6 +501,16 @@ impl Fp12 {
 
         Fp12::new(&[Fp6::new(&[z0, z1, z2]), Fp6::new(&[z3, z4, z5])])
     }
+
+    /// Applies the Frobenius endomorphism to the 𝔽ₚ¹² element.
+    ///
+    /// # Arguments
+    ///
+    /// * `exponent` - The power of the Frobenius endomorphism to apply
+    ///
+    /// # Returns
+    ///
+    /// The result of applying the Frobenius endomorphism `exponent` times
     #[inline(always)]
     pub(crate) fn frobenius(&self, exponent: usize) -> Self {
         Self::new(&[
@@ -378,11 +520,22 @@ impl Fp12 {
                 .scale(FROBENIUS_COEFF_FP12_C1[exponent % 12]),
         ])
     }
+
+    /// Computes the square of the 𝔽ₚ¹² element.
+    ///
+    /// This method implements an optimized squaring algorithm for 𝔽ₚ¹² elements.
+    ///
+    /// # Returns
+    ///
+    /// The square of the 𝔽ₚ¹² element
+    ///
+    /// # Notes
+    ///
+    /// This implementation is based on Algorithm 22 from <https://eprint.iacr.org/2010/354.pdf>
     #[inline]
     pub(crate) fn square(&self) -> Self {
         // For F_{p^{12}} = F_{p^6}(w)/(w^2-\gamma), and A=a_0 + a_1*w \in F_{p^{12}},
         // we determine C=c_0+c_1*w = A^2\in F_{p^{12}}
-        // Alg 22 from <https://eprint.iacr.org/2010/354.pdf>
         let c0 = self.0[0] - self.0[1];
         let c3 = self.0[0] - self.0[1].residue_mul();
         let c2 = self.0[0] * self.0[1];
