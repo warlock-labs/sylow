@@ -62,16 +62,6 @@
 //! and the [GitHub repository](https://github.com/warlock-labs/sylow).
 #![doc = include_str!("../README.md")]
 #![deny(unsafe_code, dead_code)]
-#![warn(
-    clippy::unwrap_used,
-    missing_docs,
-    missing_debug_implementations,
-    missing_copy_implementations,
-    rust_2021_compatibility,
-    trivial_casts,
-    trivial_numeric_casts,
-    unused_qualifications
-)]
 mod fields;
 mod groups;
 mod hasher;
@@ -98,7 +88,7 @@ use subtle::ConstantTimeEq;
 /// Domain Separation Tag for hash-to-curve operations
 const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
 
-/// Security parameter in bits. It should be noted that for BN254, this is technically not true, 
+/// Security parameter in bits. It should be noted that for BN254, this is technically not true,
 /// as the effective bit length was shown to be ~100, but we keep for posterity.
 const SECURITY_BITS: u64 = 128;
 
