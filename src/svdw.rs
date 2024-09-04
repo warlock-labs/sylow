@@ -52,9 +52,9 @@ pub(crate) enum MapError {
 /// Struct containing precomputed constants for the SvdW algorithm.
 #[derive(Debug)]
 pub(crate) struct SvdW {
-    /// Coefficient A of the elliptic curve equation y^2 = x^3 + Ax + B.
+    /// Coefficient A of the elliptic curve equation y² = x³ + Ax + B.
     a: Fp,
-    /// Coefficient B of the elliptic curve equation y^2 = x^3 + Ax + B.
+    /// Coefficient B of the elliptic curve equation y² = x³ + Ax + B.
     b: Fp,
     /// Precomputed constant c1 for the SvdW algorithm.
     c1: Fp,
