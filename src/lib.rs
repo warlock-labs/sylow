@@ -65,6 +65,7 @@ mod fields;
 mod groups;
 mod hasher;
 mod pairing;
+mod scalar;
 mod svdw;
 pub(crate) mod utils;
 

@@ -1,6 +1,6 @@
 use num_traits::{Inv, Zero};
 use std::ops::{Add, Div, Mul, Neg, Sub};
-use subtle::{CtOption, ConditionallySelectable, ConstantTimeEq, Choice};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 type Matrix = [[i64; 2]; 2];
 
 #[derive(Clone, Debug)]
@@ -12,7 +12,7 @@ struct Step<const L: usize> {
 }
 #[derive(Clone, Copy, Debug, PartialEq)] // Non constant-time Eq
 #[repr(C)]
-pub struct Words<const L: usize> ([u64; L]);
+pub struct Words<const L: usize>([u64; L]);
 
 impl<const L: usize> ConditionallySelectable for Words<L> {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
@@ -25,7 +25,7 @@ impl<const L: usize> ConditionallySelectable for Words<L> {
         Self(limbs)
     }
 }
-impl<const L: usize> Words<L>{
+impl<const L: usize> Words<L> {
     pub fn nbits(&self) -> u32 {
         for i in (0..L).rev() {
             if self.0[i] != 0 {
@@ -211,12 +211,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         let adjuster = self.r_squared;
         let inverse = inv_mod2_62(self.modulus.0);
 
-        let (d, f) = self.divsteps(
-            adjuster,
-            self.modulus,
-            *a,
-            inverse
-        );
+        let (d, f) = self.divsteps(adjuster, self.modulus, *a, inverse);
 
         let antiunit = f.eq(&Words([u64::MAX >> (64 - 62); L]));
         let ret = self.norm(d, antiunit);
@@ -315,18 +310,26 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
     /// modulus the inverter was created for and "'" stands for the transpose operator.
     ///
     /// Both the input and output values lie in the interval (-2 * M, M).
-    pub fn de(&self, modulus: &Words<L>, inverse: i64, t: Matrix, d: &Words<L>, e: &Words<L>)
-              ->
-              (Words<L>,
-               Words<L>) {
+    pub fn de(
+        &self,
+        modulus: &Words<L>,
+        inverse: i64,
+        t: Matrix,
+        d: &Words<L>,
+        e: &Words<L>,
+    ) -> (Words<L>, Words<L>) {
         let mask = (1u64 << 63) - 1;
         let mut md = t[0][0] * self.is_negative(d) as i64 + t[0][1] * self.is_negative(e) as i64;
         let mut me = t[1][0] * self.is_negative(d) as i64 + t[1][1] * self.is_negative(e) as i64;
 
-        let cd = (t[0][0].wrapping_mul(d.0[0] as i64).wrapping_add(t[0][1].wrapping_mul(e.0[0] as
-            i64))) & mask as i64;
-        let ce = (t[1][0].wrapping_mul(d.0[0] as i64).wrapping_add(t[1][1].wrapping_mul(e.0[0] as
-            i64))) & mask as i64;
+        let cd = (t[0][0]
+            .wrapping_mul(d.0[0] as i64)
+            .wrapping_add(t[0][1].wrapping_mul(e.0[0] as i64)))
+            & mask as i64;
+        let ce = (t[1][0]
+            .wrapping_mul(d.0[0] as i64)
+            .wrapping_add(t[1][1].wrapping_mul(e.0[0] as i64)))
+            & mask as i64;
 
         md -= (inverse.wrapping_mul(cd).wrapping_add(md)) & mask as i64;
         me -= (inverse.wrapping_mul(ce).wrapping_add(me)) & mask as i64;
@@ -346,24 +349,24 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
     }
     fn iterations(f: &Words<L>, g: &Words<L>) -> usize {
         let d = Words::<L>::max_nbits(f, g);
-        let append = ConditionallySelectable::conditional_select(&80, &57, Choice::from((d < 46) as
-            u8));
-        ((49*d + append)/17) as usize
+        let append =
+            ConditionallySelectable::conditional_select(&80, &57, Choice::from((d < 46) as u8));
+        ((49 * d + append) / 17) as usize
     }
     const fn shr(&self, a: &Words<L>) -> Words<L> {
         let mut result = Self::zero_array();
         let mut carry = 0;
         let mut i = 0;
         while i < L {
-            result.0[L-i] = (carry << 63) | (a.0[L-i] >> 1);
-            carry = a.0[L-i] & 1;
+            result.0[L - i] = (carry << 63) | (a.0[L - i] >> 1);
+            carry = a.0[L - i] & 1;
             i += 1;
         }
         result
     }
 
     const fn is_negative(&self, a: &Words<L>) -> bool {
-        (a.0[L-1] as i64) < 0
+        (a.0[L - 1] as i64) < 0
     }
     fn mul_scalar(&self, a: &Words<L>, b: i64) -> Words<L> {
         let mut value = Self::zero_array();
@@ -386,7 +389,7 @@ impl<const L: usize, const D: usize> FinitePrimeField<L, D> {
         }
     }
 }
-impl<const L: usize, const D: usize> ConditionallySelectable for FinitePrimeField<L, D>{
+impl<const L: usize, const D: usize> ConditionallySelectable for FinitePrimeField<L, D> {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         Self {
             modulus: Words::conditional_select(&a.modulus, &b.modulus, choice),
@@ -1154,5 +1157,4 @@ mod bn254_tests {
             let _ = a / zero;
         }
     }
-
 }
