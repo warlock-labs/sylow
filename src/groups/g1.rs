@@ -131,7 +131,6 @@ impl G1Affine {
         }
     }
 
-    // TODO(Expose this as to bytes big endian)
     /// Serializes an element of 𝔾₁ into uncompressed big-endian form.
     ///
     /// The most significant bit is set if the point is the point at infinity.
@@ -147,9 +146,9 @@ impl G1Affine {
     /// use sylow::*;
     ///
     /// let point = G1Affine::generator();
-    /// let point_bytes = point.to_uncompressed();
+    /// let point_bytes = point.to_be_bytes();
     /// ```
-    pub fn to_uncompressed(self) -> [u8; 64] {
+    pub fn to_be_bytes(self) -> [u8; 64] {
         let mut res = [0u8; 64];
         res[0..32].copy_from_slice(
             &Fp::conditional_select(&self.x, &Fp::ZERO, self.infinity).to_be_bytes()[..],
@@ -163,8 +162,34 @@ impl G1Affine {
 
         res
     }
+    /// This returns the big-endian uncompressed bytes of the point, but scrubs the bytes if the
+    /// point is at infinity in order to be compatible with the expectation / convention used by
+    /// Geth / Reth, despite this not being mathematically rigorously representative of a point
+    /// at infinity.
+    ///
+    /// # Returns
+    ///
+    /// * `[u8; 64]` - A 64-byte array representing the point
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sylow::*;
+    ///
+    /// let point = G1Affine::generator();
+    /// let point_bytes = point.to_be_bytes();
+    /// ```
+    pub fn to_be_bytes_scrubbed(self) -> [u8; 64] {
+        let normal_bytes = self.to_be_bytes();
+        let zero_bytes = [0u8; 64];
 
-    // TODO(Expose this as from bytes big endian)
+        // Use conditional_select to choose between normal_bytes and zero_bytes
+        let mut result = [0u8; 64];
+        for i in 0..64 {
+            result[i] = u8::conditional_select(&normal_bytes[i], &zero_bytes[i], self.infinity);
+        }
+        result
+    }
     /// Deserializes an element of 𝔾₁ from an uncompressed big-endian form.
     ///
     /// The most significant bit indicates if the point is at infinity.
@@ -186,8 +211,8 @@ impl G1Affine {
     /// ```
     /// use sylow::*;
     /// let p = G1Affine::generator();
-    /// let bytes = p.to_uncompressed();
-    /// let p2 = G1Affine::from_uncompressed(&bytes).unwrap();
+    /// let bytes = p.to_be_bytes();
+    /// let p2 = G1Affine::from_be_bytes(&bytes).unwrap();
     /// assert_eq!(p, p2.into(), "Deserialization failed");
     /// ```
     ///
@@ -196,8 +221,8 @@ impl G1Affine {
     /// This function deserializes a point from an uncompressed big endian form. The most
     /// significant bit is set if the point is the point at infinity, and therefore must be
     /// explicitly checked to correctly evaluate the bytes.
-    pub fn from_uncompressed(bytes: &[u8; 64]) -> CtOption<G1Projective> {
-        Self::from_uncompressed_unchecked(bytes).and_then(|p| {
+    pub fn from_be_bytes(bytes: &[u8; 64]) -> CtOption<G1Projective> {
+        Self::from_be_bytes_unchecked(bytes).and_then(|p| {
             let infinity_flag = bool::from(p.infinity);
             if infinity_flag {
                 CtOption::new(G1Projective::zero(), Choice::from(1u8))
@@ -210,13 +235,13 @@ impl G1Affine {
         })
     }
 
-    /// This is a helper function to `Self::from_uncompressed` that does the extraction of the
+    /// This is a helper function to `Self::from_be_bytes` that does the extraction of the
     /// relevant information from the bytes themselves. This function can be thought of as
     /// handling the programmatic aspects of the byte array (correct length, correct evaluation
     /// in terms of field components, etc.), but the other functional requirements on these
-    /// bytes, like curve and subgroup membership, are enforced by `Self::from_uncompressed`,
+    /// bytes, like curve and subgroup membership, are enforced by `Self::from_be_bytes`,
     /// which is why this function is not exposed publicly.
-    fn from_uncompressed_unchecked(bytes: &[u8; 64]) -> CtOption<Self> {
+    fn from_be_bytes_unchecked(bytes: &[u8; 64]) -> CtOption<Self> {
         let infinity_flag = Choice::from((bytes[0] >> 7) & 1);
 
         //try to get the x coord

@@ -768,15 +768,29 @@ mod tests {
     }
     mod bytes {
         use super::*;
-        use crate::G2Affine;
+        use crate::{G2Affine, GroupTrait};
 
+        #[test]
+        fn test_g1_uncompressed_scrubbed() {
+            let point_at_infinity = G1Affine::zero();
+            let bytes = point_at_infinity.to_be_bytes_scrubbed();
+            assert_eq!(bytes, [0; 64], "Scrubbed bytes of point at infinity failed");
+
+            let generator = G1Affine::generator();
+            let bytes = generator.to_be_bytes_scrubbed();
+            assert_eq!(
+                bytes,
+                generator.to_be_bytes(),
+                "Scrubbed failed to ignore finite point"
+            )
+        }
         #[test]
         fn test_g1_uncompressed() {
             let g1_points = &*G1_REFERENCE_DATA;
             for g1 in g1_points.a.iter().map(G1Affine::from) {
-                let g1_serialized = g1.to_uncompressed();
+                let g1_serialized = g1.to_be_bytes();
                 let g1_deserialized =
-                    G1Affine::from_uncompressed(&g1_serialized).expect("Deserialization failed");
+                    G1Affine::from_be_bytes(&g1_serialized).expect("Deserialization failed");
                 assert_eq!(g1, g1_deserialized.into());
             }
         }
@@ -785,7 +799,7 @@ mod tests {
         fn test_bad_g1_uncompressed() {
             let g1_points = &*G1_REFERENCE_DATA;
             for g1 in g1_points.a.iter().map(G1Affine::from) {
-                let mut g1_serialized = g1.to_uncompressed();
+                let mut g1_serialized = g1.to_be_bytes();
                 let g1_serialized_copy = g1_serialized;
 
                 // flip some things around in the x and y coordinates, basically jumbling up the
@@ -793,7 +807,7 @@ mod tests {
                 g1_serialized[26..32].copy_from_slice(&g1_serialized_copy[32..38]);
                 g1_serialized[32..38].copy_from_slice(&g1_serialized_copy[26..32]);
 
-                let g1_deserialized = G1Affine::from_uncompressed(&g1_serialized);
+                let g1_deserialized = G1Affine::from_be_bytes(&g1_serialized);
                 match bool::from(g1_deserialized.is_some()) {
                     true => panic!("Deserialization should have failed"),
                     false => continue,
@@ -804,9 +818,9 @@ mod tests {
         #[test]
         fn test_special_points() {
             let a = G1Affine::zero();
-            let a_serialized = a.to_uncompressed();
+            let a_serialized = a.to_be_bytes();
             let a_deserialized =
-                G1Affine::from_uncompressed(&a_serialized).expect("Deserialization failed");
+                G1Affine::from_be_bytes(&a_serialized).expect("Deserialization failed");
 
             assert_eq!(
                 a,
@@ -815,9 +829,9 @@ mod tests {
             );
 
             let a = G2Affine::zero();
-            let a_serialized = a.to_uncompressed();
+            let a_serialized = a.to_be_bytes();
             let a_deserialized =
-                G2Affine::from_uncompressed(&a_serialized).expect("Deserialization failed");
+                G2Affine::from_be_bytes(&a_serialized).expect("Deserialization failed");
 
             assert_eq!(
                 a,
@@ -830,9 +844,9 @@ mod tests {
         fn test_g2_uncompressed() {
             let g2_points = &*G2_REFERENCE_DATA;
             for g2 in g2_points.a.iter().map(G2Affine::from) {
-                let g2_serialized = g2.to_uncompressed();
+                let g2_serialized = g2.to_be_bytes();
                 let g2_deserialized =
-                    G2Affine::from_uncompressed(&g2_serialized).expect("Deserialization failed");
+                    G2Affine::from_be_bytes(&g2_serialized).expect("Deserialization failed");
                 assert_eq!(g2, g2_deserialized.into());
             }
         }
@@ -842,7 +856,7 @@ mod tests {
         fn test_bad_g2_uncompressed() {
             let g2_points = &*G2_REFERENCE_DATA;
             for g2 in g2_points.a.iter().map(G2Affine::from) {
-                let mut g2_serialized = g2.to_uncompressed();
+                let mut g2_serialized = g2.to_be_bytes();
                 let g2_serialized_copy = g2_serialized;
 
                 // flip some things around in the x and y coordinates, basically jumbling up the
@@ -853,7 +867,7 @@ mod tests {
                 g2_serialized[58..64].copy_from_slice(&g2_serialized_copy[64..70]);
                 g2_serialized[64..70].copy_from_slice(&g2_serialized_copy[58..64]);
 
-                let _g2_deserialized = G2Affine::from_uncompressed(&g2_serialized);
+                let _g2_deserialized = G2Affine::from_be_bytes(&g2_serialized);
             }
         }
     }
