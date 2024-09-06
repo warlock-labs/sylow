@@ -1,4 +1,4 @@
-use crate::scalar::scalar::Uint;
+use crate::scalar::scalar::ModularUint;
 use subtle::{Choice, ConditionallySelectable, CtOption};
 
 /// A boolean value returned by constant-time `const fn`s.
@@ -212,11 +212,11 @@ impl<T> From<ConstCtOption<T>> for Option<T> {
 // "destructors cannot be evaluated at compile-time" error
 // See https://github.com/rust-lang/rust/issues/66753
 
-impl<const LIMBS: usize> ConstCtOption<Uint<LIMBS>> {
+impl<const LIMBS: usize> ConstCtOption<ModularUint<LIMBS>> {
     /// This returns the underlying value if it is `Some` or the provided value otherwise.
     #[inline]
-    pub fn unwrap_or(self, def: Uint<LIMBS>) -> Uint<LIMBS> {
-        Uint::conditional_select(&def, &self.value, self.is_some.into())
+    pub fn unwrap_or(self, def: ModularUint<LIMBS>) -> ModularUint<LIMBS> {
+        ModularUint::conditional_select(&def, &self.value, self.is_some.into())
     }
 
     /// Returns the contained value, consuming the `self` value.
@@ -226,7 +226,7 @@ impl<const LIMBS: usize> ConstCtOption<Uint<LIMBS>> {
     /// Panics if the value is none with a custom panic message provided by
     /// `msg`.
     #[inline]
-    pub fn expect(self, msg: &str) -> Uint<LIMBS> {
+    pub fn expect(self, msg: &str) -> ModularUint<LIMBS> {
         assert!(self.is_some.is_true_vartime(), "{}", msg);
         self.value
     }

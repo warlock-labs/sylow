@@ -1,23 +1,16 @@
 use crate::scalar::const_choice::{ConstChoice, ConstCtOption};
-use crate::scalar::scalar::Uint;
+use crate::scalar::scalar::ModularUint;
 use subtle::CtOption;
 macro_rules! safegcd_nlimbs {
     ($bits:expr) => {
         ($bits + 64).div_ceil(62)
     };
 }
-pub trait Inverter {
-    /// Output of an inversion.
-    type Output;
 
-    /// Compute a modular inversion, returning `None` if the result is undefined (i.e. if `value` is zero or isn't
-    /// prime relative to the modulus).
-    fn invert(&self, value: &Self::Output) -> CtOption<Self::Output>;
-}
 #[derive(Clone, Copy, Debug)]
-pub(super) struct UnsatInt<const LIMBS: usize>(pub [u64; LIMBS]);
+pub(super) struct NonModularUInt<const UNSAT_L: usize>(pub [u64; UNSAT_L]);
 
-impl<const LIMBS: usize> UnsatInt<LIMBS> {
+impl<const UNSAT_L: usize> NonModularUInt<UNSAT_L> {
     /// Number of bits in each limb.
     pub const LIMB_BITS: usize = 62;
 
@@ -25,10 +18,10 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
     pub const MASK: u64 = u64::MAX >> (64 - Self::LIMB_BITS);
 
     /// Representation of -1.
-    pub const MINUS_ONE: Self = Self([Self::MASK; LIMBS]);
+    pub const MINUS_ONE: Self = Self([Self::MASK; UNSAT_L]);
 
     /// Representation of 0.
-    pub const ZERO: Self = Self([0; LIMBS]);
+    pub const ZERO: Self = Self([0; UNSAT_L]);
 
     /// Representation of 1.
     pub const ONE: Self = {
@@ -45,11 +38,11 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
     ///
     /// The ordering of the chunks in these arrays is little-endian.
     #[allow(clippy::unnecessary_cast, clippy::wrong_self_convention, clippy::eq_op)]
-    pub const fn from_uint<const SAT_LIMBS: usize>(input: &Uint<SAT_LIMBS>) -> Self {
-        if LIMBS != safegcd_nlimbs!(SAT_LIMBS * u64::BITS as usize) {
+    pub const fn from_uint<const SAT_L: usize>(input: &ModularUint<SAT_L>) -> Self {
+        if UNSAT_L != safegcd_nlimbs!(SAT_L * u64::BITS as usize) {
             panic!("incorrect number of limbs");
         }
-        let mut output = [0; LIMBS];
+        let mut output = [0; UNSAT_L];
         {
             const fn min(a: usize, b: usize) -> usize {
                 if a > b {
@@ -77,11 +70,6 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
             }
         };
         Self(output)
-
-        // let mut output = [0; LIMBS];
-        // impl_limb_convert!(Word, u64::BITS as usize, input.as_words(), u64, 62, output);
-        //
-        // Self(output)
     }
 
     /// Convert from 62-bit unsaturated representation used by `UnsatInt` to the 32/64-bit saturated
@@ -92,13 +80,13 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
     ///
     /// The ordering of the chunks in these arrays is little-endian.
     #[allow(clippy::unnecessary_cast, clippy::wrong_self_convention, clippy::eq_op)]
-    pub const fn to_uint<const SAT_LIMBS: usize>(&self) -> Uint<SAT_LIMBS> {
+    pub const fn to_uint<const SAT_LIMBS: usize>(&self) -> ModularUint<SAT_LIMBS> {
         debug_assert!(
             !self.is_negative().to_bool_vartime(),
             "can't convert negative number to Uint"
         );
 
-        if LIMBS != safegcd_nlimbs!(SAT_LIMBS * u64::BITS as usize) {
+        if UNSAT_L != safegcd_nlimbs!(SAT_LIMBS * u64::BITS as usize) {
             panic!("incorrect number of limbs");
         }
         let mut ret = [0u64; SAT_LIMBS];
@@ -125,15 +113,13 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
                 ret[filled] &= mask;
             }
         };
-        Uint::from_words(ret)
+        ModularUint::from_words(ret)
     }
-
-    /// Const fn equivalent for `Add::add`.
     pub const fn add(&self, other: &Self) -> Self {
         let (mut ret, mut carry) = (Self::ZERO, 0);
         let mut i = 0;
 
-        while i < LIMBS {
+        while i < UNSAT_L {
             let sum = self.0[i] + other.0[i] + carry;
             ret.0[i] = sum & Self::MASK;
             carry = sum >> Self::LIMB_BITS;
@@ -142,23 +128,8 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
 
         ret
     }
-
-    /// Const fn equivalent for `Mul::<i64>::mul`.
     pub const fn mul(&self, other: i64) -> Self {
         let mut ret = Self::ZERO;
-        // If the short multiplicand is non-negative, the standard multiplication algorithm is
-        // performed. Otherwise, the product of the additively negated multiplicands is found as
-        // follows.
-        //
-        // Since for the two's complement code the additive negation is the result of adding 1 to
-        // the bitwise inverted argument's representation, for any encoded integers x and y we have
-        // x * y = (-x) * (-y) = (!x + 1) * (-y) = !x * (-y) + (-y), where "!" is the bitwise
-        // inversion and arithmetic operations are performed according to the rules of the code.
-        //
-        // If the short multiplicand is negative, the algorithm below uses this formula by
-        // substituting the short multiplicand for y and turns into the modified standard
-        // multiplication algorithm, where the carry flag is initialized with the additively
-        // negated short multiplicand and the chunks of the long multiplicand are bitwise inverted.
         let (other, mut carry, mask) = if other < 0 {
             (-other, -other as u64, Self::MASK)
         } else {
@@ -166,7 +137,7 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
         };
 
         let mut i = 0;
-        while i < LIMBS {
+        while i < UNSAT_L {
             let sum = (carry as u128) + ((self.0[i] ^ mask) as u128) * (other as u128);
             ret.0[i] = sum as u64 & Self::MASK;
             carry = (sum >> Self::LIMB_BITS) as u64;
@@ -178,12 +149,10 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
 
     /// Const fn equivalent for `Neg::neg`.
     pub const fn neg(&self) -> Self {
-        // For the two's complement code the additive negation is the result of adding 1 to the
-        // bitwise inverted argument's representation.
         let (mut ret, mut carry) = (Self::ZERO, 1);
         let mut i = 0;
 
-        while i < LIMBS {
+        while i < UNSAT_L {
             let sum = (self.0[i] ^ Self::MASK) + carry;
             ret.0[i] = sum & Self::MASK;
             carry = sum >> Self::LIMB_BITS;
@@ -192,14 +161,14 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
 
         ret
     }
-
-    /// Returns the result of applying 62-bit right arithmetical shift to the current number.
     pub const fn shr(&self) -> Self {
         let mut ret = Self::ZERO;
-        ret.0[LIMBS - 1] = self.is_negative().select_u64(ret.0[LIMBS - 1], Self::MASK);
+        ret.0[UNSAT_L - 1] = self
+            .is_negative()
+            .select_u64(ret.0[UNSAT_L - 1], Self::MASK);
 
         let mut i = 0;
-        while i < LIMBS - 1 {
+        while i < UNSAT_L - 1 {
             ret.0[i] = self.0[i + 1];
             i += 1;
         }
@@ -207,12 +176,11 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
         ret
     }
 
-    /// Const fn equivalent for `PartialEq::eq`.
     pub const fn eq(&self, other: &Self) -> ConstChoice {
         let mut ret = ConstChoice::TRUE;
         let mut i = 0;
 
-        while i < LIMBS {
+        while i < UNSAT_L {
             ret = ret.and(ConstChoice::from_u64_eq(self.0[i], other.0[i]));
             i += 1;
         }
@@ -220,33 +188,28 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
         ret
     }
 
-    /// Returns "true" iff the current number is negative.
     pub const fn is_negative(&self) -> ConstChoice {
-        ConstChoice::from_u64_gt(self.0[LIMBS - 1], Self::MASK >> 1)
+        ConstChoice::from_u64_gt(self.0[UNSAT_L - 1], Self::MASK >> 1)
     }
 
     /// Returns the lowest 62 bits of the current number.
     pub const fn lowest(&self) -> u64 {
         self.0[0]
     }
-
-    /// Select between two [`UnsatInt`] values in constant time.
     pub const fn select(a: &Self, b: &Self, choice: ConstChoice) -> Self {
         let mut ret = Self::ZERO;
         let mut i = 0;
 
-        while i < LIMBS {
+        while i < UNSAT_L {
             ret.0[i] = choice.select_u64(a.0[i], b.0[i]);
             i += 1;
         }
 
         ret
     }
-
-    /// Calculate the number of leading zeros in the binary representation of this number.
     pub const fn leading_zeros(&self) -> u32 {
         let mut count = 0;
-        let mut i = LIMBS;
+        let mut i = UNSAT_L;
         let mut nonzero_limb_not_encountered = ConstChoice::TRUE;
 
         while i > 0 {
@@ -263,51 +226,45 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
 
     /// Calculate the number of bits in this value (i.e. index of the highest bit) in constant time.
     pub const fn bits(&self) -> u32 {
-        (LIMBS as u32 * 62) - self.leading_zeros()
+        (UNSAT_L as u32 * 62) - self.leading_zeros()
     }
 }
 #[derive(Clone, Debug, Copy)]
-pub struct SafeGcdInverter<const SAT_LIMBS: usize, const UNSAT_LIMBS: usize> {
-    /// Modulus
-    pub(super) modulus: UnsatInt<UNSAT_LIMBS>,
-
-    /// Adjusting parameter (see toplevel documentation).
-    adjuster: UnsatInt<UNSAT_LIMBS>,
-
+pub struct BernsteinYangInverter<const SAT_L: usize, const UNSAT_L: usize> {
+    pub(super) modulus: NonModularUInt<UNSAT_L>,
+    adjuster: NonModularUInt<UNSAT_L>,
     /// Multiplicative inverse of the modulus modulo 2^62
     inverse: i64,
 }
 /// Type of the Bernstein-Yang transition matrix multiplied by 2^62
 type Matrix = [[i64; 2]; 2];
 
-impl<const SAT_LIMBS: usize, const UNSAT_LIMBS: usize> SafeGcdInverter<SAT_LIMBS, UNSAT_LIMBS> {
+impl<const SAT_L: usize, const UNSAT_L: usize> BernsteinYangInverter<SAT_L, UNSAT_L> {
     /// Creates the inverter for specified modulus and adjusting parameter.
-    ///
-    /// Modulus must be odd. Returns `None` if it is not.
-    pub const fn new(modulus: &Uint<SAT_LIMBS>, adjuster: &Uint<SAT_LIMBS>) -> Self {
+    pub const fn new(modulus: &ModularUint<SAT_L>, adjuster: &ModularUint<SAT_L>) -> Self {
         Self {
-            modulus: UnsatInt::from_uint(modulus),
-            adjuster: UnsatInt::from_uint(adjuster),
+            modulus: NonModularUInt::from_uint(modulus),
+            adjuster: NonModularUInt::from_uint(adjuster),
             inverse: inv_mod2_62(modulus.as_words()),
         }
     }
 
     /// Returns either the adjusted modular multiplicative inverse for the argument or `None`
     /// depending on invertibility of the argument, i.e. its coprimality with the modulus
-    pub const fn inv(&self, value: &Uint<SAT_LIMBS>) -> ConstCtOption<Uint<SAT_LIMBS>> {
+    pub const fn inv(&self, value: &ModularUint<SAT_L>) -> ConstCtOption<ModularUint<SAT_L>> {
         let (d, f) = divsteps(
             self.adjuster,
             self.modulus,
-            UnsatInt::from_uint(value),
+            NonModularUInt::from_uint(value),
             self.inverse,
         );
 
         // At this point the absolute value of "f" equals the greatest common divisor of the
         // integer to be inverted and the modulus the inverter was created for.
         // Thus, if "f" is neither 1 nor -1, then the sought inverse does not exist.
-        let antiunit = f.eq(&UnsatInt::MINUS_ONE);
+        let antiunit = f.eq(&NonModularUInt::MINUS_ONE);
         let ret = self.norm(d, antiunit);
-        let is_some = f.eq(&UnsatInt::ONE).or(antiunit);
+        let is_some = f.eq(&NonModularUInt::ONE).or(antiunit);
         ConstCtOption::new(ret.to_uint(), is_some)
     }
 
@@ -316,21 +273,18 @@ impl<const SAT_LIMBS: usize, const UNSAT_LIMBS: usize> SafeGcdInverter<SAT_LIMBS
     /// formula. The input integer lies in the interval (-2 * M, M).
     const fn norm(
         &self,
-        mut value: UnsatInt<UNSAT_LIMBS>,
+        mut value: NonModularUInt<UNSAT_L>,
         negate: ConstChoice,
-    ) -> UnsatInt<UNSAT_LIMBS> {
-        value = UnsatInt::select(&value, &value.add(&self.modulus), value.is_negative());
-        value = UnsatInt::select(&value, &value.neg(), negate);
-        value = UnsatInt::select(&value, &value.add(&self.modulus), value.is_negative());
+    ) -> NonModularUInt<UNSAT_L> {
+        value = NonModularUInt::select(&value, &value.add(&self.modulus), value.is_negative());
+        value = NonModularUInt::select(&value, &value.neg(), negate);
+        value = NonModularUInt::select(&value, &value.add(&self.modulus), value.is_negative());
         value
     }
 }
-impl<const SAT_LIMBS: usize, const UNSAT_LIMBS: usize> Inverter
-    for SafeGcdInverter<SAT_LIMBS, UNSAT_LIMBS>
-{
-    type Output = Uint<SAT_LIMBS>;
-
-    fn invert(&self, value: &Uint<SAT_LIMBS>) -> CtOption<Self::Output> {
+impl<const SAT_L: usize, const UNSAT_L: usize> BernsteinYangInverter<SAT_L, UNSAT_L> {
+    #[allow(dead_code)]
+    fn invert(&self, value: &ModularUint<SAT_L>) -> CtOption<ModularUint<SAT_L>> {
         self.inv(value).into()
     }
 }
@@ -345,24 +299,7 @@ impl<const SAT_LIMBS: usize, const UNSAT_LIMBS: usize> Inverter
 /// Variable time with respect to the number of words in `value`, however that number will be
 /// fixed for a given integer size.
 const fn inv_mod2_62(value: &[u64]) -> i64 {
-    let value = {
-        #[cfg(target_pointer_width = "32")]
-        {
-            debug_assert!(value.len() >= 1);
-            let mut ret = value[0] as u64;
-
-            if value.len() >= 2 {
-                ret |= (value[1] as u64) << 32;
-            }
-
-            ret
-        }
-
-        #[cfg(target_pointer_width = "64")]
-        {
-            value[0]
-        }
-    };
+    let value = value[0];
 
     let x = value.wrapping_mul(3) ^ 2;
     let y = 1u64.wrapping_sub(x.wrapping_mul(value));
@@ -377,13 +314,13 @@ const fn inv_mod2_62(value: &[u64]) -> i64 {
 ///
 /// This version runs in a fixed number of iterations relative to the highest bit of `f` or `g`
 /// as described in Figure 11.1.
-const fn divsteps<const LIMBS: usize>(
-    mut e: UnsatInt<LIMBS>,
-    f_0: UnsatInt<LIMBS>,
-    mut g: UnsatInt<LIMBS>,
+const fn divsteps<const L: usize>(
+    mut e: NonModularUInt<L>,
+    f_0: NonModularUInt<L>,
+    mut g: NonModularUInt<L>,
     inverse: i64,
-) -> (UnsatInt<LIMBS>, UnsatInt<LIMBS>) {
-    let mut d = UnsatInt::ZERO;
+) -> (NonModularUInt<L>, NonModularUInt<L>) {
+    let mut d = NonModularUInt::ZERO;
     let mut f = f_0;
     let mut delta = 1;
     let mut matrix;
@@ -397,7 +334,7 @@ const fn divsteps<const LIMBS: usize>(
         i += 1;
     }
 
-    debug_assert!(g.eq(&UnsatInt::ZERO).to_bool_vartime());
+    debug_assert!(g.eq(&NonModularUInt::ZERO).to_bool_vartime());
     (d, f)
 }
 
@@ -447,11 +384,11 @@ const fn jump(f: &[u64], g: &[u64], mut delta: i64) -> (i64, Matrix) {
 /// Bernstein-Yang transition matrix multiplied by 2^62.
 ///
 /// The returned vector is "matrix * (f, g)' / 2^62", where "'" is the transpose operator.
-const fn fg<const LIMBS: usize>(
-    f: UnsatInt<LIMBS>,
-    g: UnsatInt<LIMBS>,
+const fn fg<const L: usize>(
+    f: NonModularUInt<L>,
+    g: NonModularUInt<L>,
     t: Matrix,
-) -> (UnsatInt<LIMBS>, UnsatInt<LIMBS>) {
+) -> (NonModularUInt<L>, NonModularUInt<L>) {
     (
         f.mul(t[0][0]).add(&g.mul(t[0][1])).shr(),
         f.mul(t[1][0]).add(&g.mul(t[1][1])).shr(),
@@ -465,14 +402,14 @@ const fn fg<const LIMBS: usize>(
 /// modulus the inverter was created for and "'" stands for the transpose operator.
 ///
 /// Both the input and output values lie in the interval (-2 * M, M).
-const fn de<const LIMBS: usize>(
-    modulus: &UnsatInt<LIMBS>,
+const fn de<const L: usize>(
+    modulus: &NonModularUInt<L>,
     inverse: i64,
     t: Matrix,
-    d: UnsatInt<LIMBS>,
-    e: UnsatInt<LIMBS>,
-) -> (UnsatInt<LIMBS>, UnsatInt<LIMBS>) {
-    let mask = UnsatInt::<LIMBS>::MASK as i64;
+    d: NonModularUInt<L>,
+    e: NonModularUInt<L>,
+) -> (NonModularUInt<L>, NonModularUInt<L>) {
+    let mask = NonModularUInt::<L>::MASK as i64;
     let mut md =
         t[0][0] * d.is_negative().to_u8() as i64 + t[0][1] * e.is_negative().to_u8() as i64;
     let mut me =
@@ -517,9 +454,9 @@ pub(crate) const fn iterations(f_bits: u32, g_bits: u32) -> usize {
 mod tests {
     use super::iterations;
 
-    type UnsatInt = super::UnsatInt<4>;
+    type UnsatInt = super::NonModularUInt<4>;
 
-    impl<const LIMBS: usize> PartialEq for super::UnsatInt<LIMBS> {
+    impl<const L: usize> PartialEq for super::NonModularUInt<L> {
         fn eq(&self, other: &Self) -> bool {
             self.eq(other).to_bool_vartime()
         }
@@ -565,7 +502,7 @@ mod tests {
 
     #[test]
     fn unsatint_shr() {
-        let n = super::UnsatInt([
+        let n = super::NonModularUInt([
             0,
             1211048314408256470,
             1344008336933394898,

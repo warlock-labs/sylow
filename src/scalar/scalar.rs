@@ -2,13 +2,13 @@ use num_traits::{Inv, Zero};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
-use crate::scalar::inverter::SafeGcdInverter;
+use crate::scalar::inverter::BernsteinYangInverter;
 
 #[derive(Clone, Copy, Debug, PartialEq)] // Non constant-time Eq
 #[repr(C)]
-pub struct Uint<const UNSAT_L: usize>(pub(crate) [u64; UNSAT_L]);
+pub struct ModularUint<const UNSAT_L: usize>(pub(crate) [u64; UNSAT_L]);
 
-impl<const UNSAT_L: usize> ConditionallySelectable for Uint<UNSAT_L> {
+impl<const UNSAT_L: usize> ConditionallySelectable for ModularUint<UNSAT_L> {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         let mut limbs = [0u64; UNSAT_L];
         let mut i = 0;
@@ -19,9 +19,7 @@ impl<const UNSAT_L: usize> ConditionallySelectable for Uint<UNSAT_L> {
         Self(limbs)
     }
 }
-impl<const UNSAT_L: usize> Uint<UNSAT_L> {
-    /// Create a [`Uint`] from an array of [`Word`]s (i.e. word-sized unsigned
-    /// integers).
+impl<const UNSAT_L: usize> ModularUint<UNSAT_L> {
     #[inline]
     pub const fn from_words(arr: [u64; UNSAT_L]) -> Self {
         let mut limbs = [0u64; UNSAT_L];
@@ -34,9 +32,6 @@ impl<const UNSAT_L: usize> Uint<UNSAT_L> {
 
         Self(limbs)
     }
-
-    /// Create an array of [`Word`]s (i.e. word-sized unsigned integers) from
-    /// a [`Uint`].
     #[inline]
     pub const fn to_words(self) -> [u64; UNSAT_L] {
         let mut arr = [0; UNSAT_L];
@@ -52,7 +47,6 @@ impl<const UNSAT_L: usize> Uint<UNSAT_L> {
 
     /// Borrow the inner limbs as an array of [`Word`]s.
     pub const fn as_words(&self) -> &[u64; UNSAT_L] {
-        // SAFETY: `Limb` is a `repr(transparent)` newtype for `Word`
         #[allow(unsafe_code)]
         unsafe {
             &*self.0.as_ptr().cast()
@@ -66,11 +60,11 @@ impl<const UNSAT_L: usize> Uint<UNSAT_L> {
 // / have undefined behavior at this time.
 #[derive(Clone, Copy, Debug)]
 pub struct FinitePrimeField<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize> {
-    modulus: Uint<UNSAT_L>,
-    value: Uint<UNSAT_L>,
-    r_squared: Uint<UNSAT_L>,
+    modulus: ModularUint<UNSAT_L>,
+    value: ModularUint<UNSAT_L>,
+    r_squared: ModularUint<UNSAT_L>,
     n_prime: u64,
-    inverter: SafeGcdInverter<UNSAT_L, SAT_L>,
+    inverter: BernsteinYangInverter<UNSAT_L, SAT_L>,
 }
 
 impl<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize>
@@ -86,34 +80,41 @@ impl<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize>
             panic!("Double size D must be twice the size of the field L");
         }
         let mut result = Self {
-            modulus: Uint(modulus),
-            value: Uint([0; UNSAT_L]),
-            r_squared: Uint(r_squared),
+            modulus: ModularUint(modulus),
+            value: ModularUint([0; UNSAT_L]),
+            r_squared: ModularUint(r_squared),
             n_prime,
-            inverter: SafeGcdInverter::<UNSAT_L, SAT_L>::new(&Uint(modulus), &Uint(r_squared)),
+            inverter: BernsteinYangInverter::<UNSAT_L, SAT_L>::new(
+                &ModularUint(modulus),
+                &ModularUint(r_squared),
+            ),
         };
-        result.value = result.to_montgomery(&Uint(value));
+        result.value = result.to_montgomery(&ModularUint(value));
         result
     }
-    const fn zero_array() -> Uint<UNSAT_L> {
-        Uint([0; UNSAT_L])
+    const fn zero_array() -> ModularUint<UNSAT_L> {
+        ModularUint([0; UNSAT_L])
     }
     //
-    const fn one_array() -> Uint<UNSAT_L> {
+    const fn one_array() -> ModularUint<UNSAT_L> {
         let mut arr = [0; UNSAT_L];
         arr[0] = 1;
-        Uint(arr)
+        ModularUint(arr)
     }
 
-    const fn to_montgomery(self, a: &Uint<UNSAT_L>) -> Uint<UNSAT_L> {
+    const fn to_montgomery(self, a: &ModularUint<UNSAT_L>) -> ModularUint<UNSAT_L> {
         self.montgomery_multiply(a, &self.r_squared)
     }
 
-    const fn from_montgomery(&self, a: &Uint<UNSAT_L>) -> [u64; UNSAT_L] {
+    const fn from_montgomery(&self, a: &ModularUint<UNSAT_L>) -> [u64; UNSAT_L] {
         self.montgomery_multiply(a, &Self::one_array()).0
     }
 
-    const fn montgomery_multiply(&self, a: &Uint<UNSAT_L>, b: &Uint<UNSAT_L>) -> Uint<UNSAT_L> {
+    const fn montgomery_multiply(
+        &self,
+        a: &ModularUint<UNSAT_L>,
+        b: &ModularUint<UNSAT_L>,
+    ) -> ModularUint<UNSAT_L> {
         let mut temp = [0_u64; DOUBLE_UNSAT_L];
         let mut result = Self::zero_array().0;
 
@@ -162,10 +163,14 @@ impl<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize>
             result[i] = (select_temp & temp[i + UNSAT_L]) | (!select_temp & dec[i]);
             i += 1;
         }
-        Uint(result)
+        ModularUint(result)
     }
 
-    const fn add_internal(&self, a: &Uint<UNSAT_L>, b: &Uint<UNSAT_L>) -> Uint<UNSAT_L> {
+    const fn add_internal(
+        &self,
+        a: &ModularUint<UNSAT_L>,
+        b: &ModularUint<UNSAT_L>,
+    ) -> ModularUint<UNSAT_L> {
         let mut sum = [0; UNSAT_L];
         let mut carry = false;
         let mut result = Self::zero_array().0;
@@ -195,10 +200,14 @@ impl<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize>
             result[i] = (select_mask & sum[i]) | (!select_mask & trial[i]);
             i += 1;
         }
-        Uint(result)
+        ModularUint(result)
     }
 
-    const fn sub_internal(&self, a: &Uint<UNSAT_L>, b: &Uint<UNSAT_L>) -> Uint<UNSAT_L> {
+    const fn sub_internal(
+        &self,
+        a: &ModularUint<UNSAT_L>,
+        b: &ModularUint<UNSAT_L>,
+    ) -> ModularUint<UNSAT_L> {
         let mut diff = [0; UNSAT_L];
         let mut borrow = false;
         let mut result = Self::zero_array().0;
@@ -224,25 +233,9 @@ impl<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize>
             borrow_fix = new_borrow;
             i += 1;
         }
-        Uint(result)
+        ModularUint(result)
     }
     fn inverse(&self) -> Self {
-        // #[test]
-        // fn test_division_closure() {
-        //
-        //     let g =  create_field(MODULUS) - create_field([12, 12, 12, 12]);
-        //
-        //     let inverse = FinitePrimeField::<4, 6, 8>{
-        //         modulus: g.modulus,
-        //         value: INVERTER.inv(&g.value).unwrap(),
-        //         r_squared: g.r_squared,
-        //         n_prime: g.n_prime,
-        //         inverter: g.inverter
-        //     };
-        //     let result = inverse * g;
-        //     assert_eq!(result.from_montgomery(&result.value), [1, 0, 0, 0], "Simple division failed");
-        //
-        // }
         let maybe_inverse = self.inverter.inv(&self.value).unwrap();
         Self {
             modulus: self.modulus,
@@ -251,8 +244,6 @@ impl<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize>
             n_prime: self.n_prime,
             inverter: self.inverter,
         }
-
-        // unimplemented!("Inverse not implemented")
     }
 }
 impl<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize> ConditionallySelectable
@@ -260,9 +251,9 @@ impl<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize> Cond
 {
     fn conditional_select(a: &Self, b: &Self, choice: Choice) -> Self {
         Self {
-            modulus: Uint::conditional_select(&a.modulus, &b.modulus, choice),
-            value: Uint::conditional_select(&a.value, &b.value, choice),
-            r_squared: Uint::conditional_select(&a.r_squared, &b.r_squared, choice),
+            modulus: ModularUint::conditional_select(&a.modulus, &b.modulus, choice),
+            value: ModularUint::conditional_select(&a.value, &b.value, choice),
+            r_squared: ModularUint::conditional_select(&a.r_squared, &b.r_squared, choice),
             n_prime: u64::conditional_select(&a.n_prime, &b.n_prime, choice),
             //TODO make this conditional as well
             inverter: a.inverter,
