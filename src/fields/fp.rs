@@ -55,6 +55,15 @@ const BN254_FP_MODULUS_WORDS: [u64; 4] = [
     0x30644E72E131A029,
 ];
 
+/// The modulus of the r-order subfield as a 256-bit integer in words.
+///
+const BN254_FR_MODULUS_WORDS: [u64; 4] = [
+    0x30644e72e131a029,
+    0xb85045b68181585d,
+    0x2833e84879b97091,
+    0x43e1f593f0000001,
+];
+
 /// Instantiated BN254 base field 𝔽ₚ.
 pub(crate) const BN254_FP_MODULUS: Fp = Fp::new(U256::from_words(BN254_FP_MODULUS_WORDS));
 
@@ -733,6 +742,39 @@ impl Fr {
     /// Computes the Non-Adjacent Form (NAF) representation of the field element
     pub(crate) fn compute_naf(self) -> (U256, U256) {
         Fp::from(self).compute_naf()
+    }
+    pub fn from_be_bytes(arr: &[u8; 32]) -> CtOption<Self> {
+        #[inline(always)]
+        const fn sbb(a: u64, b: u64, borrow: u64) -> (u64, u64) {
+            let ret = (a as u128).wrapping_sub((b as u128) + ((borrow >> 63) as u128));
+            (ret as u64, (ret >> 64) as u64)
+        }
+        // generate the words themselves from the byte array
+        let a4 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[0..8]).expect("Conversion of u8 array failed"),
+        );
+        let a3 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[8..16]).expect("Conversion of u8 array failed"),
+        );
+        let a2 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[16..24]).expect("Conversion of u8 array failed"),
+        );
+        let a1 = u64::from_be_bytes(
+            <[u8; 8]>::try_from(&arr[24..32]).expect("Conversion of u8 array failed"),
+        );
+
+        // determine if the value is greater than the modulus
+        let (_, borrow) = sbb(a1, BN254_FR_MODULUS_WORDS[0], 0);
+        let (_, borrow) = sbb(a2, BN254_FR_MODULUS_WORDS[1], borrow);
+        let (_, borrow) = sbb(a3, BN254_FR_MODULUS_WORDS[2], borrow);
+        let (_, borrow) = sbb(a4, BN254_FR_MODULUS_WORDS[3], borrow);
+
+        // there's underflow if the value is below the modulus, aka borrow != 0
+        let is_some = (borrow as u8) & 1;
+        CtOption::new(
+            Self::new(U256::from_words([a1, a2, a3, a4])),
+            Choice::from(is_some),
+        )
     }
 }
 

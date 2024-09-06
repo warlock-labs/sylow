@@ -317,7 +317,7 @@ pub struct GroupProjective<const D: usize, const N: usize, F: FieldExtensionTrai
 }
 impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjective<D, N, F> {
     /// Returns the point at infinity (the additive identity of the group).
-    pub(crate) fn zero() -> Self {
+    pub fn zero() -> Self {
         // This is the point at infinity! This object really is the additive identity of the group,
         // when the group law is addition, which it is here. It satisfies the properties that
         // $zero+a=a$ for some $a$ in the group, as well as $a+(-a)=zero$, which means that the
