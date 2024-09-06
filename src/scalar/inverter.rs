@@ -1,35 +1,6 @@
 use crate::scalar::const_choice::{ConstChoice, ConstCtOption};
 use crate::scalar::scalar::Uint;
 use subtle::CtOption;
-macro_rules! impl_limb_convert {
-    ($input_type:ty, $input_bits:expr, $input:expr, $output_type:ty, $output_bits:expr, $output:expr) => {{
-        // This function is defined because the method "min" of the usize type is not constant
-        const fn min(a: usize, b: usize) -> usize {
-            if a > b {
-                b
-            } else {
-                a
-            }
-        }
-
-        let total = min($input.len() * $input_bits, $output.len() * $output_bits);
-        let mut bits = 0;
-
-        while bits < total {
-            let (i, o) = (bits % $input_bits, bits % $output_bits);
-            $output[bits / $output_bits] |= ($input[bits / $input_bits] >> i) as $output_type << o;
-            bits += min($input_bits - i, $output_bits - o);
-        }
-
-        let mask = (<$output_type>::MAX as $output_type) >> (<$output_type>::BITS as usize - $output_bits);
-        let mut filled = total / $output_bits + if total % $output_bits > 0 { 1 } else { 0 };
-
-        while filled > 0 {
-            filled -= 1;
-            $output[filled] &= mask;
-        }
-    }};
-}
 macro_rules! safegcd_nlimbs {
     ($bits:expr) => {
         ($bits + 64).div_ceil(62)
@@ -139,7 +110,7 @@ impl<const LIMBS: usize> UnsatInt<LIMBS> {
                     a
                 }
             }
-            let total = min((&self.0).len() * 62, ret.len() * u64::BITS as usize);
+            let total = min(self.0.len() * 62, ret.len() * u64::BITS as usize);
             let mut bits = 0;
             while bits < total {
                 let (i, o) = (bits % 62, bits % u64::BITS as usize);
@@ -315,7 +286,7 @@ impl<const SAT_LIMBS: usize, const UNSAT_LIMBS: usize> SafeGcdInverter<SAT_LIMBS
     /// Modulus must be odd. Returns `None` if it is not.
     pub const fn new(modulus: &Uint<SAT_LIMBS>, adjuster: &Uint<SAT_LIMBS>) -> Self {
         Self {
-            modulus: UnsatInt::from_uint(&modulus),
+            modulus: UnsatInt::from_uint(modulus),
             adjuster: UnsatInt::from_uint(adjuster),
             inverse: inv_mod2_62(modulus.as_words()),
         }
@@ -338,34 +309,6 @@ impl<const SAT_LIMBS: usize, const UNSAT_LIMBS: usize> SafeGcdInverter<SAT_LIMBS
         let ret = self.norm(d, antiunit);
         let is_some = f.eq(&UnsatInt::ONE).or(antiunit);
         ConstCtOption::new(ret.to_uint(), is_some)
-    }
-
-    /// Returns the greatest common divisor (GCD) of the two given numbers.
-    ///
-    /// This is defined on this type to piggyback on the definitions for `SAT_LIMBS` and
-    /// `UNSAT_LIMBS` which are computed when defining `PrecomputeInverter::Inverter` for various
-    /// `Uint` limb sizes.
-    pub(crate) const fn gcd(f: &Uint<SAT_LIMBS>, g: &Uint<SAT_LIMBS>) -> Uint<SAT_LIMBS> {
-        let inverse = inv_mod2_62(f.as_words());
-        let e = UnsatInt::<UNSAT_LIMBS>::ONE;
-        let f = UnsatInt::from_uint(f);
-        let g = UnsatInt::from_uint(g);
-        let (_, mut f) = divsteps(e, f, g, inverse);
-        f = UnsatInt::select(&f, &f.neg(), f.is_negative());
-        f.to_uint()
-    }
-
-    /// Returns the greatest common divisor (GCD) of the two given numbers.
-    ///
-    /// This version is variable-time with respect to `g`.
-    pub(crate) const fn gcd_vartime(f: &Uint<SAT_LIMBS>, g: &Uint<SAT_LIMBS>) -> Uint<SAT_LIMBS> {
-        let inverse = inv_mod2_62(f.as_words());
-        let e = UnsatInt::<UNSAT_LIMBS>::ONE;
-        let f = UnsatInt::from_uint(f);
-        let g = UnsatInt::from_uint(g);
-        let (_, mut f) = divsteps_vartime(e, f, g, inverse);
-        f = UnsatInt::select(&f, &f.neg(), f.is_negative());
-        f.to_uint()
     }
 
     /// Returns either "value (mod M)" or "-value (mod M)", where M is the modulus the inverter
@@ -455,30 +398,6 @@ const fn divsteps<const LIMBS: usize>(
     }
 
     debug_assert!(g.eq(&UnsatInt::ZERO).to_bool_vartime());
-    (d, f)
-}
-
-/// Algorithm `divsteps2` to compute (δₙ, fₙ, gₙ) = divstepⁿ(δ, f, g) as described in Figure 10.1
-/// of <https://eprint.iacr.org/2019/266.pdf>.
-///
-/// This version is variable-time with respect to `g`.
-const fn divsteps_vartime<const LIMBS: usize>(
-    mut e: UnsatInt<LIMBS>,
-    f_0: UnsatInt<LIMBS>,
-    mut g: UnsatInt<LIMBS>,
-    inverse: i64,
-) -> (UnsatInt<LIMBS>, UnsatInt<LIMBS>) {
-    let mut d = UnsatInt::ZERO;
-    let mut f = f_0;
-    let mut delta = 1;
-    let mut matrix;
-
-    while !g.eq(&UnsatInt::ZERO).to_bool_vartime() {
-        (delta, matrix) = jump(&f.0, &g.0, delta);
-        (f, g) = fg(f, g, matrix);
-        (d, e) = de(&f_0, inverse, matrix, d, e);
-    }
-
     (d, f)
 }
 
@@ -597,7 +516,6 @@ pub(crate) const fn iterations(f_bits: u32, g_bits: u32) -> usize {
 #[cfg(test)]
 mod tests {
     use super::iterations;
-    use crate::scalar::scalar::Uint;
 
     type UnsatInt = super::UnsatInt<4>;
 

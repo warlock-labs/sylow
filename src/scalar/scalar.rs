@@ -1,7 +1,8 @@
-use crate::scalar::inverter::SafeGcdInverter;
 use num_traits::{Inv, Zero};
 use std::ops::{Add, Div, Mul, Neg, Sub};
-use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
+
+use crate::scalar::inverter::SafeGcdInverter;
 
 #[derive(Clone, Copy, Debug, PartialEq)] // Non constant-time Eq
 #[repr(C)]
@@ -117,10 +118,9 @@ impl<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize>
         let mut result = Self::zero_array().0;
 
         let mut i = 0;
-        let mut j = 0;
         while i < UNSAT_L {
             let mut carry = 0_u64;
-            j = 0;
+            let mut j = 0;
             while j < UNSAT_L {
                 let hilo =
                     (a.0[j] as u128) * (b.0[i] as u128) + (temp[i + j] as u128) + (carry as u128);
@@ -359,7 +359,7 @@ impl<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize> Inv
         self.inverse()
     }
 }
-
+#[allow(clippy::suspicious_arithmetic_impl)]
 impl<const UNSAT_L: usize, const SAT_L: usize, const DOUBLE_UNSAT_L: usize> Div
     for FinitePrimeField<UNSAT_L, SAT_L, DOUBLE_UNSAT_L>
 {
@@ -400,6 +400,7 @@ mod bls12_381_tests {
 
     mod addition_tests {
         use super::*;
+
         #[test]
         fn test_addition_closure() {
             let a = create_field([1, 2, 3, 4, 5, 6]);
@@ -1022,10 +1023,10 @@ mod bn254_tests {
             let b = create_field([5, 6, 7, 8]);
             let one = create_field([1, 0, 0, 0]);
 
-            assert_eq!((a / a), one, "Division by self failed");
-            assert_eq!((a / one), a, "Division by one failed");
+            assert_eq!(a / a, one, "Division by self failed");
+            assert_eq!(a / one, a, "Division by one failed");
             assert_eq!(
-                ((a / b) * b),
+                (a / b) * b,
                 a,
                 "Division and multiplication property failed"
             );
