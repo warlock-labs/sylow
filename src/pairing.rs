@@ -1020,6 +1020,21 @@ pub fn glued_miller_loop(g2_precomps: &[G2PreComputed], g1s: &[G1Affine]) -> Mil
     // Wrap the final result in a MillerLoopResult
     MillerLoopResult(f)
 }
+/// The driver code for the glued miller loop execution, see comments above.
+/// # Arguments
+/// * `g1s` - an array of G1 points
+/// * `g2s` - an array of G2 points
+/// # Returns
+/// * the result of the pairing, doing each one individually and then aggregating their result
+pub fn glued_pairing(g1s: &[G1Projective], g2s: &[G2Projective]) -> Gt {
+    let g1s = g1s.iter().map(G1Affine::from).collect::<Vec<G1Affine>>();
+    let g2s = g2s.iter().map(G2Affine::from).collect::<Vec<G2Affine>>();
+    let g2_precomps = g2s
+        .iter()
+        .map(|g2| g2.precompute())
+        .collect::<Vec<G2PreComputed>>();
+    glued_miller_loop(&g2_precomps, &g1s).final_exponentiation()
+}
 
 #[cfg(test)]
 mod tests {
@@ -1033,23 +1048,6 @@ mod tests {
         const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
         const MSG: &[u8; 4] = &20_i32.to_be_bytes();
         const K: u64 = 128;
-
-        // TODO(Perhaps this should be exposed as the higher level user-facing batch_pairing operation)
-        /// The driver code for the glued miller loop execution, see comments above.
-        /// # Arguments
-        /// * `g1s` - an array of G1 points
-        /// * `g2s` - an array of G2 points
-        /// # Returns
-        /// * the result of the pairing, doing each one individually and then aggregating their result
-        pub(crate) fn glued_pairing(g1s: &[G1Projective], g2s: &[G2Projective]) -> Gt {
-            let g1s = g1s.iter().map(G1Affine::from).collect::<Vec<G1Affine>>();
-            let g2s = g2s.iter().map(G2Affine::from).collect::<Vec<G2Affine>>();
-            let g2_precomps = g2s
-                .iter()
-                .map(|g2| g2.precompute())
-                .collect::<Vec<G2PreComputed>>();
-            glued_miller_loop(&g2_precomps, &g1s).final_exponentiation()
-        }
 
         #[test]
         fn test_gt_generator() {

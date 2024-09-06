@@ -13,7 +13,6 @@ use field::fp6::*;
 mod pairing;
 use pairing::*;
 
-
 mod sig;
 use sig::*;
 

@@ -60,7 +60,7 @@
 //! For more detailed information, examples, and advanced usage, please refer to the
 //! [full documentation](https://docs.rs/sylow)
 //! and the [GitHub repository](https://github.com/warlock-labs/sylow).
-#![deny(unsafe_code, dead_code)]
+// #![deny(unsafe_code, dead_code)]
 mod fields;
 mod groups;
 mod hasher;
@@ -80,7 +80,9 @@ pub use crate::fields::fp2::Fp2;
 pub use crate::fields::fp6::Fp6;
 
 pub use crate::hasher::{Expander, XMDExpander, XOFExpander};
-pub use crate::pairing::{glued_miller_loop, pairing, G2PreComputed, MillerLoopResult};
+pub use crate::pairing::{
+    glued_miller_loop, glued_pairing, pairing, G2PreComputed, MillerLoopResult,
+};
 use crypto_bigint::rand_core::OsRng;
 use sha3::Keccak256;
 use subtle::ConstantTimeEq;
