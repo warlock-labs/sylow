@@ -23,9 +23,9 @@ systems.
     - Key generation
     - BLS signature generation and verification
     - Hash-to-curve functionality
-- **Compatibility**: Designed to be compatible with Ethereum's precompiled 
-                     contracts for BN254 operations and [Warlock](https://warlock.xyz/)'s 
-                     [SolBLS](https://github.com/warlock-labs/solbls) library.
+- **Compatibility**: Designed to be compatible with Ethereum's precompiled
+  contracts for BN254 operations and [Warlock](https://warlock.xyz/)'s
+  [SolBLS](https://github.com/warlock-labs/solbls) library.
 
 ## Installation
 
@@ -112,7 +112,9 @@ For detailed API documentation, please refer to [docs.rs/sylow](https://docs.rs/
 
 We welcome contributions to Sylow! Whether it's bug reports, feature requests, or code contributions, please feel free
 to engage with the project by submitting issues, feature requests, or pull requests on
-the [GitHub repository](https://github.com/warlock-labs/sylow).
+the [GitHub repository](https://github.com/warlock-labs/sylow). We highly recommend reading
+our [Devguide](sylow_devguide.pdf) before
+contributing to get the required background knowledge.
 
 ## License
 
