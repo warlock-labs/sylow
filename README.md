@@ -2,7 +2,6 @@
 
 # Sylow
 
-[![License](https://img.shields.io/crates/l/sylow)](https://choosealicense.com/licenses/mit/)
 [![Crates.io](https://img.shields.io/crates/v/sylow)](https://crates.io/crates/sylow)
 [![Docs](https://img.shields.io/crates/v/sylow?color=blue&label=docs)](https://docs.rs/sylow/)
 ![CI](https://github.com/warlock-labs/sylow/actions/workflows/CI.yml/badge.svg)
