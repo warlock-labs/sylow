@@ -1,23 +1,72 @@
 [package]
-authors = ["Tristan Britt <hello@tbritt.xyz>", "0xAlcibiades <alcibiades.eth@protonmail.com>"]
+authors = ["Tristan Britt <tristan@warlock.xyz>",
+           "0xAlcibiades <alcibiades@warlock.xyz>",
+           "Michael Rolish <michael@warlock.xyz>"]
 categories = ["cryptography", "mathematics"]
 description = "Implementation of the BLS signature scheme using the alt-bn128 curve."
-homepage = "https://github.com/warlock-labs/alt-bn128-bls"
-keywords = ["alt-bn128", "bls", "cryptography", "elliptic-curve", "pairing"]
+homepage = "https://github.com/warlock-labs/sylow"
+keywords = ["alt-bn128", "zero-knowledge", "cryptography", "elliptic-curve", "pairing"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/warlock-labs/alt-bn128-bls.git"
-name = "alt-bn128-bls"
-version = "0.0.1"
+repository = "https://github.com/warlock-labs/sylow.git"
+name = "sylow"
+version = "0.1.0"
 edition = "2021"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-hex-literal = "0.4.1"
-num-traits = "0.2.19"
-subtle = "2.6.1"
+[[example]]
+name = "dkg"
+path = "examples/dkg.rs"
 
-[lib]
+[[example]]
+name = "ecdh"
+path = "examples/simple_ecdh.rs"
+
+[[example]]
+name = "threshold_signing"
+path = "examples/threshold_signing.rs"
+
+[[example]]
+name = "sign_and_verify_multiple_messages"
+path = "examples/verify_multiple_messages_same_signer.rs"
+
+[[example]]
+name = "simple_xor_ecies"
+path = "examples/simple_xor_ecies.rs"
+
+# TODO(Seems like we probably should not be using pre-releases, release candidates, etc. in our dependencies)
+[dependencies]
+crypto-bigint = "0.6.0-rc.3"
+num-traits = "0.2.19"
+sha3 = "0.11.0-pre.4"
+subtle = "2.6.1"
+tracing = "0.1.40"
 
 [dev-dependencies]
+confy = "0.6.1"
+criterion = { version = "0.5", features = ["html_reports"] }
+dudect-bencher = "0.6.0"
+lazy_static = "1.5.0"
+proptest = "1.5.0"
+quickcheck = "1.0.3"
+quickcheck_macros = "1.0.0"
+rand = "0.8.5"
+rand_core = "0.6.4"
+serde = { version = "1.0.209", features = ["derive"] }
+serde_json = "1.0.127"
+sha2 = "0.11.0-pre.4"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+
+[[bench]]
+name = "mod"
+harness = false
+
+[profile.bench]
+debug = false
+debug-assertions = false
+incremental = false
+lto = true
+opt-level = 3
+overflow-checks = false
+
