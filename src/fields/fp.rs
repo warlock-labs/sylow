@@ -56,7 +56,6 @@ const BN254_FP_MODULUS_WORDS: [u64; 4] = [
 ];
 
 /// The modulus of the r-order subfield as a 256-bit integer in words.
-///
 const BN254_FR_MODULUS_WORDS: [u64; 4] = [
     0x30644e72e131a029,
     0xb85045b68181585d,

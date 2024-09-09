@@ -1035,6 +1035,7 @@ pub fn glued_pairing(g1s: &[G1Projective], g2s: &[G2Projective]) -> Gt {
         .collect::<Vec<G2PreComputed>>();
     glued_miller_loop(&g2_precomps, &g1s).final_exponentiation()
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
