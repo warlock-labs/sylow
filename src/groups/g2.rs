@@ -314,9 +314,9 @@ impl G2Affine {
     /// use sylow::*;
     ///
     /// let point = G2Affine::generator();
-    /// let point_bytes = point.to_uncompressed();
+    /// let point_bytes = point.to_be_bytes();
     /// ```
-    pub fn to_uncompressed(self) -> [u8; 128] {
+    pub fn to_be_bytes(self) -> [u8; 128] {
         let mut res = [0u8; 128];
 
         let x = Fp2::conditional_select(&self.x, &Fp2::zero(), self.infinity);
@@ -354,12 +354,12 @@ impl G2Affine {
     /// ```
     /// use sylow::*;
     /// let p = G2Affine::generator();
-    /// let bytes = p.to_uncompressed();
-    /// let p2 = G2Affine::from_uncompressed(&bytes).unwrap();
+    /// let bytes = p.to_be_bytes();
+    /// let p2 = G2Affine::from_be_bytes(&bytes).unwrap();
     /// assert_eq!(p, p2.into(), "Deserialization failed");
     /// ```
-    pub fn from_uncompressed(bytes: &[u8; 128]) -> CtOption<G2Projective> {
-        Self::from_uncompressed_unchecked(bytes).and_then(|p| {
+    pub fn from_be_bytes(bytes: &[u8; 128]) -> CtOption<G2Projective> {
+        Self::from_be_bytes_unchecked(bytes).and_then(|p| {
             let infinity_flag = bool::from(p.infinity);
             if infinity_flag {
                 CtOption::new(G2Projective::zero(), Choice::from(1u8))
@@ -375,7 +375,7 @@ impl G2Affine {
     /// This is a helper function to `Self::from_uncompressed` that does the extraction of the
     /// relevant information from the bytes themselves, see the documentation of
     /// `G1Affine::from_uncompressed_unchecked` for more information.
-    fn from_uncompressed_unchecked(bytes: &[u8; 128]) -> CtOption<Self> {
+    fn from_be_bytes_unchecked(bytes: &[u8; 128]) -> CtOption<Self> {
         let infinity_flag = Choice::from((bytes[0] >> 7) & 1);
 
         // try to get the x coordinate
