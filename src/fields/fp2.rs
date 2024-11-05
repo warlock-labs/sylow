@@ -10,7 +10,7 @@
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp, BN254_FP_MODULUS, FP_QUADRATIC_NON_RESIDUE};
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
-use num_traits::{Inv, One, Pow, Zero};
+use num_traits::{Inv, One, Zero};
 use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::{Choice, ConstantTimeEq, CtOption};
 
@@ -168,28 +168,6 @@ impl Fp2 {
         let c = self.0[0] + self.0[0];
         tracing::trace!(?a, "Fp2::square");
         Self([a * b, c * self.0[1]])
-    }
-
-    /// Determines if the element is a quadratic residue (square) in the field.
-    ///
-    /// # Returns
-    ///
-    /// A `Choice` representing whether the element is a square (1) or not (0)
-    pub fn is_square(&self) -> Choice {
-        let legendre = |x: &Fp| -> i32 {
-            let res = x.pow(P_MINUS_1_OVER_2.value());
-
-            if res.is_one() {
-                1
-            } else if res.is_zero() {
-                0
-            } else {
-                -1
-            }
-        };
-        let sum = self.0[0].square() + FP_QUADRATIC_NON_RESIDUE * (-self.0[0]).square();
-        tracing::trace!(?sum, "Fp2::is_square");
-        Choice::from((legendre(&sum) != -1) as u8)
     }
 
     /// Converts a byte array to an 𝔽ₚ² element.
@@ -743,20 +721,6 @@ mod tests {
             let zero = Fp2::zero();
 
             let _ = a / zero;
-        }
-    }
-    mod square_tests {
-        use super::*;
-
-        #[test]
-        fn test_square() {
-            use crypto_bigint::rand_core::OsRng;
-
-            for _ in 0..100 {
-                let a = <Fp2 as FieldExtensionTrait<2, 2>>::rand(&mut OsRng);
-                let b = a.square();
-                assert!(bool::from(b.is_square()), "Is square failed");
-            }
         }
     }
     #[test]
