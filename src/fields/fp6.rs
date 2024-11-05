@@ -761,6 +761,23 @@ mod tests {
             assert_eq!(d * d, e, "Multiplication around modulus failed")
         }
         #[test]
+        fn test_multiplication_edge_cases() {
+            use crypto_bigint::rand_core::OsRng;
+            for _ in 0..100 {
+                let random = <Fp2 as FieldExtensionTrait<2, 2>>::rand(&mut OsRng);
+                assert_eq!(
+                    random * random,
+                    random.square(),
+                    "Failed to square correctly"
+                );
+                assert_eq!(
+                    random * random.inv(),
+                    Fp2::one(),
+                    "Failed to invert correctly"
+                );
+            }
+        }
+        #[test]
         fn test_frobenius() {
             let a = create_field_extension(
                 [1, 0, 0, 0],
