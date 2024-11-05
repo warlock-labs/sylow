@@ -201,7 +201,7 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError> {
         let b_in_bytes = D::output_size();
         let r_in_bytes = D::block_size();
-        let ell = (len_in_bytes + b_in_bytes - 1) / b_in_bytes;
+        let ell = len_in_bytes.div_ceil(b_in_bytes);
         let dst_prime = [
             self.dst_prime.as_slice(),
             &i2osp(self.dst_prime.len() as u64, 1)?,

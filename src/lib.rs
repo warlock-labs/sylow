@@ -61,6 +61,7 @@
 //! [full documentation](https://docs.rs/sylow)
 //! and the [GitHub repository](https://github.com/warlock-labs/sylow).
 #![deny(dead_code)]
+#![allow(clippy::needless_lifetimes)]
 mod fields;
 mod groups;
 mod hasher;
