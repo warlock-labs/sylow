@@ -647,22 +647,21 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&
     /// <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
     type Output = GroupProjective<D, N, F>;
     fn mul(self, other: &'b Fp) -> Self::Output {
-        let (np, nm) = other.compute_naf();
-        let mut res = Self::Output::zero();
-
-        for i in (0..256).rev() {
-            res = res.double();
-
-            let np_bit = np.bit(i).into();
-            let nm_bit = nm.bit(i).into();
-
-            if np_bit {
-                res = &res + self;
-            } else if nm_bit {
-                res = &res - self;
+        let bits = other.value().to_words();
+        let mut r0 = Self::Output::zero();
+        let mut r1 = self.clone();
+        for e in bits.iter().rev() {
+            for i in (0..64).rev() {
+                if ((*e >> i) & 1) == 0 {
+                    r1 = r0 + r1;
+                    r0 = r0.double();
+                } else {
+                    r0 = r0 + r1;
+                    r1 = r1.double();
+                }
             }
         }
-        res
+        r0
     }
 }
 

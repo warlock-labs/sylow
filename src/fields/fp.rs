@@ -643,24 +643,6 @@ impl Fp {
         }
     }
 
-    /// Computes the Non-Adjacent Form (NAF) representation of the field element
-    ///
-    /// There is a need to at times move to a representation of the field element with
-    /// a lower Hamming weight, for instance in the case of multiplication of a group element by
-    /// such a scalar. This implements the prodinger algorithm, and returns a string of the
-    /// positive bits and a string of negative bits for the NAF representation
-    /// see <http://math.colgate.edu/~integers/a8/a8.pdf>
-    pub(crate) fn compute_naf(self) -> (U256, U256) {
-        let x = self.value();
-        let xh = x >> 1;
-        let x3 = x + xh;
-        let c = xh ^ x3;
-        let np = x3 & c;
-        let nm = xh & c;
-
-        (np, nm)
-    }
-
     /// Converts a big-endian byte representation to a field element
     ///
     /// This generates an element in the base field from the byte array. It could be as simple as
@@ -739,10 +721,6 @@ impl Fp {
 
 /// Implements the r-torsion field elements
 impl Fr {
-    /// Computes the Non-Adjacent Form (NAF) representation of the field element
-    pub(crate) fn compute_naf(self) -> (U256, U256) {
-        Fp::from(self).compute_naf()
-    }
     pub fn from_be_bytes(arr: &[u8; 32]) -> CtOption<Self> {
         #[inline(always)]
         const fn sbb(a: u64, b: u64, borrow: u64) -> (u64, u64) {
