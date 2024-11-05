@@ -642,7 +642,8 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&
     /// Multiplies a point by a scalar using the double-and-add algorithm.
     ///
     /// This is the elliptic curve equivalent of the square-and-multiply algorithm used in modular exponentiation.
-    /// It uses a lower Hamming weight representation of the scalar to reduce the number of operations.
+    /// Note that we follow the Montgomery Ladder approach to ensure constant time execution in each
+    /// branch in the loop, see Alg 2c of <https://marcjoye.github.io/papers/Joy03ecc.pdf>.
     ///
     /// <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
     type Output = GroupProjective<D, N, F>;

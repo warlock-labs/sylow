@@ -53,7 +53,9 @@
 //!
 //! Sylow uses optimized algorithms and constant-time implementations to ensure both efficiency and
 //! security.
-//! It follows best practices outlined in RFC 9380 for operations like hashing to curve points.
+//! It follows best practices outlined in RFC 9380 for operations like hashing to curve points, and
+//! furthermore uses the `secrets` crate to ensure that keys and signatures are stored securely in
+//! memory throughout the entirety of the application runtime.
 //!
 //! ## Further Reading
 //!
@@ -96,14 +98,14 @@ const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
 /// as the effective bit length was shown to be ~100, but we keep for posterity.
 const SECURITY_BITS: u64 = 128;
 
-// TODO(Secret values should perhaps use the secrets crate so they are in protected memory and don’t leak to logs)
 // TODO(Should the private key be represented in the r-torsion group instead of the base field?)
 // Perhaps as a G1Projective element, so that it can be used directly in the pairing operation?
 
 /// Represents a pair of secret and public keys for BLS signatures
 ///
 /// This struct contains both the secret key (a scalar in the 𝔽ₚ base field)
-/// and the corresponding public key (a point on the 𝔾₂ curve).
+/// and the corresponding public key (a point on the 𝔾₂ curve), both stored
+/// as heap-allocated secrets.
 pub struct KeyPair {
     /// The secret key, represented as a scalar in the base field
     pub secret_key: SecretBox<Fp>,

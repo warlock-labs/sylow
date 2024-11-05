@@ -101,6 +101,9 @@ Shallue-van de Woestijne encoding for elliptic curve points.
 The multiprecision arithmetic operations are implemented in constant time, ensuring resistance to side-channel attacks.
 Constant-time operations are used whenever possible, and there are currently no variable-time functions used in Sylow.
 
+Furthermore, all key generation and manipulation utilities utilize the `secrets` crate, to ensure that all keys and 
+signatures are `mprotect`-ed during the entirety of the application runtime.
+
 If you discover any security issues, please report them to [team@warlock.xyz](mailto:team@warlock.xyz).
 
 ## Documentation

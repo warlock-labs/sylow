@@ -1,3 +1,8 @@
+//! The goal of the implementations in this file are to ultimately allow for the usage of
+//! group elements into secrets such that they are under strict `mprotect` status when stored in memory
+//! and are only read in the minimum scope that is necessary. Because `secrets`, and therefore
+//! `libsodium`, requires fine-grained control over the underlying memory of these objects,
+//! it must involve unsafe rust. Oof!
 use crate::{Fp, Fp2, G1Projective, G2Projective};
 use num_traits::Zero;
 use secrets::traits::Bytes;
@@ -129,9 +134,64 @@ unsafe impl Bytes for G2Projective {
 mod tests {
     use super::*;
     use std::mem;
+    mod fp_bytes {
+        use super::*;
 
+        #[test]
+        fn verify_fp_size_and_alignment() {
+            // Verify size is exactly 32 bytes (256 bits)
+            assert_eq!(Fp::size(), 32);
+            // Verify alignment is at least 8 bytes for efficient access
+            assert_eq!(mem::align_of::<Fp>(), 8);
+        }
+
+        #[test]
+        fn verify_fp_pointer_consistency() {
+            let mut fp = Fp::uninitialized();
+            let ptr1 = fp.as_u8_ptr();
+            let ptr2 = fp.as_mut_u8_ptr();
+
+            // Verify const and mut pointers point to same location
+            assert_eq!(
+                ptr1 as usize - ptr2 as usize,
+                0usize,
+                "Const and mut pointers should match"
+            );
+        }
+    }
+    mod fp2_bytes {
+        use super::*;
+
+        #[test]
+        fn verify_fp2_size_and_alignment() {
+            // Verify size is exactly 64 bytes (2 * 256 bits)
+            assert_eq!(Fp2::size(), 64);
+            // Verify alignment matches or exceeds base field alignment
+            assert!(mem::align_of::<Fp2>() >= mem::align_of::<Fp>());
+        }
+
+        #[test]
+        fn verify_fp2_coefficient_layout() {
+            let fp2 = Fp2::uninitialized();
+            let base_ptr = fp2.as_u8_ptr();
+
+            // Verify coefficients are stored contiguously
+            unsafe {
+                let c0_ptr = &fp2.0[0] as *const Fp as *const u8;
+                let c1_ptr = &fp2.0[1] as *const Fp as *const u8;
+
+                assert_eq!(base_ptr, c0_ptr, "First coefficient should start at base");
+                assert_eq!(
+                    c0_ptr.add(32),
+                    c1_ptr,
+                    "Second coefficient should immediately follow first"
+                );
+            }
+        }
+    }
     mod g1_bytes {
         use super::*;
+        use std::slice;
         #[test]
         fn verify_g1_projective_layout() {
             // Verify total size is 96 bytes (3 * 32)
@@ -163,9 +223,69 @@ mod tests {
             // Verify this creates point at infinity
             assert!(point.is_zero());
         }
+        #[test]
+        fn verify_g1_coordinates() {
+            let point = G1Projective::uninitialized();
+
+            // Get pointers to each coordinate
+            let base_ptr = point.as_u8_ptr();
+            unsafe {
+                // Verify x coordinate
+                let x_bytes = slice::from_raw_parts(base_ptr, 32);
+                assert!(
+                    x_bytes.iter().all(|&b| b == 0),
+                    "x coordinate should be zero"
+                );
+
+                // Verify y coordinate
+                let y_bytes = slice::from_raw_parts(base_ptr.add(32), 32);
+                assert!(
+                    y_bytes.iter().all(|&b| b == 0),
+                    "y coordinate should be zero"
+                );
+
+                // Verify z coordinate
+                let z_bytes = slice::from_raw_parts(base_ptr.add(64), 32);
+                assert!(
+                    z_bytes.iter().all(|&b| b == 0),
+                    "z coordinate should be zero"
+                );
+            }
+        }
+        #[test]
+        fn verify_g1_pointer_manipulation() {
+            let mut point = G1Projective::uninitialized();
+
+            // Test pointer arithmetic
+            unsafe {
+                let base_ptr = point.as_u8_ptr();
+                let mut_ptr = point.as_mut_u8_ptr();
+
+                // Verify pointer alignment
+                assert_eq!(
+                    base_ptr as usize % mem::align_of::<G1Projective>(),
+                    0,
+                    "Pointer should be properly aligned"
+                );
+
+                // Verify const and mut pointers refer to same memory
+                assert_eq!(base_ptr as usize, mut_ptr as usize, "Pointers should match");
+
+                // Verify we can access the full memory range
+                for i in 0..G1Projective::size() {
+                    *mut_ptr.add(i) = i as u8;
+                }
+
+                // Verify written values
+                for i in 0..G1Projective::size() {
+                    assert_eq!(*base_ptr.add(i), i as u8, "Memory access failed");
+                }
+            }
+        }
     }
     mod g2_bytes {
         use super::*;
+        use std::slice;
 
         #[test]
         fn verify_g2_projective_layout() {
@@ -203,6 +323,77 @@ mod tests {
             let point = G2Projective::uninitialized();
             // Verify this creates point at infinity
             assert!(point.is_zero());
+        }
+        #[test]
+        fn verify_g2_coordinates() {
+            let point = G2Projective::uninitialized();
+
+            // Get pointers to each coordinate pair
+            let base_ptr = point.as_u8_ptr();
+            unsafe {
+                // Verify x coordinate (2 * 32 bytes)
+                let x_bytes = slice::from_raw_parts(base_ptr, 64);
+                assert!(
+                    x_bytes.iter().all(|&b| b == 0),
+                    "x coordinate should be zero"
+                );
+
+                // Verify y coordinate (2 * 32 bytes)
+                let y_bytes = slice::from_raw_parts(base_ptr.add(64), 64);
+                assert!(
+                    y_bytes.iter().all(|&b| b == 0),
+                    "y coordinate should be zero"
+                );
+
+                // Verify z coordinate (2 * 32 bytes)
+                let z_bytes = slice::from_raw_parts(base_ptr.add(128), 64);
+                assert!(
+                    z_bytes.iter().all(|&b| b == 0),
+                    "z coordinate should be zero"
+                );
+            }
+        }
+        #[test]
+        fn verify_g2_pointer_manipulation() {
+            let mut point = G2Projective::uninitialized();
+
+            unsafe {
+                let base_ptr = point.as_u8_ptr();
+                let mut_ptr = point.as_mut_u8_ptr();
+
+                // Verify pointer alignment
+                assert_eq!(
+                    base_ptr as usize % mem::align_of::<G2Projective>(),
+                    0,
+                    "Pointer should be properly aligned"
+                );
+
+                // Verify const and mut pointers refer to same memory
+                assert_eq!(base_ptr as usize, mut_ptr as usize, "Pointers should match");
+
+                // Write unique test pattern for each Fp element
+                for i in 0..6 {
+                    // 6 Fp elements total (3 coordinates * 2 coefficients each)
+                    let offset = i * 32;
+                    for j in 0..32 {
+                        *mut_ptr.add(offset + j) = ((i * 32 + j) % 256) as u8;
+                    }
+                }
+
+                // Verify patterns
+                for i in 0..6 {
+                    let offset = i * 32;
+                    for j in 0..32 {
+                        assert_eq!(
+                            *base_ptr.add(offset + j),
+                            ((i * 32 + j) % 256) as u8,
+                            "Memory access failed at Fp element {} byte {}",
+                            i,
+                            j
+                        );
+                    }
+                }
+            }
         }
     }
 }
