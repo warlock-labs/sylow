@@ -197,7 +197,7 @@ impl<'a, 'b> Mul<&'b Fr> for &'a Gt {
         // <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
         let bits = other.value().to_words();
         let mut r0 = Self::Output::identity();
-        let mut r1 = self.clone();
+        let mut r1 = *self;
         for e in bits.iter().rev() {
             for i in (0..64).rev() {
                 if ((*e >> i) & 1) == 0 {

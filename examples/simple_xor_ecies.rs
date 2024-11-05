@@ -36,7 +36,7 @@ impl ECIESParty {
     pub fn get_public_key(&self) -> SecretBox<G2Projective> {
         self.key_pair.public_key.clone()
     }
-
+    #[allow(clippy::type_complexity)]
     #[instrument(skip(self, recipient_public_key, message), fields(message_len = message.len()))]
     pub fn encrypt(
         &self,

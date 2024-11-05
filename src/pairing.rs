@@ -741,9 +741,7 @@ impl G2Projective {
     ///
     /// # Algorithm
     ///
-    /// This implements the addition step as described on page 234 of:
-    /// Costello et al. "Faster Pairing Computations on Curves with High-Degree Twists"
-    /// <https://link.springer.com/chapter/10.1007/978-3-642-13013-7_14>
+    /// This implements the addition step as per Eqn 11 of <https://eprint.iacr.org/2013/722>.
     ///
     /// # Side Effects
     ///
@@ -783,9 +781,7 @@ impl G2Projective {
     ///
     /// # Algorithm
     ///
-    /// This implements the doubling step as described on page 235 of:
-    /// Costello et al. "Faster Pairing Computations on Curves with High-Degree Twists"
-    /// <https://link.springer.com/chapter/10.1007/978-3-642-13013-7_14>
+    /// This implements the doubling step as per Eqn 12 of <https://eprint.iacr.org/2013/722>.
     ///
     /// # Side Effects
     ///

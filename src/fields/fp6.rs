@@ -1,6 +1,6 @@
 //! Sextic Extension Field 𝔽ₚ⁶ for BN254 Elliptic Curve Cryptography
 //!
-//! This module implements the sextic extension field of the quadratic extension field of BN254,
+//! This module implements the cubic extension field of the quadratic extension field of BN254,
 //! defined by the tower 𝔽ₚ⁶ = 𝔽ₚ²(v) / (v³ - (9 + u)). Elements of this field are represented
 //! as a₀ + a₁v + a₂v², where a₀, a₁, and a₂ are elements of 𝔽ₚ².
 //!
@@ -294,7 +294,7 @@ impl<'a, 'b> Mul<&'b Fp6> for &'a Fp6 {
         // // ])
         //
         // But the issue again is constant-time execution. We opt for schoolbook multiplication
-        // here instead following Algo 5 of <https://eprint.iacr.org/2022/367.pdf>, which yields
+        // here instead following Algo 9 of <https://eprint.iacr.org/2022/367.pdf>, which yields
         // the following results:
         //
         // c0,0 = a0,0b0,0 - a0,1b0,1 + αa1,0b2,0 - αa1,1b2,1 + αa2,0b1,0 - αa2,1b1,1 - a1,0b2,1 - a1,1b2,0
@@ -411,6 +411,10 @@ impl Inv for Fp6 {
     /// # References
     ///
     /// * Implements a low-overhead version of Alg 17 of <https://eprint.iacr.org/2010/354.pdf>
+    ///
+    ///     Caveat emptor: there is an error in this manuscript in Alg 17. Namely, step 6 of Alg 17
+    ///     should read `t_5 <- a_1 * a_2`, and secondly, step 9 should read `c_2 <- t_1 - t_4`.
+    ///     These corrections are implemented below.
     #[inline]
     fn inv(self) -> Self::Output {
         let t0 = self.0[0].square() - self.0[1] * self.0[2].residue_mul();

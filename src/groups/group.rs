@@ -95,7 +95,7 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     /// an endomorphism for subgroup checks in $\mathbb{G}_2$. This one offers nice
     /// computational
     /// benefits, and can be decomposed as follows:
-    /// 1. twist:        this is the map u that takes (x', y') |-> (w^2,x', w^3y'), where
+    /// 1. twist:        this is the map u that takes (x', y') |-> (w^2 x', w^3 y'), where
     ///                  $w\in\mathbb{F_{p^{12}}$ is a root of $X^6-\xi$. This is an
     ///                  injective map (that is not surjective), that maps the r-torsion to an
     ///                  equivalent subgroup in the algebraic closure of the base field.
@@ -337,7 +337,7 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> GroupProjecti
 
     /// Doubles this point using an optimized algorithm for curves with j-invariant 0.
     pub fn double(&self) -> Self {
-        // This implementation is based on Algorithm 9 from a Ref (1) above - since BN254 has
+        // This implementation is based on Algorithm 9 from a Ref (2) above - since BN254 has
         // j-invariant 0, we can use some nice simplifications to the arithmetic.
         //
         // Complexity:
@@ -533,14 +533,14 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>>
     /// Adds two points in projective coordinates.
     #[inline]
     fn add(self, other: &'b GroupProjective<D, N, F>) -> Self::Output {
-        // We implement algorithm 7 from Ref (1) above.
+        // We implement algorithm 7 from Ref (2) above.
         //
         // Complexity:
         //        `12M` + `2m` + `19A`
         let t0 = self.x * other.x;
         let t1 = self.y * other.y;
         let t2 = self.z * other.z;
-        tracing::trace!(?t0, ?t1, ?t1, "GroupProjective::add 1");
+        tracing::trace!(?t0, ?t1, ?t2, "GroupProjective::add 1");
 
         let t3 = self.x + self.y;
         let t4 = other.x + other.y;
@@ -649,7 +649,7 @@ impl<'a, 'b, const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Mul<&
     fn mul(self, other: &'b Fp) -> Self::Output {
         let bits = other.value().to_words();
         let mut r0 = Self::Output::zero();
-        let mut r1 = self.clone();
+        let mut r1 = *self;
         for e in bits.iter().rev() {
             for i in (0..64).rev() {
                 if ((*e >> i) & 1) == 0 {

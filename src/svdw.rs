@@ -71,7 +71,8 @@ pub(crate) struct SvdW {
 pub(crate) trait SvdWTrait: Sized {
     /// This is the actual struct containing the relevant information. There are a few input
     /// constants, namely the coefficients A and B that define the curve in its short Weierstrass
-    /// representation. The constants c1-c4 and Z are determined by the algorithm.
+    /// representation. The constants c1-c4 and Z are determined by the algorithm. See
+    /// <https://datatracker.ietf.org/doc/rfc9380/> § 6.6.1 for more details.
     /// # Arguments
     /// * `a` - the A coefficient of the curve
     /// * `b` - the B coefficient of the curve
@@ -119,7 +120,8 @@ pub(crate) trait SvdWTrait: Sized {
     ///
     /// # Notes
     ///
-    /// See reference 1 for more details on the SvdW algorithm.
+    /// See reference 1, and <https://datatracker.ietf.org/doc/rfc9380/> § 6.6.1  for more details
+    /// on the SvdW algorithm.
     fn precompute_constants(a: Fp, b: Fp) -> Result<SvdW, MapError> {
         let g = |x: &Fp| -> Fp { (*x) * (*x) * (*x) + a * (*x) + b };
         let z = Self::find_z_svdw(a, b);
@@ -174,6 +176,8 @@ pub(crate) trait SvdWTrait: Sized {
     /// functionality is nearly contained in `groups/groups.rs` etc. Therefore, this private method is
     /// called by `groups/g1.rs` etc., which then calls its `new` method to perform the subgroup and
     /// curve checks, meaning that it is ok for those checks to not occur here.
+    ///
+    /// See <https://datatracker.ietf.org/doc/rfc9380/> § 6.6.1  for more details.
     fn unchecked_map_to_point(&self, u: Fp) -> Result<[Fp; 2], MapError>;
 }
 impl SvdWTrait for SvdW {

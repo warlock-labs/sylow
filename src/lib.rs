@@ -239,8 +239,8 @@ pub fn verify(
     // returning a boolean or an error
     match G1Projective::hash_to_curve(&expander, msg) {
         Ok(hashed_message) => {
-            let lhs = pairing(&*sig.borrow(), &G2Projective::generator());
-            let rhs = pairing(&hashed_message, &*pubkey.borrow());
+            let lhs = pairing(&sig.borrow(), &G2Projective::generator());
+            let rhs = pairing(&hashed_message, &pubkey.borrow());
             Ok(lhs.ct_eq(&rhs).into())
         }
         _ => Err(GroupError::CannotHashToGroup),

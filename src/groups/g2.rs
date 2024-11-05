@@ -118,11 +118,7 @@ pub type G2Affine = GroupAffine<2, 2, Fp2>;
 pub type G2Projective = GroupProjective<2, 2, Fp2>;
 
 impl GroupTrait<2, 2, Fp2> for G2Affine {
-    /// Returns the generator of E'(𝔽ₚ²), which is not necessarily in the r-torsion subgroup.
-    ///
-    /// This generator is to be used for creating new elements on the curve that are not required
-    /// to be in the r-torsion. To create elements in the r-torsion, use the `rand` function
-    /// which performs co-factor clearing.
+    /// Returns the generator of the r-torsion of E'(𝔽ₚ²).
     fn generator() -> Self {
         Self {
             x: G2_X,
