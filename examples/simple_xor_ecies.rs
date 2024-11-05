@@ -1,4 +1,5 @@
 use crypto_bigint::rand_core::OsRng;
+use secrets::SecretBox;
 use sha3::Keccak256;
 use sylow::{
     sign, verify, Expander, FieldExtensionTrait, Fp, Fr, G1Projective, G2Projective, GroupTrait,
@@ -32,22 +33,23 @@ impl ECIESParty {
         }
     }
 
-    pub fn get_public_key(&self) -> G2Projective {
-        self.key_pair.public_key
+    pub fn get_public_key(&self) -> SecretBox<G2Projective> {
+        self.key_pair.public_key.clone()
     }
 
     #[instrument(skip(self, recipient_public_key, message), fields(message_len = message.len()))]
     pub fn encrypt(
         &self,
-        recipient_public_key: &G2Projective,
+        recipient_public_key: &SecretBox<G2Projective>,
         message: &[u8],
-    ) -> Result<(G1Projective, Vec<u8>, G1Projective), ECIESError> {
+    ) -> Result<(SecretBox<G1Projective>, Vec<u8>, SecretBox<G1Projective>), ECIESError> {
         debug!("Generating ephemeral key pair");
-        let ephemeral_private_key = Fp::new(Fr::rand(&mut OsRng).value());
-        let ephemeral_public_key = G1Projective::generator() * ephemeral_private_key;
+        let ephemeral_private_key = SecretBox::new(|s| *s = Fp::new(Fr::rand(&mut OsRng).value()));
+        let ephemeral_public_key =
+            SecretBox::new(|s| *s = G1Projective::generator() * *ephemeral_private_key.borrow());
 
         debug!("Computing shared secret");
-        let shared_secret = *recipient_public_key * ephemeral_private_key;
+        let shared_secret = *recipient_public_key.borrow() * *ephemeral_private_key.borrow();
         let encryption_key = self.derive_key(&shared_secret)?;
 
         debug!("Encrypting message");
@@ -67,10 +69,10 @@ impl ECIESParty {
     #[instrument(skip(self, ephemeral_public_key, ciphertext, signature, sender_public_key), fields(ciphertext_len = ciphertext.len()))]
     pub fn decrypt(
         &self,
-        ephemeral_public_key: &G1Projective,
+        ephemeral_public_key: &SecretBox<G1Projective>,
         ciphertext: &[u8],
-        signature: &G1Projective,
-        sender_public_key: &G2Projective,
+        signature: &SecretBox<G1Projective>,
+        sender_public_key: &SecretBox<G2Projective>,
     ) -> Result<Vec<u8>, ECIESError> {
         debug!("Verifying signature");
         if !verify(sender_public_key, ciphertext, signature)
@@ -81,7 +83,7 @@ impl ECIESParty {
         }
 
         debug!("Computing shared secret");
-        let shared_secret = *ephemeral_public_key * self.key_pair.secret_key;
+        let shared_secret = *ephemeral_public_key.borrow() * *self.key_pair.secret_key.borrow();
         let decryption_key = self.derive_key(&shared_secret)?;
 
         debug!("Decrypting message");

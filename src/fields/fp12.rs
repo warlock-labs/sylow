@@ -723,7 +723,7 @@ mod tests {
                 [5, 0, 0, 0],
                 [0, 6, 0, 0],
             ]);
-            let mut two = Fp12::one() + Fp12::one();
+            let two = Fp12::one() + Fp12::one();
             let [ell0, ell_vv, ell_vw] = two.0[0].0;
             // this is an element of the form, in the 2x 𝔽ₚ⁶ representation:
             // f = [[g0, g1, g2], [h0, h1, h2]] = [ [2, 0, 0], [0, 0, 0]] = g + hw,
