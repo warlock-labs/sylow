@@ -707,6 +707,40 @@ mod tests {
                 "Frobenius failed at cycle order 2"
             );
         }
+        #[test]
+        fn test_sparse() {
+            let a = create_field_extension([
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+                [1, 0, 0, 0],
+                [0, 2, 0, 0],
+                [0, 0, 3, 0],
+                [0, 0, 0, 4],
+                [5, 0, 0, 0],
+                [0, 6, 0, 0],
+            ]);
+            let mut two = Fp12::one() + Fp12::one();
+            let [ell0, ell_vv, ell_vw] = two.0[0].0;
+            // this is an element of the form, in the 2x 𝔽ₚ⁶ representation:
+            // f = [[g0, g1, g2], [h0, h1, h2]] = [ [2, 0, 0], [0, 0, 0]] = g + hw,
+            // which would then be, in the 6x 𝔽ₚ² representation
+            // f = g_0 + h_0w + g_1w^2 + h_1w^3 + g_2w^4 + h_2w^5
+            //   = [2, 0, 0, 0, 0, 0]
+            // The elements at indices (0, 2, 4) and therefore (2, 0, 0) respectively
+            assert_eq!(ell0, Fp2::one() + Fp2::one(), "Index 0 extraction failed");
+            assert_eq!(ell_vv, Fp2::zero(), "Index 2 extraction failed");
+            assert_eq!(ell_vw, Fp2::zero(), "Index 4 extraction failed");
+
+            assert_eq!(
+                a.sparse_mul(ell0, ell_vv, ell_vw),
+                a * two,
+                "Sparse mul failed"
+            );
+        }
     }
     mod division_tests {
         use super::*;
