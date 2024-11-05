@@ -25,6 +25,10 @@ jobs:
         flags: [ "--no-default-features", "", "--all-features" ]
     steps:
       - uses: actions/checkout@v3
+      - name: Install libsodium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
@@ -44,7 +48,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
+      - name: Install libsodium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -97,6 +104,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
+      - name: Install libsodium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@cargo-hack
       - uses: Swatinem/rust-cache@v2
@@ -110,6 +121,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
+      - name: Install libsodium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev
       - uses: dtolnay/rust-toolchain@clippy
       - uses: Swatinem/rust-cache@v2
         with:
@@ -123,6 +138,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
+      - name: Install libsodium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev
       - uses: dtolnay/rust-toolchain@nightly
       - uses: Swatinem/rust-cache@v2
         with:
@@ -136,6 +155,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v3
+      - name: Install libsodium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsodium-dev
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
