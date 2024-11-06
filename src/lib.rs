@@ -252,3 +252,25 @@ pub fn verify(
 
 // TODO(In the future it would be ideal to have methods here for encrypting and decrypting messages)
 // Or general functionality such as ECDH, etc. gated behind feature flags.
+#[test]
+fn test_high_level_utils() {
+    // Generate a new key pair
+    let key_pair = KeyPair::generate();
+
+    // Message to be signed
+    let message = b"Hello, Sylow!";
+
+    // Sign the message
+    match sign(&key_pair.secret_key, message) {
+        Ok(signature) => {
+            // Verify the signature
+            match verify(&key_pair.public_key, message, &signature) {
+                Ok(is_valid) => {
+                    assert!(is_valid, "Signature verification failed");
+                }
+                Err(e) => panic!("Verification error: {:?}", e),
+            }
+        }
+        Err(e) => panic!("Signing error: {:?}", e),
+    }
+}
