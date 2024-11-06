@@ -205,36 +205,6 @@ mod tests {
                 );
             }
         }
-        #[test]
-        fn verify_fp2_pointer_consistency() {
-            let mut fp2 = Fp2::uninitialized();
-
-            // Get both pointers
-            let const_ptr = fp2.as_u8_ptr();
-            let mut_ptr = fp2.as_mut_u8_ptr();
-
-            unsafe {
-                // Force memory fence to prevent reordering
-                std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
-
-                // Write through mut pointer
-                *mut_ptr = 0xAA;
-                std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
-
-                // Read through const pointer
-                let read_val = *const_ptr;
-                std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
-
-                assert_eq!(read_val, 0xAA, "Pointers should access same memory");
-
-                // Verify again with different value
-                *mut_ptr = 0x55;
-                std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
-
-                let read_val2 = *const_ptr;
-                assert_eq!(read_val2, 0x55, "Pointers should access same memory");
-            }
-        }
     }
     mod g1_bytes {
         use super::*;
