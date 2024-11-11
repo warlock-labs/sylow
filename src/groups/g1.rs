@@ -21,6 +21,7 @@ use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
 use crate::svdw::{MapError, SvdW, SvdWTrait};
+use crate::Fr;
 use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::{One, Zero};
 use std::sync::OnceLock;
@@ -292,9 +293,25 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
         Self::generator()
     }
 
-    /// Generates a random point in the 𝔾₁ group
+    /// Generates a random point in the 𝔾₁ group, using a pseudo-random
+    /// function according to formulation in §4.1.7.4 of the Moon Math Manual,
+    /// see <https://github.com/LeastAuthority/moonmath-manual/releases/latest/download/main-moonmath.pdf>
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
-        Self::generator() * <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
+        const K: usize = 10;
+        let a_i = (0..K)
+            .into_iter()
+            .map(|_| Fp::new(Fr::rand(rng).value()))
+            .collect::<Vec<_>>();
+        let b_i = (0..(K - 1))
+            .into_iter()
+            .map(|_| Fp::new(Fr::rand(rng).value()))
+            .collect::<Vec<_>>();
+        let mut random_scalar = Fp::ONE;
+        (1..K).into_iter().for_each(|i| {
+            random_scalar = random_scalar * a_i[i] * b_i[i - 1];
+        });
+        random_scalar = random_scalar * a_i[0];
+        Self::generator() * random_scalar
     }
 
     /// Hashes a message to a point on the 𝔾₁ group

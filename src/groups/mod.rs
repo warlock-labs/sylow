@@ -29,7 +29,7 @@ mod tests {
     use crate::fields::fp::{FieldExtensionTrait, Fp};
     use crate::fields::fp2::Fp2;
     use crate::groups::g1::{G1Affine, G1Projective};
-    use crate::groups::g2::G2Projective;
+    use crate::groups::g2::{G2Affine, G2Projective};
 
     #[derive(Serialize, Deserialize, Clone)]
     struct _G2Coords {
@@ -869,6 +869,137 @@ mod tests {
 
                 let _g2_deserialized = G2Affine::from_be_bytes(&g2_serialized);
             }
+        }
+    }
+    mod random {
+        use super::*;
+        use crate::GroupTrait;
+        use rand_core::OsRng;
+
+        /// This is the monobit test, which is a simplified version of NIST SP 800-22
+        #[test]
+        fn g1_monobit_test() {
+            const SAMPLE_SIZE: usize = 1000;
+            let mut x_coordinates = Vec::with_capacity(SAMPLE_SIZE);
+            let mut y_coordinates = Vec::with_capacity(SAMPLE_SIZE);
+
+            // Generate sample points
+            for _ in 0..SAMPLE_SIZE {
+                let affine = G1Affine::rand(&mut OsRng);
+                x_coordinates.push(affine.x);
+                y_coordinates.push(affine.y);
+            }
+            // Convert coordinates to bits and count 1s
+            let total_bits = SAMPLE_SIZE * 256; // Each Fp is 256 bits
+            for coords in [x_coordinates, y_coordinates] {
+                let mut total_ones = 0;
+                for coord in coords {
+                    let bits = coord.to_be_bytes();
+                    for byte in bits {
+                        total_ones += byte.count_ones() as usize;
+                    }
+                }
+                // For truly random bits, we expect approximately 50% ones
+                let proportion_ones = total_ones as f64 / total_bits as f64;
+                assert!(
+                    (proportion_ones - 0.5).abs() < 0.01,
+                    "Bit distribution shows bias: {}",
+                    proportion_ones
+                );
+            }
+        }
+        #[test]
+        fn g2_monobit_test() {
+            const SAMPLE_SIZE: usize = 1000;
+            let mut x_coordinates = Vec::with_capacity(SAMPLE_SIZE);
+            let mut y_coordinates = Vec::with_capacity(SAMPLE_SIZE);
+
+            // Generate sample points
+            for _ in 0..SAMPLE_SIZE {
+                let affine = G2Affine::rand(&mut OsRng);
+                x_coordinates.push(affine.x);
+                y_coordinates.push(affine.y);
+            }
+            // Convert coordinates to bits and count 1s
+            let total_bits = SAMPLE_SIZE * 256 * 2; // Each Fp is 256 bits
+            for coords in [x_coordinates, y_coordinates] {
+                let mut total_ones = 0;
+                for coord in coords {
+                    for inner_coord in coord.0 {
+                        let bits = inner_coord.to_be_bytes();
+                        for byte in bits {
+                            total_ones += byte.count_ones() as usize;
+                        }
+                    }
+                }
+                // For truly random bits, we expect approximately 50% ones
+                let proportion_ones = total_ones as f64 / total_bits as f64;
+                assert!(
+                    (proportion_ones - 0.5).abs() < 0.01,
+                    "Bit distribution shows bias: {}",
+                    proportion_ones
+                );
+            }
+        }
+    }
+    /// These tests are mainly for line coverage to assert the correct unimplemented behaviour in
+    /// real usage scenarios encountered at runtime
+    mod unimplemented {
+        use super::*;
+        use crate::{Fp12, GroupTrait, Gt, XMDExpander};
+        use rand_core::OsRng;
+        use sha3::Keccak256;
+
+        mod gt {
+            use super::*;
+            #[test]
+            #[should_panic]
+            fn test_endo() {
+                let _ = Gt::identity().endomorphism();
+            }
+
+            #[test]
+            #[should_panic]
+            fn test_hash_to_curve() {
+                let expander = XMDExpander::<Keccak256>::new(&[0xAA; 32], 180);
+                let _ = Gt::hash_to_curve(&expander, &[0x0F; 32]);
+            }
+
+            #[test]
+            #[should_panic]
+            fn test_sign_message() {
+                let expander = XMDExpander::<Keccak256>::new(&[0xAA; 32], 180);
+                let _ = Gt::sign_message(&expander, &[0x0F; 32], Fp12::rand(&mut OsRng));
+            }
+        }
+
+        mod g2 {
+            use super::*;
+            macro_rules! g2_panic_tests {
+                ($type:ty) => {
+                    paste::paste! {
+                        #[test]
+                        #[should_panic]
+                        fn [<test_ $type:snake _hash_to_curve>]() {
+                            let expander = XMDExpander::<Keccak256>::new(&[0xAA; 32], 180);
+                            let _ = <$type>::hash_to_curve(&expander, &[0x0F; 32]);
+                        }
+
+                        #[test]
+                        #[should_panic]
+                        fn [<test_ $type:snake _sign_message>]() {
+                            let expander = XMDExpander::<Keccak256>::new(&[0xAA; 32], 180);
+                            let _ = <$type>::sign_message(
+                                &expander,
+                                &[0x0F; 32],
+                                <Fp2 as FieldExtensionTrait<2, 2>>::rand(&mut OsRng),
+                            );
+                        }
+                    }
+                };
+            }
+            g2_panic_tests!(G2Affine);
+            g2_panic_tests!(G2Projective);
         }
     }
 }

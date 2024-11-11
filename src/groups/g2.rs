@@ -210,7 +210,9 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     /// This function first generates a random point on the twist curve E'(𝔽ₚ²),
     /// then applies cofactor clearing to ensure the result is in the r-torsion subgroup.
     /// It is then passed through the `new` function to ensure it passes the curve and
-    /// subgroup checks.
+    /// subgroup checks. It generates the random scalar to create a pseudo-random
+    /// function according to formulation in §4.1.7.4 of the Moon Math Manual,
+    /// see <https://github.com/LeastAuthority/moonmath-manual/releases/latest/download/main-moonmath.pdf>
     ///
     /// # Examples
     ///
@@ -228,9 +230,22 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
             0,
             0,
         ]));
-        let rando = Fp::new(Fr::rand(rng).value());
-        let mut tmp = Self::generator() * rando;
-        tracing::trace!(?rando, ?tmp, "G2Projective::rand");
+        const K: usize = 10;
+        let a_i = (0..K)
+            .into_iter()
+            .map(|_| Fp::new(Fr::rand(rng).value()))
+            .collect::<Vec<_>>();
+        let b_i = (0..(K - 1))
+            .into_iter()
+            .map(|_| Fp::new(Fr::rand(rng).value()))
+            .collect::<Vec<_>>();
+        let mut random_scalar = Fp::ONE;
+        (1..K).into_iter().for_each(|i| {
+            random_scalar = random_scalar * a_i[i] * b_i[i - 1];
+        });
+        random_scalar = random_scalar * a_i[0];
+        let mut tmp = Self::generator() * random_scalar;
+        tracing::trace!(?random_scalar, ?tmp, "G2Projective::rand");
 
         // multiplying an element of the larger base field by the cofactor of a prime-ordered
         // subgroup will return an element in the prime-order subgroup, see
