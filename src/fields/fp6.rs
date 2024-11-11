@@ -537,6 +537,7 @@ impl FieldExtensionTrait<12, 2> for Fp6 {
 mod tests {
     use super::*;
     use crypto_bigint::U256;
+    use rand_core::OsRng;
     use subtle::ConstantTimeEq;
 
     fn create_field(value: [u64; 4]) -> Fp {
@@ -561,22 +562,8 @@ mod tests {
 
         #[test]
         fn test_addition_closure() {
-            let a = create_field_extension(
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-            );
-            let b = create_field_extension(
-                [0, 6, 0, 0],
-                [5, 0, 0, 0],
-                [0, 0, 0, 4],
-                [0, 0, 3, 0],
-                [0, 2, 0, 0],
-                [1, 0, 0, 0],
-            );
+            let a = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
+            let b = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
             let _ = a + b;
         }
     }
@@ -585,22 +572,8 @@ mod tests {
 
         #[test]
         fn test_subtraction_closure() {
-            let a = create_field_extension(
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-            );
-            let b = create_field_extension(
-                [0, 6, 0, 0],
-                [5, 0, 0, 0],
-                [0, 0, 0, 4],
-                [0, 0, 3, 0],
-                [0, 2, 0, 0],
-                [1, 0, 0, 0],
-            );
+            let a = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
+            let b = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
             let _ = a - b;
         }
     }
@@ -609,53 +582,18 @@ mod tests {
 
         #[test]
         fn test_multiplication_closure() {
-            let a = create_field_extension(
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-            );
-            let b = create_field_extension(
-                [0, 6, 0, 0],
-                [5, 0, 0, 0],
-                [0, 0, 0, 4],
-                [0, 0, 3, 0],
-                [0, 2, 0, 0],
-                [1, 0, 0, 0],
-            );
+            let a = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
+            let b = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
             let _ = a * b;
         }
 
         #[test]
         fn test_multiplication_associativity_commutativity_distributivity() {
-            let a = create_field_extension(
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-            );
-            let b = create_field_extension(
-                [0, 6, 0, 0],
-                [5, 0, 0, 0],
-                [0, 0, 0, 4],
-                [0, 0, 3, 0],
-                [0, 2, 0, 0],
-                [1, 0, 0, 0],
-            );
+            let a = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
+            let b = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
             assert_eq!(a * b, b * a, "Multiplication is not commutative");
 
-            let c = create_field_extension(
-                [1, 0, 0, 0],
-                [5, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 0, 4],
-                [0, 0, 3, 0],
-                [0, 6, 0, 0],
-            );
+            let c = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
             assert_eq!(
                 (a * b) * c,
                 a * (b * c),
@@ -766,7 +704,6 @@ mod tests {
         }
         #[test]
         fn test_multiplication_edge_cases() {
-            use crypto_bigint::rand_core::OsRng;
             for _ in 0..100 {
                 let random = <Fp2 as FieldExtensionTrait<2, 2>>::rand(&mut OsRng);
                 assert_eq!(
@@ -783,14 +720,7 @@ mod tests {
         }
         #[test]
         fn test_frobenius() {
-            let a = create_field_extension(
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-            );
+            let a = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
 
             assert_eq!(
                 a,
@@ -819,22 +749,8 @@ mod tests {
 
         #[test]
         fn test_division_closure() {
-            let a = create_field_extension(
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-            );
-            let b = create_field_extension(
-                [0, 6, 0, 0],
-                [5, 0, 0, 0],
-                [0, 0, 0, 4],
-                [0, 0, 3, 0],
-                [0, 2, 0, 0],
-                [1, 0, 0, 0],
-            );
+            let a = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
+            let b = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
             let _ = a / b;
         }
         #[test]
@@ -911,22 +827,8 @@ mod tests {
     }
     #[test]
     fn conditional_select() {
-        let a = create_field_extension(
-            [1, 0, 0, 0],
-            [0, 2, 0, 0],
-            [0, 0, 3, 0],
-            [0, 0, 0, 4],
-            [5, 0, 0, 0],
-            [0, 6, 0, 0],
-        );
-        let b = create_field_extension(
-            [0, 6, 0, 0],
-            [5, 0, 0, 0],
-            [0, 0, 0, 4],
-            [0, 0, 3, 0],
-            [0, 2, 0, 0],
-            [1, 0, 0, 0],
-        );
+        let a = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
+        let b = <Fp6 as FieldExtensionTrait<6, 3>>::rand(&mut OsRng);
         assert_eq!(
             Fp6::conditional_select(&a, &b, Choice::from(0u8)),
             a,

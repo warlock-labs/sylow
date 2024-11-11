@@ -552,26 +552,9 @@ impl Fp12 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crypto_bigint::{rand_core::OsRng, U256};
+    use crypto_bigint::rand_core::OsRng;
     use subtle::ConstantTimeEq;
 
-    fn create_field(value: [u64; 4]) -> Fp {
-        Fp::new(U256::from_words(value))
-    }
-    fn create_field_extension(v: [[u64; 4]; 12]) -> Fp12 {
-        Fp12::new(&[
-            Fp6::new(&[
-                Fp2::new(&[create_field(v[0]), create_field(v[1])]),
-                Fp2::new(&[create_field(v[2]), create_field(v[3])]),
-                Fp2::new(&[create_field(v[4]), create_field(v[5])]),
-            ]),
-            Fp6::new(&[
-                Fp2::new(&[create_field(v[6]), create_field(v[7])]),
-                Fp2::new(&[create_field(v[8]), create_field(v[9])]),
-                Fp2::new(&[create_field(v[10]), create_field(v[11])]),
-            ]),
-        ])
-    }
     mod addition_tests {
         use super::*;
         #[test]
@@ -623,53 +606,14 @@ mod tests {
 
         #[test]
         fn test_multiplication_cases() {
-            let a = create_field_extension([
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-            ]);
-            let b = create_field_extension([
-                [0, 6, 0, 0],
-                [5, 0, 0, 0],
-                [0, 0, 0, 4],
-                [0, 0, 3, 0],
-                [0, 2, 0, 0],
-                [1, 0, 0, 0],
-                [0, 6, 0, 0],
-                [5, 0, 0, 0],
-                [0, 0, 0, 4],
-                [0, 0, 3, 0],
-                [0, 2, 0, 0],
-                [1, 0, 0, 0],
-            ]);
+            let a = Fp12::rand(&mut OsRng);
+            let b = Fp12::rand(&mut OsRng);
             assert_eq!(a.square(), a * a, "Squaring and mul failed");
             assert_eq!(b.square(), b * b, "Squaring and mul failed");
         }
         #[test]
         fn test_frobenius() {
-            let a = create_field_extension([
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-            ]);
+            let a = Fp12::rand(&mut OsRng);
             assert_eq!(
                 a,
                 a.frobenius(1)
@@ -709,21 +653,9 @@ mod tests {
         }
         #[test]
         fn test_sparse() {
-            let a = create_field_extension([
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-                [1, 0, 0, 0],
-                [0, 2, 0, 0],
-                [0, 0, 3, 0],
-                [0, 0, 0, 4],
-                [5, 0, 0, 0],
-                [0, 6, 0, 0],
-            ]);
+            let a = Fp12::rand(&mut OsRng);
             let two = Fp12::one() + Fp12::one();
+
             let [ell0, ell_vv, ell_vw] = two.0[0].0;
             // this is an element of the form, in the 2x 𝔽ₚ⁶ representation:
             // f = [[g0, g1, g2], [h0, h1, h2]] = [ [2, 0, 0], [0, 0, 0]] = g + hw,
@@ -762,6 +694,8 @@ mod tests {
 
             assert_eq!(a / one, a, "Division by one failed");
             assert_eq!((a / b) * b, a, "Division-Mult composition failed");
+
+            assert_eq!(a.inv(), Fp12::one() / a, "Inverse failed");
         }
         #[test]
         // #[should_panic(expected = "assertion failed: self.is_some.is_true_vartime()")]
