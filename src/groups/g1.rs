@@ -299,18 +299,16 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
         const K: usize = 10;
         let a_i = (0..K)
-            .into_iter()
             .map(|_| Fp::new(Fr::rand(rng).value()))
             .collect::<Vec<_>>();
         let b_i = (0..(K - 1))
-            .into_iter()
             .map(|_| Fp::new(Fr::rand(rng).value()))
             .collect::<Vec<_>>();
         let mut random_scalar = Fp::ONE;
-        (1..K).into_iter().for_each(|i| {
-            random_scalar = random_scalar * a_i[i] * b_i[i - 1];
+        (1..K).for_each(|i| {
+            random_scalar *= a_i[i] * b_i[i - 1];
         });
-        random_scalar = random_scalar * a_i[0];
+        random_scalar *= a_i[0];
         Self::generator() * random_scalar
     }
 
