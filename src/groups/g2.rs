@@ -210,9 +210,28 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     /// This function first generates a random point on the twist curve E'(𝔽ₚ²),
     /// then applies cofactor clearing to ensure the result is in the r-torsion subgroup.
     /// It is then passed through the `new` function to ensure it passes the curve and
-    /// subgroup checks. It generates the random scalar to create a pseudo-random
-    /// function according to formulation in §4.1.7.4 of the Moon Math Manual,
-    /// see <https://github.com/LeastAuthority/moonmath-manual/releases/latest/download/main-moonmath.pdf>
+    /// subgroup checks.
+    ///
+    /// Notes:
+    ///
+    /// This function is NOT a formal cryptographically-secure pseudorandom number generator.
+    /// Namely, the approach of generating a value by scalar multiplication of the generator
+    /// does not break the discrete-log hardness assumption, but does leak the discrete log
+    /// relation, as this relation can be verified by the efficient bi-linear pairing map on this curve,
+    /// This is a testament to the fact that 𝔾₂ is CDH-secure, not DDH-secure.
+    /// A more mathematically precise `rand` function here would include expensive iterations of
+    /// generating an element of the quadratic extension of the base field, compute $y^2$ based on
+    /// the twist curve equation until it is a quadratic residue (testable with its Legendre symbol),
+    /// extracting the modular square root with, for instance, the Tonelli-Shanks algorithm, and
+    /// verifying the element is in the r-torsion.
+    ///
+    /// Because the intended use case of this crate is public-private key cryptography, the random
+    /// number generation in the discrete-log approach is strictly required. It just means that
+    /// this function should be used with care for use cases besides this, such as for generating
+    /// Pedersen hashes where these values cannot have any analytic relationship to each other.
+    ///
+    /// For a more detailed discussion, see §4.1.7.3-4.1.7.4 of the Moon Math Manual,
+    /// <https://github.com/LeastAuthority/moonmath-manual/releases/latest/download/main-moonmath.pdf>
     ///
     /// # Examples
     ///
