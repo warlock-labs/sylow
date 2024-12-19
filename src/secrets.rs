@@ -142,36 +142,36 @@ mod tests {
             // Verify size is exactly 32 bytes (256 bits)
             assert_eq!(Fp::size(), 32);
             // Verify alignment is at least 8 bytes for efficient access
-            assert_eq!(mem::align_of::<Fp>(), 8);
+            assert_eq!(align_of::<Fp>(), 8);
         }
 
         #[test]
+        #[no_mangle]
         fn verify_fp_pointer_consistency() {
-            let mut fp = Fp::uninitialized();
-
-            // Get both pointers
+            let mut fp = std::hint::black_box(Fp::uninitialized());
             let const_ptr = fp.as_u8_ptr();
             let mut_ptr = fp.as_mut_u8_ptr();
 
+            assert_eq!(const_ptr as usize % align_of::<Fp>(), 0);
+            assert_eq!(mut_ptr as usize % align_of::<Fp>(), 0);
+
             unsafe {
-                // Force memory fence to prevent reordering
                 std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 
-                // Write through mut pointer
-                *mut_ptr = 0xAA;
+                // Use volatile write
+                std::ptr::write_volatile(mut_ptr, 0xAA);
                 std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 
-                // Read through const pointer
-                let read_val = *const_ptr;
+                // Use volatile read
+                let read_val = std::ptr::read_volatile(const_ptr);
                 std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 
                 assert_eq!(read_val, 0xAA, "Pointers should access same memory");
 
-                // Verify again with different value
-                *mut_ptr = 0x55;
+                std::ptr::write_volatile(mut_ptr, 0x55);
                 std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 
-                let read_val2 = *const_ptr;
+                let read_val2 = std::ptr::read_volatile(const_ptr);
                 assert_eq!(read_val2, 0x55, "Pointers should access same memory");
             }
         }
