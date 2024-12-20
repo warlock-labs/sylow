@@ -397,13 +397,14 @@ impl G1Projective {
     #[allow(dead_code)]
     pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let is_on_curve = {
-            let y2 = v[1].square();
             let x2 = v[0].square();
+            let y2 = v[1].square();
             let z2 = v[2].square();
             let lhs = y2 * v[2];
             let rhs = x2 * v[0] + z2 * v[2] * <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
             tracing::trace!(?y2, ?x2, ?z2, ?lhs, ?rhs, "G1Projective::new");
-            lhs.ct_eq(&rhs) | Choice::from(v[2].is_zero() as u8)
+            lhs.ct_eq(&rhs)
+                | (Choice::from(v[0].is_zero() as u8) & Choice::from((v[2].is_zero() as u8)))
         };
         tracing::trace!(?is_on_curve, "G1Projective::new");
         match bool::from(is_on_curve) {
