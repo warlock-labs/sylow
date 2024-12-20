@@ -404,7 +404,7 @@ impl G1Projective {
             let rhs = x2 * v[0] + z2 * v[2] * <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
             tracing::trace!(?y2, ?x2, ?z2, ?lhs, ?rhs, "G1Projective::new");
             lhs.ct_eq(&rhs)
-                | (Choice::from(v[0].is_zero() as u8) & Choice::from((v[2].is_zero() as u8)))
+                | (Choice::from(v[0].is_zero() as u8) & Choice::from(v[2].is_zero() as u8))
         };
         tracing::trace!(?is_on_curve, "G1Projective::new");
         match bool::from(is_on_curve) {
