@@ -187,7 +187,9 @@ impl<const D: usize, const N: usize, F: FieldExtensionTrait<D, N>> Default
 {
     /// Returns the default value for the field extension (all zero elements).
     fn default() -> Self {
-        Self::new(&[F::default(); N])
+        let mut retval = [F::zero(); N];
+        retval[0] = F::default();
+        Self::new(&retval)
     }
 }
 

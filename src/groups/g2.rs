@@ -118,11 +118,7 @@ pub type G2Affine = GroupAffine<2, 2, Fp2>;
 pub type G2Projective = GroupProjective<2, 2, Fp2>;
 
 impl GroupTrait<2, 2, Fp2> for G2Affine {
-    /// Returns the generator of E'(𝔽ₚ²), which is not necessarily in the r-torsion subgroup.
-    ///
-    /// This generator is to be used for creating new elements on the curve that are not required
-    /// to be in the r-torsion. To create elements in the r-torsion, use the `rand` function
-    /// which performs co-factor clearing.
+    /// Returns the generator of the r-torsion of E'(𝔽ₚ²).
     fn generator() -> Self {
         Self {
             x: G2_X,
@@ -216,6 +212,27 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
     /// It is then passed through the `new` function to ensure it passes the curve and
     /// subgroup checks.
     ///
+    /// Notes:
+    ///
+    /// This function is NOT a formal cryptographically-secure pseudorandom number generator.
+    /// Namely, the approach of generating a value by scalar multiplication of the generator
+    /// does not break the discrete-log hardness assumption, but does leak the discrete log
+    /// relation, as this relation can be verified by the efficient bi-linear pairing map on this curve,
+    /// This is a testament to the fact that 𝔾₂ is CDH-secure, not DDH-secure.
+    /// A more mathematically precise `rand` function here would include expensive iterations of
+    /// generating an element of the quadratic extension of the base field, compute $y^2$ based on
+    /// the twist curve equation until it is a quadratic residue (testable with its Legendre symbol),
+    /// extracting the modular square root with, for instance, the Tonelli-Shanks algorithm, and
+    /// verifying the element is in the r-torsion.
+    ///
+    /// Because the intended use case of this crate is public-private key cryptography, the random
+    /// number generation in the discrete-log approach is strictly required. It just means that
+    /// this function should be used with care for use cases besides this, such as for generating
+    /// Pedersen hashes where these values cannot have any analytic relationship to each other.
+    ///
+    /// For a more detailed discussion, see §4.1.7.3-4.1.7.4 of the Moon Math Manual,
+    /// <https://github.com/LeastAuthority/moonmath-manual/releases/latest/download/main-moonmath.pdf>
+    ///
     /// # Examples
     ///
     /// ```
@@ -232,9 +249,20 @@ impl GroupTrait<2, 2, Fp2> for G2Projective {
             0,
             0,
         ]));
-        let rando = Fp::new(Fr::rand(rng).value());
-        let mut tmp = Self::generator() * rando;
-        tracing::trace!(?rando, ?tmp, "G2Projective::rand");
+        const K: usize = 10;
+        let a_i = (0..K)
+            .map(|_| Fp::new(Fr::rand(rng).value()))
+            .collect::<Vec<_>>();
+        let b_i = (0..(K - 1))
+            .map(|_| Fp::new(Fr::rand(rng).value()))
+            .collect::<Vec<_>>();
+        let mut random_scalar = Fp::ONE;
+        (1..K).for_each(|i| {
+            random_scalar *= a_i[i] * b_i[i - 1];
+        });
+        random_scalar *= a_i[0];
+        let mut tmp = Self::generator() * random_scalar;
+        tracing::trace!(?random_scalar, ?tmp, "G2Projective::rand");
 
         // multiplying an element of the larger base field by the cofactor of a prime-ordered
         // subgroup will return an element in the prime-order subgroup, see

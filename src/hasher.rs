@@ -3,8 +3,8 @@
 //! and convert it into an element in the base field [`Fp`].
 //!
 //! The module provides implementations for two types of message expansion functions:
-//! 1. XMD (Expand Message XOF) - using a hash function with fixed output length
-//! 2. XOF (Expand Message XOF) - using an extendable output function
+//! 1. XMD - using a hash function with fixed output length via eXpandable Message Digest
+//! 2. XOF - using an eXtendable Output Function
 //!
 //! These expansion functions are crucial for secure hashing to curve operations,
 //! ensuring uniform distribution and domain separation in cryptographic protocols.
@@ -128,7 +128,7 @@ pub trait Expander {
     }
 }
 
-/// Implements the XMD (Expand Message XOF) function, which produces a uniformly random
+/// Implements the XMD function, which produces a uniformly random
 /// byte string using a hash function that outputs a fixed-length of b bits.
 ///
 /// It's recommended for use with only SHA2 and SHA3 hash functions.
@@ -173,7 +173,7 @@ impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
 }
 
 impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
-    /// Expands a message to a specified length using the XMD (Expand Message XOF) algorithm.
+    /// Expands a message to a specified length using the XMD algorithm.
     ///
     /// This method implements the expand_message_xmd function as defined in RFC 9380.
     /// It uses a hash function with a fixed output length to produce a uniformly random
@@ -201,7 +201,7 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
     fn expand_message(&self, msg: &[u8], len_in_bytes: usize) -> Result<Vec<u8>, HashError> {
         let b_in_bytes = D::output_size();
         let r_in_bytes = D::block_size();
-        let ell = (len_in_bytes + b_in_bytes - 1) / b_in_bytes;
+        let ell = len_in_bytes.div_ceil(b_in_bytes);
         let dst_prime = [
             self.dst_prime.as_slice(),
             &i2osp(self.dst_prime.len() as u64, 1)?,
@@ -250,8 +250,8 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
     }
 }
 
-/// Implements the XOF (Expand Message XOF) function, which produces a uniformly random
-/// byte string using an extendable output function (XOF) H.
+/// Implements the XOF function, which produces a uniformly random
+/// byte string using an eXtendable Output Function H.
 ///
 /// It's recommended for use with the SHAKE XOF family of hash functions.
 /// <https://datatracker.ietf.org/doc/html/rfc9380#name-expand_message_xof>
@@ -290,7 +290,7 @@ impl<D: Default + ExtendableOutput> XOFExpander<D> {
 }
 
 impl<D: Default + ExtendableOutput> Expander for XOFExpander<D> {
-    /// Expands a message to a specified length using the XOF (Expand Message XOF) algorithm.
+    /// Expands a message to a specified length using the XOF algorithm.
     ///
     /// This method implements the expand_message_xof function as defined in RFC 9380.
     /// It uses an extendable output function (XOF) to produce a uniformly random byte string

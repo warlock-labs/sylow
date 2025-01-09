@@ -348,6 +348,8 @@ impl MillerLoopResult {
         /// Computes the cyclotomic exponentiation of an [`Fp12`] element.
         ///
         /// This function uses a simple square-and-multiply algorithm for exponentiation.
+        /// Note that we follow the Montgomery Ladder approach to ensure constant time execution in each
+        /// branch in the loop, see Alg 2c of <https://marcjoye.github.io/papers/Joy03ecc.pdf>.
         ///
         /// # Arguments
         ///
@@ -365,16 +367,21 @@ impl MillerLoopResult {
         #[must_use]
         pub(crate) fn cyclotomic_exp(f: Fp12, exponent: &Fp) -> Fp12 {
             let bits = exponent.value().to_words();
-            let mut res = Fp12::one();
+            let mut r0 = Fp12::one();
+            let mut r1 = f;
+
             for e in bits.iter().rev() {
                 for i in (0..64).rev() {
-                    res = cyclotomic_squared(res);
-                    if ((*e >> i) & 1) == 1 {
-                        res *= f;
+                    if ((*e >> i) & 1) == 0 {
+                        r1 = r0 * r1;
+                        r0 = cyclotomic_squared(r0);
+                    } else {
+                        r0 *= r1;
+                        r1 = cyclotomic_squared(r1);
                     }
                 }
             }
-            res
+            r0
         }
 
         /// Computes f^(-z) where z is the generator of this
@@ -741,9 +748,7 @@ impl G2Projective {
     ///
     /// # Algorithm
     ///
-    /// This implements the addition step as described on page 234 of:
-    /// Costello et al. "Faster Pairing Computations on Curves with High-Degree Twists"
-    /// <https://link.springer.com/chapter/10.1007/978-3-642-13013-7_14>
+    /// This implements the addition step as per Eqn 11 of <https://eprint.iacr.org/2013/722>.
     ///
     /// # Side Effects
     ///
@@ -783,9 +788,7 @@ impl G2Projective {
     ///
     /// # Algorithm
     ///
-    /// This implements the doubling step as described on page 235 of:
-    /// Costello et al. "Faster Pairing Computations on Curves with High-Degree Twists"
-    /// <https://link.springer.com/chapter/10.1007/978-3-642-13013-7_14>
+    /// This implements the doubling step as per Eqn 12 of <https://eprint.iacr.org/2013/722>.
     ///
     /// # Side Effects
     ///

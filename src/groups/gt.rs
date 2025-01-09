@@ -191,26 +191,26 @@ impl<'a, 'b> Mul<&'b Fr> for &'a Gt {
     /// Multiplies a 𝔾ₜ element by a scalar in the r-torsion of 𝔽ₚ.
     fn mul(self, other: &'b Fr) -> Self::Output {
         // This is simply the `double-and-add` algorithm for multiplication, which is the ECC
-        // equivalent of the `square-and-multiply` algorithm used in modular exponentiation. It uses
-        //  the lower Hamming weight representation of the scalar to reduce the number of operations
+        // equivalent of the `square-and-multiply` algorithm used in modular exponentiation.
+        // Note that we follow the Montgomery Ladder approach to ensure constant time execution in each
+        // branch in the loop, see Alg 2c of <https://marcjoye.github.io/papers/Joy03ecc.pdf>.
         //
         // <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>
-        let (np, nm) = other.compute_naf();
-        let mut res = Self::Output::identity();
-
-        for i in (0..256).rev() {
-            res = res.double();
-
-            let np_bit = np.bit(i).into();
-            let nm_bit = nm.bit(i).into();
-
-            if np_bit {
-                res = &res + self;
-            } else if nm_bit {
-                res = &res - self;
+        let bits = other.value().to_words();
+        let mut r0 = Self::Output::identity();
+        let mut r1 = *self;
+        for e in bits.iter().rev() {
+            for i in (0..64).rev() {
+                if ((*e >> i) & 1) == 0 {
+                    r1 = &r0 + &r1;
+                    r0 = r0.double();
+                } else {
+                    r0 = &r0 + &r1;
+                    r1 = r1.double();
+                }
             }
         }
-        res
+        r0
     }
 }
 

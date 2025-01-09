@@ -21,6 +21,7 @@ use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
 use crate::svdw::{MapError, SvdW, SvdWTrait};
+use crate::Fr;
 use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::{One, Zero};
 use std::sync::OnceLock;
@@ -292,9 +293,23 @@ impl GroupTrait<1, 1, Fp> for G1Projective {
         Self::generator()
     }
 
-    /// Generates a random point in the 𝔾₁ group
+    /// Generates a random point in the 𝔾₁ group, using a pseudo-random
+    /// function according to formulation in §4.1.7.4 of the Moon Math Manual,
+    /// see <https://github.com/LeastAuthority/moonmath-manual/releases/latest/download/main-moonmath.pdf>
     fn rand<R: CryptoRngCore>(rng: &mut R) -> Self {
-        Self::generator() * <Fp as FieldExtensionTrait<1, 1>>::rand(rng)
+        const K: usize = 10;
+        let a_i = (0..K)
+            .map(|_| Fp::new(Fr::rand(rng).value()))
+            .collect::<Vec<_>>();
+        let b_i = (0..(K - 1))
+            .map(|_| Fp::new(Fr::rand(rng).value()))
+            .collect::<Vec<_>>();
+        let mut random_scalar = Fp::ONE;
+        (1..K).for_each(|i| {
+            random_scalar *= a_i[i] * b_i[i - 1];
+        });
+        random_scalar *= a_i[0];
+        Self::generator() * random_scalar
     }
 
     /// Hashes a message to a point on the 𝔾₁ group
@@ -382,13 +397,14 @@ impl G1Projective {
     #[allow(dead_code)]
     pub fn new(v: [Fp; 3]) -> Result<Self, GroupError> {
         let is_on_curve = {
-            let y2 = v[1].square();
             let x2 = v[0].square();
+            let y2 = v[1].square();
             let z2 = v[2].square();
             let lhs = y2 * v[2];
             let rhs = x2 * v[0] + z2 * v[2] * <Fp as FieldExtensionTrait<1, 1>>::curve_constant();
             tracing::trace!(?y2, ?x2, ?z2, ?lhs, ?rhs, "G1Projective::new");
-            lhs.ct_eq(&rhs) | Choice::from(v[2].is_zero() as u8)
+            lhs.ct_eq(&rhs)
+                | (Choice::from(v[0].is_zero() as u8) & Choice::from(v[2].is_zero() as u8))
         };
         tracing::trace!(?is_on_curve, "G1Projective::new");
         match bool::from(is_on_curve) {
