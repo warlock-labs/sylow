@@ -66,6 +66,7 @@
 #![deny(dead_code)]
 #![no_std]
 #![allow(clippy::needless_lifetimes)]
+#![allow(clippy::doc_lazy_continuation)]
 extern crate alloc;
 
 mod fields;
