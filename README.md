@@ -128,7 +128,6 @@ This project is maintained by:
 
 - [@trbritt](https://github.com/trbritt) - [tristan@warlock.xyz](mailto:tristan@warlock.xyz)
 - [@0xAlcibiades](https://github.com/0xAlcibiades) - [alcibiades@warlock.xyz](mailto:alcibiades@warlock.xyz)
-- [@merolish](https://github.com/merolish) - [michael@warlock.xyz](mailto:michael@warlock.xyz)
 
 Warlock Labs - [https://github.com/warlock-labs](https://github.com/warlock-labs)
 
