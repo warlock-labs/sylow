@@ -8,7 +8,7 @@ use crate::pairing::MillerLoopResult;
 use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::U256;
 use num_traits::{One, Zero};
-use std::ops::{Add, Mul, Neg, Sub};
+use core::ops::{Add, Mul, Neg, Sub};
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
 // Do you have vertigo?

@@ -22,10 +22,11 @@ use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait}
 use crate::hasher::Expander;
 use crate::svdw::{MapError, SvdW, SvdWTrait};
 use crate::Fr;
+use alloc::vec::Vec;
 use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::{One, Zero};
-use std::sync::OnceLock;
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
+use once_cell::sync::OnceCell;
 
 /// Affine representation of a point in the 𝔾₁ group
 pub type G1Affine = GroupAffine<1, 1, Fp>;
@@ -34,7 +35,7 @@ pub type G1Affine = GroupAffine<1, 1, Fp>;
 pub type G1Projective = GroupProjective<1, 1, Fp>;
 
 /// Static instance of the Shallue-van de Woestijne map for 𝔾₁ on the BN254 curve
-static BN254_SVDW: OnceLock<Result<SvdW, MapError>> = OnceLock::new();
+static BN254_SVDW: OnceCell<Result<SvdW, MapError>> = OnceCell::new();
 
 /// Returns the Shallue-van de Woestijne map for 𝔾₁ on the BN254 curve
 ///

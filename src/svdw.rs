@@ -300,9 +300,6 @@ mod tests {
             );
             let res = match SvdW::precompute_constants(Fp::from(0), Fp::from(3)) {
                 Ok(bn254_svdw) => {
-                    println!("{:?}", bn254_svdw.a.value());
-                    println!("{:?}", bn254_svdw.b.value());
-
                     assert_eq!(bn254_svdw.c1.value(), c1, "SvdW c1 failed");
                     assert_eq!(bn254_svdw.c2.value(), c2, "SvdW c2 failed");
                     assert_eq!(bn254_svdw.c3.value(), c3, "SvdW c3 failed");
@@ -311,7 +308,6 @@ mod tests {
                     Ok(())
                 }
                 Err(e) => {
-                    println!("Failed constants: {:#?}", e);
                     Err(e)
                 }
             };
@@ -341,13 +337,11 @@ mod tests {
                             )
                         })
                         .fold(GroupProjective::<1, 1, Fp>::zero(), |acc, x| acc + x);
-                    let d =
+                    let _d =
                         GroupProjective::<1, 1, Fp>::new([_d.x, _d.y, _d.z]).expect("Map failed");
-                    println!("{:?}, {:?}, {:?}", d.x.value(), d.y.value(), d.z.value());
                     Ok(())
                 }
                 Err(e) => {
-                    println!("SvdW failed: {:#?}", e);
                     Err(e)
                 }
             };

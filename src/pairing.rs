@@ -6,8 +6,9 @@ use crate::groups::g1::{G1Affine, G1Projective};
 use crate::groups::g2::{G2Affine, G2Projective, BLS_X};
 use crate::groups::group::GroupTrait;
 use crate::groups::gt::Gt;
+use alloc::vec::Vec;
+use core::ops::{Mul, MulAssign, Neg};
 use num_traits::{Inv, One};
-use std::ops::{Mul, MulAssign, Neg};
 use subtle::{Choice, ConditionallySelectable};
 
 // TODO(The tracing crate could be better applied here, as it will already give the function name)

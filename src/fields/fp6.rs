@@ -12,7 +12,7 @@ use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::fields::fp2::Fp2;
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Zero};
-use std::ops::{Div, DivAssign, Mul, MulAssign};
+use core::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::Choice;
 
 // the following values are a bit difficult to compute. The reason

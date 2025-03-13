@@ -21,10 +21,11 @@ pub(crate) mod gt;
 /// this means each group operation takes sub millisecond time, which is nice.
 #[cfg(test)]
 mod tests {
+    use alloc::string::String;
+    use alloc::vec::Vec;
     use lazy_static::lazy_static;
     use serde::{Deserialize, Serialize};
     #[allow(unused_imports)]
-    use std::{fs, path::Path};
 
     use crate::fields::fp::{FieldExtensionTrait, Fp};
     use crate::fields::fp2::Fp2;
@@ -164,13 +165,11 @@ mod tests {
     fn convert_to_fp(r: &String) -> Fp {
         Fp::new_from_str(r).expect("failed to convert r to Fp")
     }
-    const FNAME: &str = "./src/bn254_reference.json";
     // very minor, but wondering if this json file should be moved up from the sage dir
 
     lazy_static! {
         static ref REFERENCE_DATA: ReferenceData = {
-            let path = Path::new(FNAME);
-            let file_content = fs::read_to_string(path).expect("Failed to read file");
+            let file_content = include_str!("../../src/bn254_reference.json");
             serde_json::from_str(&file_content).expect("Failed to parse JSON")
         };
         static ref G1_REFERENCE_DATA: G1ReferenceData = G1ReferenceData {
@@ -441,16 +440,8 @@ mod tests {
                 let expander = XMDExpander::<Keccak256>::new(DST, K);
                 for _ in 0..1 {
                     let rando = <Fp as FieldExtensionTrait<1, 1>>::rand(&mut OsRng);
-                    if let Ok(d) = G1Affine::sign_message(&expander, MSG, rando) {
-                        println!("DST: {:?}", String::from_utf8_lossy(DST));
-                        println!("Message: {:?}", String::from_utf8_lossy(MSG));
-                        println!("private key: {:?}", rando.value());
-                        println!(
-                            "signature: {:?}, {:?}, {:?}\n",
-                            d.x.value(),
-                            d.y.value(),
-                            d.infinity
-                        );
+                    if G1Affine::sign_message(&expander, MSG, rando).is_err() {
+                        panic!("Failed to sign message");
                     }
                 }
             }
@@ -710,6 +701,7 @@ mod tests {
         }
         mod g1 {
             use super::*;
+            use alloc::format;
             proptest! {
                 #[test]
                 fn test_addition_commutativity(a in arbitrary_g1(), b in arbitrary_g1()) {

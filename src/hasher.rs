@@ -9,12 +9,14 @@
 //! These expansion functions are crucial for secure hashing to curve operations,
 //! ensuring uniform distribution and domain separation in cryptographic protocols.
 
+use alloc::vec;
+use alloc::vec::Vec;
 use crate::fields::fp::Fp;
 use crate::utils::u256_to_u512;
 use crypto_bigint::{Encoding, NonZero, U256, U512};
 use sha3::digest::crypto_common::BlockSizeUser;
 use sha3::digest::{ExtendableOutput, FixedOutput};
-use std::array::TryFromSliceError;
+use core::array::TryFromSliceError;
 
 /// Possible errors which may occur during hashing operations.
 #[derive(Debug, Copy, Clone)]
@@ -136,7 +138,7 @@ pub trait Expander {
 #[derive(Debug)]
 pub struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
     dst_prime: Vec<u8>,
-    hash_fn: std::marker::PhantomData<D>,
+    hash_fn: core::marker::PhantomData<D>,
     security_param: u64,
 }
 
@@ -166,7 +168,7 @@ impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
 
         XMDExpander {
             dst_prime,
-            hash_fn: std::marker::PhantomData,
+            hash_fn: core::marker::PhantomData,
             security_param,
         }
     }
@@ -258,7 +260,7 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
 #[derive(Debug)]
 pub struct XOFExpander<D: Default + ExtendableOutput> {
     dst_prime: Vec<u8>,
-    hash_fn: std::marker::PhantomData<D>,
+    hash_fn: core::marker::PhantomData<D>,
 }
 
 #[allow(dead_code)]
@@ -284,7 +286,7 @@ impl<D: Default + ExtendableOutput> XOFExpander<D> {
 
         XOFExpander {
             dst_prime,
-            hash_fn: std::marker::PhantomData,
+            hash_fn: core::marker::PhantomData,
         }
     }
 }
@@ -330,9 +332,12 @@ impl<D: Default + ExtendableOutput> Expander for XOFExpander<D> {
 }
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+    use alloc::string::String;
+    use once_cell::sync::OnceCell;
+    use proptest::std_facade::HashMap;
     use super::*;
-    use std::collections::HashMap;
-    use std::sync::OnceLock;
+
     fn to_hex(bytes: &[u8]) -> String {
         // A simple utility function to convert a byte array into a big endian hex string
         bytes
@@ -343,7 +348,7 @@ mod tests {
             })
     }
     fn short_xof_hashmap() -> &'static HashMap<&'static str, &'static str> {
-        static HASHMAP: OnceLock<HashMap<&str, &str>> = OnceLock::new();
+        static HASHMAP: OnceCell<HashMap<&str, &str>> = OnceCell::new();
         HASHMAP.get_or_init(|| {
             let mut m = HashMap::new();
             m.insert("", "86518c9cd86581486e9485aa74ab35ba150d1c75c88e26b7043e44e2acd735a2");
@@ -354,7 +359,7 @@ mod tests {
         })
     }
     fn long_xof_hashmap() -> &'static HashMap<&'static str, &'static str> {
-        static HASHMAP: OnceLock<HashMap<&str, &str>> = OnceLock::new();
+        static HASHMAP: OnceCell<HashMap<&str, &str>> = OnceCell::new();
         HASHMAP.get_or_init(|| {
             let mut m = HashMap::new();
             m.insert("", "827c6216330a122352312bccc0c8d6e7a146c5257a776dbd9ad9d75cd880fc53");
@@ -365,7 +370,7 @@ mod tests {
         })
     }
     fn short_xmd_hashmap() -> &'static HashMap<&'static str, &'static str> {
-        static HASHMAP: OnceLock<HashMap<&str, &str>> = OnceLock::new();
+        static HASHMAP: OnceCell<HashMap<&str, &str>> = OnceCell::new();
         HASHMAP.get_or_init(|| {
             let mut m = HashMap::new();
             m.insert("", "68a985b87eb6b46952128911f2a4412bbc302a9d759667f87f7a21d803f07235");
@@ -376,7 +381,7 @@ mod tests {
         })
     }
     fn long_xmd_hashmap() -> &'static HashMap<&'static str, &'static str> {
-        static HASHMAP: OnceLock<HashMap<&str, &str>> = OnceLock::new();
+        static HASHMAP: OnceCell<HashMap<&str, &str>> = OnceCell::new();
         HASHMAP.get_or_init(|| {
             let mut m = HashMap::new();
             m.insert("", "e8dc0c8b686b7ef2074086fbdd2f30e3f8bfbd3bdf177f73f04b97ce618a3ed3");

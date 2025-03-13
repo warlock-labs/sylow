@@ -22,7 +22,7 @@
 use crate::fields::fp::FieldExtensionTrait;
 use crypto_bigint::subtle::{Choice, ConstantTimeEq};
 use num_traits::Zero;
-use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
+use core::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 
 /// A generic struct representing a field extension.
 ///

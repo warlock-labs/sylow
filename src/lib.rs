@@ -63,7 +63,10 @@
 //! [full documentation](https://docs.rs/sylow)
 //! and the [GitHub repository](https://github.com/warlock-labs/sylow).
 #![deny(dead_code)]
+#![no_std]
 #![allow(clippy::needless_lifetimes)]
+extern crate alloc;
+
 mod fields;
 mod groups;
 mod hasher;

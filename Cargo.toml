@@ -12,6 +12,7 @@ repository = "https://github.com/warlock-labs/sylow.git"
 name = "sylow"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.70.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[example]]
@@ -37,11 +38,12 @@ path = "examples/simple_xor_ecies.rs"
 # TODO(Seems like we probably should not be using pre-releases, release candidates, etc. in our dependencies)
 [dependencies]
 crypto-bigint = "0.6.0-rc.3"
-num-traits = "0.2.19"
-sha3 = "0.11.0-pre.4"
-subtle = "2.6.1"
-tracing = "0.1.40"
-secrets = "1.2.0"
+num-traits = { version = "0.2.19", default-features = false }
+sha3 = { version = "0.11.0-pre.4", default-features = false }
+subtle = { version = "2.6.1", default-features = false }
+tracing = { version = "0.1.40", default-features = false }
+secrets = { version = "1.2.0", default-features = false }
+once_cell = {version = "1.20.3", features = ["alloc", "parking_lot"], default-features = false}
 
 [dev-dependencies]
 confy = "0.6.1"

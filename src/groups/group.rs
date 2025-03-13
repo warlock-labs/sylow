@@ -31,7 +31,7 @@ use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::hasher::Expander;
 use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
-use std::ops::{Add, Mul, Neg, Sub};
+use core::ops::{Add, Mul, Neg, Sub};
 
 /// Errors that can occur when working with group elements.
 #[derive(Debug, Copy, Clone)]
@@ -61,7 +61,7 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     Sized
     + Copy
     + Clone
-    + std::fmt::Debug
+    + core::fmt::Debug
     + Neg
     + ConstantTimeEq
     + ConditionallySelectable
