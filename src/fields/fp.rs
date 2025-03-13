@@ -490,7 +490,7 @@ macro_rules! define_finite_prime_field {
                     .div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
 
                 if self.1.retrieve().bit(255).into() {
-                    _q = _q - <$uint_type>::ONE;
+                    _q -= <$uint_type>::ONE;
                     _r = other.1.retrieve() - _r;
                 }
                 Self::new(_q)

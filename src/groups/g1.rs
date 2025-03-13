@@ -17,12 +17,12 @@
 // TODO(Notably missing here is the representation as 𝔾₁(𝔽ₚ²))
 // rather than as projective or affine coordinates
 
-use alloc::boxed::Box;
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
 use crate::svdw::{MapError, SvdW, SvdWTrait};
 use crate::Fr;
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::{One, Zero};

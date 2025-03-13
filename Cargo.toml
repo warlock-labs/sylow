@@ -10,8 +10,8 @@ readme = "README.md"
 repository = "https://github.com/warlock-labs/sylow.git"
 name = "sylow"
 version = "0.1.0"
-edition = "2024"
-rust-version = "1.85.0"
+edition = "2021"
+rust-version = "1.83.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -41,7 +41,7 @@ crypto-bigint = { version = "0.6.1", features = ["rand", "alloc"], default-featu
 # Without the `std` feature explicitly enabled, we are `no_std`
 num-traits = { version = "0.2.19", default-features = false }
 # Without the `std` feature explicitly enabled, we are `no_std`
-sha3 = { version = "0.10.8", default-features = false }
+sha3 = { version = "0.11.0-pre.4", default-features = false }
 # Explicitly `no_std`: https://github.com/dalek-cryptography/subtle/blob/5457b5448b021d1da101ababbb854e6657233943/src/lib.rs#L11
 subtle = { version = "2.6.1", default-features = false }
 # Without the `std` feature explicitly enabled, we are `no_std`
