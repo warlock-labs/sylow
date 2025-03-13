@@ -9,14 +9,14 @@
 //! These expansion functions are crucial for secure hashing to curve operations,
 //! ensuring uniform distribution and domain separation in cryptographic protocols.
 
-use alloc::vec;
-use alloc::vec::Vec;
 use crate::fields::fp::Fp;
 use crate::utils::u256_to_u512;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::array::TryFromSliceError;
 use crypto_bigint::{Encoding, NonZero, U256, U512};
 use sha3::digest::crypto_common::BlockSizeUser;
 use sha3::digest::{ExtendableOutput, FixedOutput};
-use core::array::TryFromSliceError;
 
 /// Possible errors which may occur during hashing operations.
 #[derive(Debug, Copy, Clone)]
@@ -332,11 +332,11 @@ impl<D: Default + ExtendableOutput> Expander for XOFExpander<D> {
 }
 #[cfg(test)]
 mod tests {
+    use super::*;
     use alloc::format;
     use alloc::string::String;
     use once_cell::sync::OnceCell;
     use proptest::std_facade::HashMap;
-    use super::*;
 
     fn to_hex(bytes: &[u8]) -> String {
         // A simple utility function to convert a byte array into a big endian hex string

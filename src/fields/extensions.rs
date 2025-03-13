@@ -20,9 +20,9 @@
 //! Other specifics must be dealt with on a case-by-case basis.
 
 use crate::fields::fp::FieldExtensionTrait;
+use core::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 use crypto_bigint::subtle::{Choice, ConstantTimeEq};
 use num_traits::Zero;
-use core::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 
 /// A generic struct representing a field extension.
 ///

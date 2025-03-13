@@ -21,16 +21,15 @@ pub(crate) mod gt;
 /// this means each group operation takes sub millisecond time, which is nice.
 #[cfg(test)]
 mod tests {
-    use alloc::string::String;
-    use alloc::vec::Vec;
-    use lazy_static::lazy_static;
-    use serde::{Deserialize, Serialize};
     #[allow(unused_imports)]
-
     use crate::fields::fp::{FieldExtensionTrait, Fp};
     use crate::fields::fp2::Fp2;
     use crate::groups::g1::{G1Affine, G1Projective};
     use crate::groups::g2::{G2Affine, G2Projective};
+    use alloc::string::String;
+    use alloc::vec::Vec;
+    use lazy_static::lazy_static;
+    use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, Clone)]
     struct _G2Coords {
@@ -170,7 +169,7 @@ mod tests {
     lazy_static! {
         static ref REFERENCE_DATA: ReferenceData = {
             let file_content = include_str!("../../src/bn254_reference.json");
-            serde_json::from_str(&file_content).expect("Failed to parse JSON")
+            serde_json::from_str(file_content).expect("Failed to parse JSON")
         };
         static ref G1_REFERENCE_DATA: G1ReferenceData = G1ReferenceData {
             a: REFERENCE_DATA

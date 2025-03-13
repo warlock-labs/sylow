@@ -36,8 +36,8 @@
 //! ----------
 //! 1. <https://cacr.uwaterloo.ca/hac/about/chap14.pdf>
 
-use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use alloc::vec::Vec;
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use crypto_bigint::{
     impl_modulus, modular::ConstMontyParams, rand_core::CryptoRngCore, ConcatMixed, NonZero,
@@ -782,8 +782,8 @@ impl FieldExtensionTrait<2, 2> for Fp {
 // The reference values for non-obvious field elements are generated with Sage.
 #[cfg(test)]
 mod tests {
-    use alloc::format;
     use super::*;
+    use alloc::format;
 
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
@@ -1503,10 +1503,10 @@ mod tests {
     }
 
     mod hash_tests {
+        use super::*;
         use core::hash::{Hash, Hasher};
         use proptest::std_facade::hash_map::DefaultHasher;
         use proptest::std_facade::HashSet;
-        use super::*;
 
         fn calculate_hash<T: Hash>(t: &T) -> u64 {
             let mut s = DefaultHasher::new();

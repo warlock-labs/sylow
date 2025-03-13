@@ -307,9 +307,7 @@ mod tests {
                     assert_eq!(bn254_svdw.z.value(), z, "SvdW z failed");
                     Ok(())
                 }
-                Err(e) => {
-                    Err(e)
-                }
+                Err(e) => Err(e),
             };
             res.expect("Failed to generate constants for curve");
         }
@@ -341,9 +339,7 @@ mod tests {
                         GroupProjective::<1, 1, Fp>::new([_d.x, _d.y, _d.z]).expect("Map failed");
                     Ok(())
                 }
-                Err(e) => {
-                    Err(e)
-                }
+                Err(e) => Err(e),
             };
             res.expect("Failed to generate value on curve");
         }

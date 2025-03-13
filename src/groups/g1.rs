@@ -25,8 +25,8 @@ use crate::Fr;
 use alloc::vec::Vec;
 use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::{One, Zero};
-use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 use once_cell::sync::OnceCell;
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
 /// Affine representation of a point in the 𝔾₁ group
 pub type G1Affine = GroupAffine<1, 1, Fp>;

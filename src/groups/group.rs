@@ -29,9 +29,9 @@
 
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::hasher::Expander;
+use core::ops::{Add, Mul, Neg, Sub};
 use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
-use core::ops::{Add, Mul, Neg, Sub};
 
 /// Errors that can occur when working with group elements.
 #[derive(Debug, Copy, Clone)]
