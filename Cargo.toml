@@ -1,7 +1,6 @@
 [package]
 authors = ["Tristan Britt <tristan@warlock.xyz>",
-           "0xAlcibiades <alcibiades@warlock.xyz>",
-           "Michael Rolish <michael@warlock.xyz>"]
+           "0xAlcibiades <alcibiades@warlock.xyz>"]
 categories = ["cryptography", "mathematics"]
 description = "Implementation of the BLS signature scheme using the alt-bn128 curve."
 homepage = "https://github.com/warlock-labs/sylow"
@@ -10,8 +9,10 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/warlock-labs/sylow.git"
 name = "sylow"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
+rust-version = "1.83.0"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[example]]
@@ -33,15 +34,29 @@ path = "examples/verify_multiple_messages_same_signer.rs"
 [[example]]
 name = "simple_xor_ecies"
 path = "examples/simple_xor_ecies.rs"
+required-features = ["std"]
 
-# TODO(Seems like we probably should not be using pre-releases, release candidates, etc. in our dependencies)
 [dependencies]
-crypto-bigint = "0.6.0-rc.3"
-num-traits = "0.2.19"
-sha3 = "0.11.0-pre.4"
-subtle = "2.6.1"
-tracing = "0.1.40"
-secrets = "1.2.0"
+# Explicitly `no_std` by construction: https://github.com/RustCrypto/crypto-bigint/blob/659ba4d7df97e47848d754b430446028af200bc3/src/lib.rs#L1
+crypto-bigint = { version = "0.6.1", features = ["rand", "alloc"], default-features = false }
+# Without the `std` feature explicitly enabled, we are `no_std`
+num-traits = { version = "0.2.19", default-features = false }
+# Without the `std` feature explicitly enabled, we are `no_std`
+sha3 = { version = "0.11.0-pre.4", default-features = false }
+# sha3 burries the `alloc` feature of digest when `std` is not enabled, but it's needed and `no_std` safe for alloc only
+digest = { version = "0.11.0-pre.10", features = ["alloc"], default-features = false }
+# Explicitly `no_std`: https://github.com/dalek-cryptography/subtle/blob/5457b5448b021d1da101ababbb854e6657233943/src/lib.rs#L11
+subtle = { version = "2.6.1", default-features = false }
+# Without the `std` feature explicitly enabled, we are `no_std`
+tracing = { version = "0.1.40", default-features = false }
+# Is not `no_std` compatible, so we feature flag it off
+secrets = { version = "1.2.0", default-features = false, optional = true }
+# The `race` module in once_cell provides no_std compatibility
+once_cell = {version = "1.20.3", features = ["alloc", "parking_lot"], default-features = false}
+
+[features]
+default = ["std"]
+std = ["secrets"]
 
 [dev-dependencies]
 confy = "0.6.1"

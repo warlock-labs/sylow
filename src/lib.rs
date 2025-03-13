@@ -53,9 +53,10 @@
 //!
 //! Sylow uses optimized algorithms and constant-time implementations to ensure both efficiency and
 //! security.
-//! It follows best practices outlined in RFC 9380 for operations like hashing to curve points, and
-//! furthermore uses the `secrets` crate to ensure that keys and signatures are stored securely in
-//! memory throughout the entirety of the application runtime.
+//! It follows best practices outlined in RFC 9380 for operations like hashing to curve points.
+//!
+//! When compiled with the `std` feature, it also uses the `secrets` crate to ensure that keys and
+//! signatures are stored securely in memory throughout the entirety of the application runtime.
 //!
 //! ## Further Reading
 //!
@@ -63,11 +64,17 @@
 //! [full documentation](https://docs.rs/sylow)
 //! and the [GitHub repository](https://github.com/warlock-labs/sylow).
 #![deny(dead_code)]
+#![no_std]
 #![allow(clippy::needless_lifetimes)]
+#![allow(clippy::doc_lazy_continuation)]
+extern crate alloc;
+
 mod fields;
 mod groups;
 mod hasher;
 mod pairing;
+
+#[cfg(feature = "std")]
 mod secrets;
 mod svdw;
 pub(crate) mod utils;
@@ -86,6 +93,8 @@ pub use crate::hasher::{Expander, XMDExpander, XOFExpander};
 pub use crate::pairing::{
     glued_miller_loop, glued_pairing, pairing, G2PreComputed, MillerLoopResult,
 };
+
+#[cfg(feature = "std")]
 use ::secrets::SecretBox;
 use crypto_bigint::rand_core::OsRng;
 use sha3::Keccak256;
@@ -98,19 +107,39 @@ const DST: &[u8; 30] = b"WARLOCK-CHAOS-V01-CS01-SHA-256";
 /// as the effective bit length was shown to be ~100, but we keep for posterity.
 const SECURITY_BITS: u64 = 128;
 
-// TODO(Should the private key be represented in the r-torsion group instead of the base field?)
-// Perhaps as a G1Projective element, so that it can be used directly in the pairing operation?
+// Conditional compilation for SecretKey type
+#[cfg(feature = "std")]
+pub type SecretKey = SecretBox<Fp>;
+
+#[cfg(not(feature = "std"))]
+pub type SecretKey = Fp;
+
+// Conditional compilation for Signature type
+#[cfg(feature = "std")]
+pub type Signature = SecretBox<G1Projective>;
+
+#[cfg(not(feature = "std"))]
+pub type Signature = G1Projective;
+
+// Conditional compilation for PublicKey type
+#[cfg(feature = "std")]
+pub type PublicKey = SecretBox<G2Projective>;
+
+#[cfg(not(feature = "std"))]
+pub type PublicKey = G2Projective;
 
 /// Represents a pair of secret and public keys for BLS signatures
 ///
 /// This struct contains both the secret key (a scalar in the 𝔽ₚ base field)
-/// and the corresponding public key (a point on the 𝔾₂ curve), both stored
-/// as heap-allocated secrets.
+/// and the corresponding public key (a point on the 𝔾₂ curve).
+///
+/// When compiled with the `std` feature, these are stored as heap-allocated secrets.
+/// Otherwise, they are stored directly.
 pub struct KeyPair {
     /// The secret key, represented as a scalar in the base field
-    pub secret_key: SecretBox<Fp>,
+    pub secret_key: SecretKey,
     /// The public key, represented as a point on the 𝔾₂ curve
-    pub public_key: SecretBox<G2Projective>,
+    pub public_key: PublicKey,
 }
 
 impl KeyPair {
@@ -132,13 +161,25 @@ impl KeyPair {
     /// let key_pair = KeyPair::generate();
     /// ```
     pub fn generate() -> KeyPair {
-        let secret_key = SecretBox::new(|s| *s = Fp::new(Fr::rand(&mut OsRng).value()));
-        let secret_key_clone = secret_key.clone();
-        let secret_key_ref = secret_key_clone.borrow();
-        let public_key = SecretBox::new(|s| *s = G2Projective::generator() * *secret_key_ref);
-        KeyPair {
-            secret_key,
-            public_key,
+        #[cfg(feature = "std")]
+        {
+            let secret_key = SecretBox::new(|s| *s = Fp::new(Fr::rand(&mut OsRng).value()));
+            let secret_key_clone = secret_key.clone();
+            let secret_key_ref = secret_key_clone.borrow();
+            let public_key = SecretBox::new(|s| *s = G2Projective::generator() * *secret_key_ref);
+            KeyPair {
+                secret_key,
+                public_key,
+            }
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            let secret_key = Fp::new(Fr::rand(&mut OsRng).value());
+            let public_key = G2Projective::generator() * secret_key;
+            KeyPair {
+                secret_key,
+                public_key,
+            }
         }
     }
 
@@ -167,7 +208,7 @@ impl KeyPair {
 ///
 /// # Returns
 ///
-/// * `Ok(`[`G1Projective`]`)` - The BLS signature as a point on the 𝔾₁ curve
+/// * `Ok(`[`Signature`]`)` - The BLS signature as a point on the 𝔾₁ curve
 /// * `Err(`[`GroupError`]`)` - If the message cannot be hashed to a curve point
 ///
 /// # Examples
@@ -182,15 +223,18 @@ impl KeyPair {
 ///     Err(e) => println!("Signing error: {:?}", e),
 /// }
 /// ```
-pub fn sign(k: &SecretBox<Fp>, msg: &[u8]) -> Result<SecretBox<G1Projective>, GroupError> {
+pub fn sign(k: &SecretKey, msg: &[u8]) -> Result<Signature, GroupError> {
     // Expand the message to a curve point using the DST and security bits
     let expander = XMDExpander::<Keccak256>::new(DST, SECURITY_BITS);
     // Hash the message to a curve point, returning the point in 𝔾₁ multiplied by the secret key or an error
     match G1Projective::hash_to_curve(&expander, msg) {
         Ok(hashed_message) => {
+            #[cfg(feature = "std")]
             let signature = SecretBox::new(|sig| {
                 *sig = hashed_message * *k.borrow();
             });
+            #[cfg(not(feature = "std"))]
+            let signature = hashed_message * *k;
             Ok(signature)
         }
         _ => Err(GroupError::CannotHashToGroup),
@@ -231,20 +275,25 @@ pub fn sign(k: &SecretBox<Fp>, msg: &[u8]) -> Result<SecretBox<G1Projective>, Gr
 ///     Err(e) => println!("Signing error: {:?}", e),
 /// }
 /// ```
-pub fn verify(
-    pubkey: &SecretBox<G2Projective>,
-    msg: &[u8],
-    sig: &SecretBox<G1Projective>,
-) -> Result<bool, GroupError> {
+pub fn verify(pubkey: &PublicKey, msg: &[u8], sig: &Signature) -> Result<bool, GroupError> {
     // Expand the message to a curve point using the DST and security bits
     let expander = XMDExpander::<Keccak256>::new(DST, SECURITY_BITS);
     // Assert that the message can be hashed to a curve point and the pairings compared,
     // returning a boolean or an error
     match G1Projective::hash_to_curve(&expander, msg) {
         Ok(hashed_message) => {
-            let lhs = pairing(&sig.borrow(), &G2Projective::generator());
-            let rhs = pairing(&hashed_message, &pubkey.borrow());
-            Ok(lhs.ct_eq(&rhs).into())
+            #[cfg(feature = "std")]
+            {
+                let lhs = pairing(&sig.borrow(), &G2Projective::generator());
+                let rhs = pairing(&hashed_message, &pubkey.borrow());
+                Ok(lhs.ct_eq(&rhs).into())
+            }
+            #[cfg(not(feature = "std"))]
+            {
+                let lhs = pairing(sig, &G2Projective::generator());
+                let rhs = pairing(&hashed_message, pubkey);
+                Ok(lhs.ct_eq(&rhs).into())
+            }
         }
         _ => Err(GroupError::CannotHashToGroup),
     }

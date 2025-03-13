@@ -37,6 +37,7 @@ use crate::fields::fp::{FieldExtensionTrait, Fp, Fr};
 use crate::fields::fp2::Fp2;
 use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait};
 use crate::hasher::Expander;
+use alloc::vec::Vec;
 use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::U256;
 use num_traits::{One, Zero};
@@ -303,7 +304,7 @@ impl G2Affine {
     /// # Returns
     ///
     /// * `Result<Self, GroupError>` - A new point if the coordinates satisfy the curve equation,
-    ///    or an error if they don't
+    ///  or an error if they don't
     fn new_unchecked(v: [Fp2; 2]) -> Result<Self, GroupError> {
         let is_on_curve = {
             let y2 = v[1].square();

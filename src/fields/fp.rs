@@ -12,18 +12,18 @@
 //! There are two levels of performance that we implement:
 //!
 //! 1. Montgomery arithmetic:
-//!     This is a special type of modular arithmetic that
-//!     allows for quick execution of binary operations
-//!     for a given modulus. This relies on the generation
-//!     of additional constants. For more information, see Ref 1.
+//!   This is a special type of modular arithmetic that
+//!   allows for quick execution of binary operations
+//!   for a given modulus. This relies on the generation
+//!   of additional constants. For more information, see Ref 1.
 //!
 //! 2. Constant-time operations:
-//!     In general, code may be differently executed depending
-//!     on the inputs passed to it. Unrolling for loops differently
-//!     for different inputs allows for side channel attacks. All
-//!     this to say that all operations are performed in constant
-//!     time with the usage of the `ConstMontyForm` struct of
-//!     `crypto_bigint`.
+//!   In general, code may be differently executed depending
+//!   on the inputs passed to it. Unrolling for loops differently
+//!   for different inputs allows for side channel attacks. All
+//!   this to say that all operations are performed in constant
+//!   time with the usage of the `ConstMontyForm` struct of
+//!   `crypto_bigint`.
 //!
 //! This module provides:
 //! - Efficient arithmetic operations in 𝔽ₚ
@@ -36,13 +36,14 @@
 //! ----------
 //! 1. <https://cacr.uwaterloo.ca/hac/about/chap14.pdf>
 
+use alloc::vec::Vec;
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use crypto_bigint::{
     impl_modulus, modular::ConstMontyParams, rand_core::CryptoRngCore, ConcatMixed, NonZero,
     RandomMod, Uint, U256,
 };
 use num_traits::{Euclid, Inv, One, Pow, Zero};
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Rem, Sub, SubAssign};
 use subtle::CtOption;
 
 /// The modulus of the BN254 base field as a 256-bit integer in words.
@@ -98,7 +99,7 @@ pub trait FieldExtensionTrait<const D: usize, const N: usize>:
     Sized
     + Copy
     + Clone
-    + std::fmt::Debug
+    + core::fmt::Debug
     + Default
     + Add<Output = Self>
     + AddAssign
@@ -489,7 +490,7 @@ macro_rules! define_finite_prime_field {
                     .div_rem(&NonZero::<$uint_type>::new(other.1.retrieve()).unwrap());
 
                 if self.1.retrieve().bit(255).into() {
-                    _q = _q - <$uint_type>::ONE;
+                    _q -= <$uint_type>::ONE;
                     _r = other.1.retrieve() - _r;
                 }
                 Self::new(_q)
@@ -515,16 +516,16 @@ macro_rules! define_finite_prime_field {
             }
         }
 
-        impl std::fmt::Debug for $wrapper_name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        impl core::fmt::Debug for $wrapper_name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 f.debug_struct(stringify!($wrapper_name))
                     .field(stringify!($uint_type), &self.value())
                     .finish()
             }
         }
 
-        impl std::hash::Hash for $wrapper_name {
-            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        impl core::hash::Hash for $wrapper_name {
+            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
                 self.value().hash(state);
             }
         }
@@ -662,9 +663,9 @@ impl Fp {
     /// * `arr` - &[u8; 32] - the byte array to convert to an element in the base field
     /// # Returns
     /// * `CtOption<Self>` - the element in the base field, or None if the value is greater than the
-    ///                      Note that the CtOption is designed to panic during `unwrap` if the
-    ///                      option is none, whichwill require the user to handle the error
-    ///                      themselves with the `is_none` or `is_some` methods
+    ///  Note that the CtOption is designed to panic during `unwrap` if the
+    ///  option is none, whichwill require the user to handle the error
+    ///  themselves with the `is_none` or `is_some` methods
     pub fn from_be_bytes(arr: &[u8; 32]) -> CtOption<Self> {
         // a simple subtraction that returns the borrow
         #[inline(always)]
@@ -782,6 +783,7 @@ impl FieldExtensionTrait<2, 2> for Fp {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::format;
 
     fn create_field(value: [u64; 4]) -> Fp {
         Fp::new(U256::from_words(value))
@@ -1278,6 +1280,8 @@ mod tests {
 
     mod vss_tests {
         use super::*;
+        use alloc::vec;
+        use alloc::vec::Vec;
 
         // The coefficients are [a_0,...,a_n], and so this evaluates sum(a_i x^i).
         fn eval_polynomial(coefficients: &[Fp], x: &Fp) -> Fp {
@@ -1500,8 +1504,9 @@ mod tests {
 
     mod hash_tests {
         use super::*;
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
+        use core::hash::{Hash, Hasher};
+        use proptest::std_facade::hash_map::DefaultHasher;
+        use proptest::std_facade::HashSet;
 
         fn calculate_hash<T: Hash>(t: &T) -> u64 {
             let mut s = DefaultHasher::new();
@@ -1521,7 +1526,6 @@ mod tests {
         }
         #[test]
         fn test_hash_set_insertion() {
-            use std::collections::HashSet;
             let mut set = HashSet::new();
             let v1 = Fp::from(123456789u64);
             let v2 = Fp::from(123456789u64);

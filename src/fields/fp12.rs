@@ -17,9 +17,9 @@ use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::fields::fp2::Fp2;
 use crate::fields::fp6::Fp6;
+use core::ops::{Div, DivAssign, Mul, MulAssign};
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Zero};
-use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::Choice;
 
 /// Frobenius coefficients for 𝔽ₚ¹².

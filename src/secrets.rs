@@ -133,7 +133,7 @@ unsafe impl Bytes for G2Projective {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::mem;
+    use core::mem;
     mod fp_bytes {
         use super::*;
         use tracing::warn;
@@ -149,7 +149,7 @@ mod tests {
         #[test]
         #[no_mangle]
         fn verify_fp_pointer_consistency() {
-            let mut fp = std::hint::black_box(Fp::uninitialized());
+            let mut fp = core::hint::black_box(Fp::uninitialized());
             let const_ptr = fp.as_u8_ptr();
             let mut_ptr = fp.as_mut_u8_ptr();
 
@@ -157,24 +157,24 @@ mod tests {
             assert_eq!(mut_ptr as usize % align_of::<Fp>(), 0);
 
             unsafe {
-                std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+                core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
 
                 // Use volatile write
-                std::ptr::write_volatile(mut_ptr, 0xAA);
-                std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+                core::ptr::write_volatile(mut_ptr, 0xAA);
+                core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
 
                 // Use volatile read
-                let read_val = std::ptr::read_volatile(const_ptr);
-                std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+                let read_val = core::ptr::read_volatile(const_ptr);
+                core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
 
                 if read_val != 0xAA {
                     warn!("Pointers should access same memory");
                 }
 
-                std::ptr::write_volatile(mut_ptr, 0x55);
-                std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+                core::ptr::write_volatile(mut_ptr, 0x55);
+                core::sync::atomic::fence(core::sync::atomic::Ordering::SeqCst);
 
-                let read_val2 = std::ptr::read_volatile(const_ptr);
+                let read_val2 = core::ptr::read_volatile(const_ptr);
                 if read_val2 != 0x55 {
                     warn!("Pointers should access same memory")
                 }
@@ -213,7 +213,7 @@ mod tests {
     }
     mod g1_bytes {
         use super::*;
-        use std::slice;
+        use core::slice;
         #[test]
         fn verify_g1_projective_layout() {
             // Verify total size is 96 bytes (3 * 32)
@@ -307,7 +307,7 @@ mod tests {
     }
     mod g2_bytes {
         use super::*;
-        use std::slice;
+        use core::slice;
 
         #[test]
         fn verify_g2_projective_layout() {

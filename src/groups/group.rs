@@ -29,9 +29,9 @@
 
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::hasher::Expander;
+use core::ops::{Add, Mul, Neg, Sub};
 use crypto_bigint::rand_core::CryptoRngCore;
 use crypto_bigint::subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
-use std::ops::{Add, Mul, Neg, Sub};
 
 /// Errors that can occur when working with group elements.
 #[derive(Debug, Copy, Clone)]
@@ -61,7 +61,7 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     Sized
     + Copy
     + Clone
-    + std::fmt::Debug
+    + core::fmt::Debug
     + Neg
     + ConstantTimeEq
     + ConditionallySelectable
@@ -96,14 +96,14 @@ pub trait GroupTrait<const D: usize, const N: usize, F: FieldExtensionTrait<D, N
     /// computational
     /// benefits, and can be decomposed as follows:
     /// 1. twist:        this is the map u that takes (x', y') |-> (w^2 x', w^3 y'), where
-    ///                  $w\in\mathbb{F_{p^{12}}$ is a root of $X^6-\xi$. This is an
-    ///                  injective map (that is not surjective), that maps the r-torsion to an
-    ///                  equivalent subgroup in the algebraic closure of the base field.
+    ///   $w\in\mathbb{F_{p^{12}}$ is a root of $X^6-\xi$. This is an
+    ///   injective map (that is not surjective), that maps the r-torsion to an
+    ///   equivalent subgroup in the algebraic closure of the base field.
     /// 2. Frobenius:    this is the map π that is difficult to succinctly explain, but more or
-    ///                  less identifies the kernel of the twist operation, namely those points
-    ///                  in the algebraic closure that satisfy rQ=0.
+    ///   less identifies the kernel of the twist operation, namely those points
+    ///   in the algebraic closure that satisfy rQ=0.
     /// 3. untwist:      having identified the points in the closure that satisfy the r-torsion
-    ///                  requirement, we map them back to the curve in Fp2.
+    ///   requirement, we map them back to the curve in Fp2.
     ///
     /// This endomorphism therefore encodes the torsion of a point in a compact,
     /// computationally efficient way. All of this fancy stuff equates simply, and remarkably,

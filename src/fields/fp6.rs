@@ -10,9 +10,9 @@
 use crate::fields::extensions::FieldExtension;
 use crate::fields::fp::{FieldExtensionTrait, Fp};
 use crate::fields::fp2::Fp2;
+use core::ops::{Div, DivAssign, Mul, MulAssign};
 use crypto_bigint::{rand_core::CryptoRngCore, subtle::ConditionallySelectable, U256};
 use num_traits::{Inv, One, Zero};
-use std::ops::{Div, DivAssign, Mul, MulAssign};
 use subtle::Choice;
 
 // the following values are a bit difficult to compute. The reason
@@ -412,9 +412,9 @@ impl Inv for Fp6 {
     ///
     /// * Implements a low-overhead version of Alg 17 of <https://eprint.iacr.org/2010/354.pdf>
     ///
-    ///     Caveat emptor: there is an error in this manuscript in Alg 17. Namely, step 6 of Alg 17
-    ///     should read `t_5 <- a_1 * a_2`, and secondly, step 9 should read `c_2 <- t_1 - t_4`.
-    ///     These corrections are implemented below.
+    ///  Caveat emptor: there is an error in this manuscript in Alg 17. Namely, step 6 of Alg 17
+    ///  should read `t_5 <- a_1 * a_2`, and secondly, step 9 should read `c_2 <- t_1 - t_4`.
+    ///  These corrections are implemented below.
     #[inline]
     fn inv(self) -> Self::Output {
         let t0 = self.0[0].square() - self.0[1] * self.0[2].residue_mul();

@@ -22,9 +22,11 @@ use crate::groups::group::{GroupAffine, GroupError, GroupProjective, GroupTrait}
 use crate::hasher::Expander;
 use crate::svdw::{MapError, SvdW, SvdWTrait};
 use crate::Fr;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use crypto_bigint::rand_core::CryptoRngCore;
 use num_traits::{One, Zero};
-use std::sync::OnceLock;
+use once_cell::race::OnceBox;
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, CtOption};
 
 /// Affine representation of a point in the 𝔾₁ group
@@ -34,7 +36,7 @@ pub type G1Affine = GroupAffine<1, 1, Fp>;
 pub type G1Projective = GroupProjective<1, 1, Fp>;
 
 /// Static instance of the Shallue-van de Woestijne map for 𝔾₁ on the BN254 curve
-static BN254_SVDW: OnceLock<Result<SvdW, MapError>> = OnceLock::new();
+static BN254_SVDW: OnceBox<Result<SvdW, MapError>> = OnceBox::new();
 
 /// Returns the Shallue-van de Woestijne map for 𝔾₁ on the BN254 curve
 ///
@@ -46,7 +48,7 @@ static BN254_SVDW: OnceLock<Result<SvdW, MapError>> = OnceLock::new();
 /// A result containing either a reference to the SvdW map or a reference to a [`MapError`]
 pub fn get_bn254_svdw() -> Result<&'static SvdW, &'static MapError> {
     BN254_SVDW
-        .get_or_init(|| SvdW::precompute_constants(Fp::ZERO, Fp::THREE))
+        .get_or_init(|| Box::new(SvdW::precompute_constants(Fp::ZERO, Fp::THREE)))
         .as_ref()
 }
 

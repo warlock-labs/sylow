@@ -11,10 +11,12 @@
 
 use crate::fields::fp::Fp;
 use crate::utils::u256_to_u512;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::array::TryFromSliceError;
 use crypto_bigint::{Encoding, NonZero, U256, U512};
 use sha3::digest::crypto_common::BlockSizeUser;
 use sha3::digest::{ExtendableOutput, FixedOutput};
-use std::array::TryFromSliceError;
 
 /// Possible errors which may occur during hashing operations.
 #[derive(Debug, Copy, Clone)]
@@ -136,7 +138,7 @@ pub trait Expander {
 #[derive(Debug)]
 pub struct XMDExpander<D: Default + FixedOutput + BlockSizeUser> {
     dst_prime: Vec<u8>,
-    hash_fn: std::marker::PhantomData<D>,
+    hash_fn: core::marker::PhantomData<D>,
     security_param: u64,
 }
 
@@ -166,7 +168,7 @@ impl<D: Default + FixedOutput + BlockSizeUser> XMDExpander<D> {
 
         XMDExpander {
             dst_prime,
-            hash_fn: std::marker::PhantomData,
+            hash_fn: core::marker::PhantomData,
             security_param,
         }
     }
@@ -258,7 +260,7 @@ impl<D: Default + FixedOutput + BlockSizeUser> Expander for XMDExpander<D> {
 #[derive(Debug)]
 pub struct XOFExpander<D: Default + ExtendableOutput> {
     dst_prime: Vec<u8>,
-    hash_fn: std::marker::PhantomData<D>,
+    hash_fn: core::marker::PhantomData<D>,
 }
 
 #[allow(dead_code)]
@@ -284,7 +286,7 @@ impl<D: Default + ExtendableOutput> XOFExpander<D> {
 
         XOFExpander {
             dst_prime,
-            hash_fn: std::marker::PhantomData,
+            hash_fn: core::marker::PhantomData,
         }
     }
 }
@@ -331,8 +333,12 @@ impl<D: Default + ExtendableOutput> Expander for XOFExpander<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
-    use std::sync::OnceLock;
+    use alloc::boxed::Box;
+    use alloc::format;
+    use alloc::string::String;
+    use once_cell::race::OnceBox;
+    use proptest::std_facade::HashMap;
+
     fn to_hex(bytes: &[u8]) -> String {
         // A simple utility function to convert a byte array into a big endian hex string
         bytes
@@ -343,47 +349,47 @@ mod tests {
             })
     }
     fn short_xof_hashmap() -> &'static HashMap<&'static str, &'static str> {
-        static HASHMAP: OnceLock<HashMap<&str, &str>> = OnceLock::new();
+        static HASHMAP: OnceBox<HashMap<&str, &str>> = OnceBox::new();
         HASHMAP.get_or_init(|| {
             let mut m = HashMap::new();
             m.insert("", "86518c9cd86581486e9485aa74ab35ba150d1c75c88e26b7043e44e2acd735a2");
             m.insert("abc",
                      "8696af52a4d862417c0763556073f47bc9b9ba43c99b505305cb1ec04a9ab468");
             m.insert("q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq", "1adbcc448aef2a0cebc71dac9f756b22e51839d348e031e63b33ebb50faeaf3f");
-            m
+            Box::new(m)
         })
     }
     fn long_xof_hashmap() -> &'static HashMap<&'static str, &'static str> {
-        static HASHMAP: OnceLock<HashMap<&str, &str>> = OnceLock::new();
+        static HASHMAP: OnceBox<HashMap<&str, &str>> = OnceBox::new();
         HASHMAP.get_or_init(|| {
             let mut m = HashMap::new();
             m.insert("", "827c6216330a122352312bccc0c8d6e7a146c5257a776dbd9ad9d75cd880fc53");
             m.insert("abc",
                      "690c8d82c7213b4282c6cb41c00e31ea1d3e2005f93ad19bbf6da40f15790c5c");
             m.insert("q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq", "c5a9220962d9edc212c063f4f65b609755a1ed96e62f9db5d1fd6adb5a8dc52b");
-            m
+            Box::new(m)
         })
     }
     fn short_xmd_hashmap() -> &'static HashMap<&'static str, &'static str> {
-        static HASHMAP: OnceLock<HashMap<&str, &str>> = OnceLock::new();
+        static HASHMAP: OnceBox<HashMap<&str, &str>> = OnceBox::new();
         HASHMAP.get_or_init(|| {
             let mut m = HashMap::new();
             m.insert("", "68a985b87eb6b46952128911f2a4412bbc302a9d759667f87f7a21d803f07235");
             m.insert("abc",
                      "d8ccab23b5985ccea865c6c97b6e5b8350e794e603b4b97902f53a8a0d605615");
             m.insert("q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq", "b23a1d2b4d97b2ef7785562a7e8bac7eed54ed6e97e29aa51bfe3f12ddad1ff9");
-            m
+            Box::new(m)
         })
     }
     fn long_xmd_hashmap() -> &'static HashMap<&'static str, &'static str> {
-        static HASHMAP: OnceLock<HashMap<&str, &str>> = OnceLock::new();
+        static HASHMAP: OnceBox<HashMap<&str, &str>> = OnceBox::new();
         HASHMAP.get_or_init(|| {
             let mut m = HashMap::new();
             m.insert("", "e8dc0c8b686b7ef2074086fbdd2f30e3f8bfbd3bdf177f73f04b97ce618a3ed3");
             m.insert("abc",
                      "52dbf4f36cf560fca57dedec2ad924ee9c266341d8f3d6afe5171733b16bbb12");
             m.insert("q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq", "01b637612bb18e840028be900a833a74414140dde0c4754c198532c3a0ba42bc");
-            m
+            Box::new(m)
         })
     }
     mod xof {
