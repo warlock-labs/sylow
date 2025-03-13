@@ -304,7 +304,7 @@ impl G2Affine {
     /// # Returns
     ///
     /// * `Result<Self, GroupError>` - A new point if the coordinates satisfy the curve equation,
-    ///    or an error if they don't
+    ///  or an error if they don't
     fn new_unchecked(v: [Fp2; 2]) -> Result<Self, GroupError> {
         let is_on_curve = {
             let y2 = v[1].square();

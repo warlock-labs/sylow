@@ -43,10 +43,13 @@ crypto-bigint = { version = "0.6.1", features = ["rand", "alloc"], default-featu
 num-traits = { version = "0.2.19", default-features = false }
 # Without the `std` feature explicitly enabled, we are `no_std`
 sha3 = { version = "0.11.0-pre.4", default-features = false }
+# sha3 burries the `alloc` feature of digest when `std` is not enabled, but it's needed and `no_std` safe for alloc only
+digest = { version = "0.11.0-pre.10", features = ["alloc"], default-features = false }
 # Explicitly `no_std`: https://github.com/dalek-cryptography/subtle/blob/5457b5448b021d1da101ababbb854e6657233943/src/lib.rs#L11
 subtle = { version = "2.6.1", default-features = false }
 # Without the `std` feature explicitly enabled, we are `no_std`
 tracing = { version = "0.1.40", default-features = false }
+# Is not `no_std` compatible, so we feature flag it off
 secrets = { version = "1.2.0", default-features = false, optional = true }
 # The `race` module in once_cell provides no_std compatibility
 once_cell = {version = "1.20.3", features = ["alloc", "parking_lot"], default-features = false}

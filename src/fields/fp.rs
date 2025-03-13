@@ -12,18 +12,18 @@
 //! There are two levels of performance that we implement:
 //!
 //! 1. Montgomery arithmetic:
-//!     This is a special type of modular arithmetic that
-//!     allows for quick execution of binary operations
-//!     for a given modulus. This relies on the generation
-//!     of additional constants. For more information, see Ref 1.
+//!   This is a special type of modular arithmetic that
+//!   allows for quick execution of binary operations
+//!   for a given modulus. This relies on the generation
+//!   of additional constants. For more information, see Ref 1.
 //!
 //! 2. Constant-time operations:
-//!     In general, code may be differently executed depending
-//!     on the inputs passed to it. Unrolling for loops differently
-//!     for different inputs allows for side channel attacks. All
-//!     this to say that all operations are performed in constant
-//!     time with the usage of the `ConstMontyForm` struct of
-//!     `crypto_bigint`.
+//!   In general, code may be differently executed depending
+//!   on the inputs passed to it. Unrolling for loops differently
+//!   for different inputs allows for side channel attacks. All
+//!   this to say that all operations are performed in constant
+//!   time with the usage of the `ConstMontyForm` struct of
+//!   `crypto_bigint`.
 //!
 //! This module provides:
 //! - Efficient arithmetic operations in 𝔽ₚ
@@ -663,9 +663,9 @@ impl Fp {
     /// * `arr` - &[u8; 32] - the byte array to convert to an element in the base field
     /// # Returns
     /// * `CtOption<Self>` - the element in the base field, or None if the value is greater than the
-    ///                      Note that the CtOption is designed to panic during `unwrap` if the
-    ///                      option is none, whichwill require the user to handle the error
-    ///                      themselves with the `is_none` or `is_some` methods
+    ///  Note that the CtOption is designed to panic during `unwrap` if the
+    ///  option is none, whichwill require the user to handle the error
+    ///  themselves with the `is_none` or `is_some` methods
     pub fn from_be_bytes(arr: &[u8; 32]) -> CtOption<Self> {
         // a simple subtraction that returns the borrow
         #[inline(always)]

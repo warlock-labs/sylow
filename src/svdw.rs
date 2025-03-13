@@ -78,7 +78,7 @@ pub(crate) trait SvdWTrait: Sized {
     /// * `b` - the B coefficient of the curve
     /// # Returns
     /// * `Result<SvdW, MapError>` - the struct containing the constants for the SvdW algorithm,
-    ///                                 or an error otherwise
+    ///  or an error otherwise
     fn find_z_svdw(a: Fp, b: Fp) -> Fp {
         let g = |x: &Fp| -> Fp { (*x) * (*x) * (*x) + a * (*x) + b };
         let h = |x: &Fp| -> Fp { -(Fp::THREE * (*x) * (*x) + Fp::FOUR * a) / (Fp::FOUR * g(x)) };
