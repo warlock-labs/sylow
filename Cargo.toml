@@ -34,6 +34,7 @@ path = "examples/verify_multiple_messages_same_signer.rs"
 [[example]]
 name = "simple_xor_ecies"
 path = "examples/simple_xor_ecies.rs"
+required-features = ["std"]
 
 [dependencies]
 # Explicitly `no_std` by construction: https://github.com/RustCrypto/crypto-bigint/blob/659ba4d7df97e47848d754b430446028af200bc3/src/lib.rs#L1
@@ -46,9 +47,13 @@ sha3 = { version = "0.11.0-pre.4", default-features = false }
 subtle = { version = "2.6.1", default-features = false }
 # Without the `std` feature explicitly enabled, we are `no_std`
 tracing = { version = "0.1.40", default-features = false }
-secrets = { version = "1.2.0", default-features = false }
+secrets = { version = "1.2.0", default-features = false, optional = true }
 # The `race` module in once_cell provides no_std compatibility
 once_cell = {version = "1.20.3", features = ["alloc", "parking_lot"], default-features = false}
+
+[features]
+default = []
+std = ["secrets"]
 
 [dev-dependencies]
 confy = "0.6.1"

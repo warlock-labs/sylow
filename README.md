@@ -7,8 +7,7 @@
 ![CI](https://github.com/warlock-labs/sylow/actions/workflows/CI.yml/badge.svg)
 [![codecov](https://codecov.io/gh/warlock-labs/sylow/graph/badge.svg?token=MJNRUZHI1Z)](https://codecov.io/gh/warlock-labs/sylow)
 
-<!-- Generally seems to be pronounced SEE-low at least in American English, and perhaps note that it's being named after Ludwig. -->
-Sylow (*ˈsyːlɔv*) is a comprehensive Rust library for elliptic curve cryptography, specifically tailored for the BN254 (
+Sylow (*ˈsyːlɔv*) is a comprehensive `#![no_std]` Rust library for elliptic curve cryptography, specifically tailored for the BN254 (
 alt-bn128) curve. It provides a robust implementation of finite fields, elliptic curve groups, and pairing-based
 cryptography, making it an ideal choice for applications in blockchain, zero-knowledge proofs, and other cryptographic
 systems.
@@ -102,7 +101,8 @@ The multiprecision arithmetic operations are implemented in constant time, ensur
 Constant-time operations are used whenever possible, and there are currently no variable-time functions used in Sylow.
 
 Furthermore, all key generation and manipulation utilities utilize the `secrets` crate, to ensure that all keys and 
-signatures are `mprotect`-ed during the entirety of the application runtime.
+signatures are `mprotect`-ed during the entirety of the application runtime. However, due to the FFI requirements of
+the crate, this functionality is feature flagged on the feature `std`.
 
 If you discover any security issues, please report them to [team@warlock.xyz](mailto:team@warlock.xyz).
 
