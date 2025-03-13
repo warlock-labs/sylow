@@ -55,7 +55,7 @@ secrets = { version = "1.2.0", default-features = false, optional = true }
 once_cell = {version = "1.20.3", features = ["alloc", "parking_lot"], default-features = false}
 
 [features]
-default = []
+default = ["std"]
 std = ["secrets"]
 
 [dev-dependencies]

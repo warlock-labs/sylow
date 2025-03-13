@@ -1,13 +1,11 @@
 ![Logo](./sylow.png)
 
-# Sylow
-
 [![Crates.io](https://img.shields.io/crates/v/sylow)](https://crates.io/crates/sylow)
 [![Docs](https://img.shields.io/crates/v/sylow?color=blue&label=docs)](https://docs.rs/sylow/)
 ![CI](https://github.com/warlock-labs/sylow/actions/workflows/CI.yml/badge.svg)
 [![codecov](https://codecov.io/gh/warlock-labs/sylow/graph/badge.svg?token=MJNRUZHI1Z)](https://codecov.io/gh/warlock-labs/sylow)
 
-Sylow (*ˈsyːlɔv*) is a comprehensive `#![no_std]` Rust library for elliptic curve cryptography, specifically tailored for the BN254 (
+Sylow (*ˈsyːlɔv*) is a comprehensive Rust library for elliptic curve cryptography, specifically tailored for the BN254 (
 alt-bn128) curve. It provides a robust implementation of finite fields, elliptic curve groups, and pairing-based
 cryptography, making it an ideal choice for applications in blockchain, zero-knowledge proofs, and other cryptographic
 systems.
@@ -102,7 +100,8 @@ Constant-time operations are used whenever possible, and there are currently no 
 
 Furthermore, all key generation and manipulation utilities utilize the `secrets` crate, to ensure that all keys and 
 signatures are `mprotect`-ed during the entirety of the application runtime. However, due to the FFI requirements of
-the crate, this functionality is feature flagged on the feature `std`.
+the crate, this functionality is feature flagged on the feature `std`, which is enabled by default. Enabling 
+`default_features = false` in the `Cargo.toml` will compile `sylow` in `no_std`.
 
 If you discover any security issues, please report them to [team@warlock.xyz](mailto:team@warlock.xyz).
 
