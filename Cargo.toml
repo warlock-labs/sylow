@@ -1,7 +1,6 @@
 [package]
 authors = ["Tristan Britt <tristan@warlock.xyz>",
-           "0xAlcibiades <alcibiades@warlock.xyz>",
-           "Michael Rolish <michael@warlock.xyz>"]
+           "0xAlcibiades <alcibiades@warlock.xyz>"]
 categories = ["cryptography", "mathematics"]
 description = "Implementation of the BLS signature scheme using the alt-bn128 curve."
 homepage = "https://github.com/warlock-labs/sylow"
@@ -11,7 +10,9 @@ readme = "README.md"
 repository = "https://github.com/warlock-labs/sylow.git"
 name = "sylow"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.85.0"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[example]]
